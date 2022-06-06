@@ -294,7 +294,7 @@ class UIA_Element extends UIA_Base {
 	;~ GetCachedPropertyValueEx 	13	VARIANT
 	GetCurrentPatternAs(pattern="") {
 		if IsObject(UIA_%pattern%Pattern)&&(iid:=UIA_%pattern%Pattern.__iid)&&(pId:=UIA_%pattern%Pattern.__PatternID)
-			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "int",pId, "ptr",UIA_GUID(riid,iid), "ptr*",out))? new UIA_%pattern%Pattern(out):
+			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "int",pId, "ptr",UIA_GUID(riid,iid), "ptr*",out))&&out? new UIA_%pattern%Pattern(out):
 		else throw Exception("Pattern not implemented.",-1, "UIA_" pattern "Pattern")
 	}
 	;~ GetCachedPatternAs 	15	void **ppv
@@ -315,8 +315,6 @@ class UIA_Element extends UIA_Base {
 			return res
 		else {
 			hwnd := this.GetParentHwnd()
-			;WinGetTitle, wTitle, ahk_id %hwnd%
-			;ToolTip, %wTitle%
 			if ((relativeTo == "window") || (relativeTo == "relative")) {
 				VarSetCapacity(RECT, 16)
 				DllCall("user32\GetWindowRect", "Ptr", hwnd, "Ptr", &RECT)
@@ -324,7 +322,6 @@ class UIA_Element extends UIA_Base {
 			} else if (relativeTo == "client") {
 				VarSetCapacity(pt,8,0), NumPut(res.x,&pt,0,"int"), NumPut(res.y,&pt,4,"int")
 				DllCall("ScreenToClient", "Ptr",hwnd, "Ptr",&pt)
-				;MsgBox, % "GetClickable: " res.x " " res.y "   " NumGet(pt,"int") " " NumGet(pt,4,"int") "    " wX " " wY
 				return {x:NumGet(pt,"int"), y:NumGet(pt,4,"int")}
 			}
 		}
@@ -332,6 +329,19 @@ class UIA_Element extends UIA_Base {
 	
 	
 	; ------- ONLY CUSTOM FUNCTIONS FROM HERE ON ----------------
+	GetSupportedPatterns() { ; Get all available patterns for the element. Use of this should be avoided, since it calls GetCurrentPatternAs for every possible pattern.
+		result := []
+		patterns := "Invoke,Selection,Value,RangeValue,Scroll,ExpandCollapse,Grid,GridItem,MultipleView,Window,SelectionItem,Dock,Table,TableItem,Text,Toggle,Transform,ScrollItem,ItemContainer,VirtualizedItem,SyncronizedInput,LegacyIAccessible"
+		Loop, Parse, patterns, `,
+		{
+			try {
+				if (this.GetCurrentPropertyValue(UIA_Is%A_LoopField%PatternAvailablePropertyId) == -1) {
+					result.Push(A_LoopField)
+				}
+			}
+		}
+		return result
+	}
 	GetParentHwnd() { ; Get the parent window hwnd from the element
 		hwndNotZeroCond := this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_NativeWindowHandlePropertyId, 0, VT_I4 := 3)) ; create a condition to find NativeWindowHandlePropertyId of not 0
 		TW := this.__UIA.CreateTreeWalker(hwndNotZeroCond)
@@ -342,8 +352,7 @@ class UIA_Element extends UIA_Base {
 			return 0
 		}
 	}
-	
-	SetValue(val, pattern="") { ; Set element value first using Value, as a fall-back LegacyIAccessible. If a pattern is specified then that is used instead.
+	SetValue(val, pattern="") { ; Set element value using Value pattern, or as a fall-back using LegacyIAccessible pattern. If a pattern is specified then that is used instead.
 		if !pattern {
 			try {
 				this.GetCurrentPatternAs("Value").SetValue(val)
@@ -354,16 +363,31 @@ class UIA_Element extends UIA_Base {
 			this.GetCurrentPatternAs(pattern).SetValue(val)
 		}
 	}
-	Click(but="", clickCount=1) { ; Click using LegacyIAccessible DoDefaultAction or Invoke as fall-back, clickCount is ignored. If but is set to left or right then the native mouse Click function will be used to click the center of the element.
+	Click(but="", clickCount=1) { ; Click using LegacyIAccessible pattern DoDefaultAction(), or the Toggle pattern with Toggle() method or Invoke pattern Invoke() as fall-back, in these cases clickCount is ignored. If but is specified (for example "left", "right") then the native mouse Click function will be used to click the center of the element.
 		;StringLower, but, but		
 		if (but == "") {
 			try {
-				this.GetCurrentPatternAs("LegacyIAccessible").DoDefaultAction()
+				if !IsObject(pattern := this.GetCurrentPatternAs("Invoke"))
+					throw
+				pattern.Invoke()
 			} catch {
 				try {
-					this.GetCurrentPatternAs("Toggle").Toggle()
+					if !IsObject(pattern := this.GetCurrentPatternAs("ExpandCollapse"))
+						throw
+					if (pattern.CurrentExpandCollapseState == 0)
+						pattern.Expand()
+					Else
+						pattern.Collapse()
 				} catch {
-					this.GetCurrentPatternAs("Invoke").Invoke()
+					try {
+						if !IsObject(pattern := this.GetCurrentPatternAs("Toggle"))
+							throw
+						pattern.Toggle()
+					} catch {
+						if !IsObject(pattern := this.GetCurrentPatternAs("LegacyIAccessible"))
+							return
+						pattern.DoDefaultAction()
+					}
 				}
 			}
 		} else {
@@ -372,10 +396,10 @@ class UIA_Element extends UIA_Base {
 		} 
 			
 	}
-	GetCurrentValue() {
+	GetCurrentValue() { ; Gets the current value of the element. This is a wrapper for GetCurrentPropertyValue("Value")
 		return this.GetCurrentPropertyValue("Value")
 	}
-	CurrentPos(relativeTo="") { ; relativeTo can be client, window or screen, default is A_CoordModeMouse 
+	CurrentPos(relativeTo="") { ; Returns an object containing the x, y coordinates and width and height: {x:x coordinate, y:y coordinate, w:width, h:height}. relativeTo can be client, window or screen, default is A_CoordModeMouse.
 		relativeTo := (relativeTo == "") ? A_CoordModeMouse : relativeTo
 		StringLower, relativeTo, relativeTo
 		br := this.CurrentBoundingRectangle
@@ -423,17 +447,19 @@ class UIA_Element extends UIA_Base {
 	Dump() { ; Returns info about the element: ControlType, Name, Value, LocalizedControlType, AcceleratorKey. 
 		return "Type: " this.CurrentControlType ((name := this.CurrentName) ? " Name: """ name """" : "") ((val := this.GetCurrentValue()) ? " Value: """ val """": "") ((lct := this.CurrentLocalizedControlType) ? " LocalizedControlType: """ lct """" : "") ((ak := this.CurrentAcceleratorKey) ? " AcceleratorKey: """ ak """": "")
 	}
-	DumpAll(maxDepth=20) { ; Returns info (ControlType, Name etc) for all descendants of the element.
+	DumpAll(maxDepth=20) { ; Returns info (ControlType, Name etc) for all descendants of the element. maxDepth is the allowed depth of recursion, by default 20 layers. DO NOT call this on the root element!
 		return this.TWRecursive(maxDepth)
 	}
 	/*
-		FindFirst using search criteria. 
+		FindFirst using search criteria. Scope by default is UIA_TreeScope_Descendants. matchMode follows SetTitleMatchMode scheme: 1=tab name must must start with tabName; 2=can contain anywhere; 3=exact match; RegEx
+		
 		For a specific criteria the following syntax is used: PropertyId=matchvalue
 		Example1: "Name=Username:" would use FindFirst with UIA_NamePropertyId looking for the string "Username:"
 		Example2: "ControlType=Button would FindFirst using UIA_ControlTypePropertyId and UIA_ButtonControlTypeId. Alternatively "ControlType=50000" can be used (direct value for UIA_ButtonControlTypeId which is 50000)
 		
 		Criteria can be combined with AND, OR, &&, ||:
 		Example3: "Name=Username: AND ControlType=Button" would FindFirst an element with the name property of "Username:" and control type of button.
+		Parenthesis are not supported.
 		
 		Negation can be specified with NOT:
 		Example4: "NOT ControlType=Edit" would return the first element that is not an edit element
@@ -485,6 +511,14 @@ class UIA_Element extends UIA_Base {
 		}
 	}
 	
+	FindFirstByType(controlType, scope=0x4) {
+		controlType := !RegexMatch(controlType, "^\d+$") ? (UIA_%controlType%ControlTypeId ? UIA_%controlType%ControlTypeId : controlType) : controlType
+		if !controlType
+			throw Exception("Invalid control type specified", -1)
+		ControlCondition := this.__UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, controlType, VT_I4 := 3)
+		return this.FindFirst(ControlCondition, scope)
+	}
+	
 	FindFirstByNameAndType(name, controlType, scope=0x4, matchMode=3) {
 		controlType := (!RegexMatch(controlType, "^\d+$") && UIA_%controlType%ControlTypeId) ? UIA_%controlType%ControlTypeId : controlType
 		if !controlType
@@ -518,14 +552,6 @@ class UIA_Element extends UIA_Base {
 		}
 		return retList
 	}
-	
-	FindFirstByType(controlType, scope=0x4) {
-		controlType := !RegexMatch(controlType, "^\d+$") ? (UIA_%controlType%ControlTypeId ? UIA_%controlType%ControlTypeId : controlType) : controlType
-		if !controlType
-			throw Exception("Invalid control type specified", -1)
-		ControlCondition := this.__UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, controlType, VT_I4 := 3)
-		return this.FindFirst(ControlCondition, scope)
-	}
 
 	FindAllByType(controlType, scope=0x4) {
 		controlType := !RegexMatch(controlType, "^\d+$") ? (UIA_%controlType%ControlTypeId ? UIA_%controlType%ControlTypeId : controlType) : controlType
@@ -534,8 +560,29 @@ class UIA_Element extends UIA_Base {
 		ControlCondition := this.__UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, controlType, VT_I4 := 3)
 		return this.FindAll(ControlCondition, scope)
 	}
+
+	FindAllByNameAndType(name, controlType, scope=0x4, matchMode=3) {
+		controlType := (!RegexMatch(controlType, "^\d+$") && UIA_%controlType%ControlTypeId) ? UIA_%controlType%ControlTypeId : controlType
+		if !controlType
+			throw Exception("Invalid control type specified", -1)
+		ControlCondition := this.__UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, controlType, VT_I4 := 3)
+		if (matchMode == 3) {
+			NameCondition := this.__UIA.CreatePropertyCondition(UIA_NamePropertyId, name, VT_BSTR := 8)
+			AndCondition := this.__UIA.CreateAndCondition(NameCondition, ControlCondition)
+			return this.FindAll(AndCondition, scope)
+		}
+		notEmptyCond := this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_NamePropertyId, "", VT_BSTR))
+		AndCondition := this.__UIA.CreateAndCondition(notEmptyCond, ControlCondition)
+		returnArr := []
+		for k, v in this.FindAll(AndCondition, scope) {
+			curName := v.CurrentName
+			if (((matchMode == 1) && (SubStr(curName, 1, StrLen(name)) == name)) || ((matchMode == 2) && InStr(curName, name)) || ((matchMode == "RegEx") && RegExMatch(curName, name)))
+				returnArr.Push(v)	
+		}
+		return returnArr
+	}
 	
-	WaitElementExist(expr, scope=0x4, matchMode=3, timeOut=10000) {
+	WaitElementExist(expr, scope=0x4, matchMode=3, timeOut=10000) { ; Calls UIA_Element.FindFirstBy until the element is found and then returns it, with a timeOut of 10000ms (10 seconds)
 		startTime := A_TickCount
 		while (!IsObject(el := this.FindFirstBy(expr, scope, matchMode)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
 			Sleep, 100
@@ -918,9 +965,8 @@ class UIA_ScrollPattern extends UIA_Base {
 ;~ class UIA_TransformPattern extends UIA_Base {10016
 ;~ class UIA_TransformPattern2 extends UIA_Base {10028
 
-; Untested class!
 class UIA_ValuePattern extends UIA_Base {
-	static	__IID := "{59213F4F-7346-49E5-B120-80555987A148}"
+	static	__IID := "{A94CD8B1-0844-4CD6-9D2D-640537AB39E9}"
 		,	__PatternID := 10002
 		,	__Properties := "CurrentValue,4,BSTR`r`nCurrentIsReadOnly,5,BOOL`r`nCachedValue,6,double`r`nCachedIsReadOnly,7,BOOL"
 

@@ -11,16 +11,12 @@ class UIA_Browser {
 		if this.BrowserId {
 			WinGet, wExe, ProcessName, % "ahk_id" this.BrowserId
 			this.BrowserType := (wExe == "chrome.exe") ? "Chrome" : (wExe == "msedge.exe") ? "Edge" : "Unknown"
-			;if (this.BrowserType == "Edge")
-			;	this.BrowserElement.FindFirstBuildCache(this.UIA.TrueCondition, UIA_TreeScope_Descendants, this.ControlCache)
 			this.GetCurrentMainPaneElement()
 		}
 	}
 	
 	__Call(member, params*) {
-		if !ObjHasKey(this.base, member) {
-			;ClipBoard := PrintArray(this.BrowserElement)
-			
+		if !ObjHasKey(this.base, member) {			
 			if ObjHasKey(this.UIA.base, member)
 				return this.UIA[member].Call(this.UIA, params*)
 			else if ObjHasKey(this.BrowserElement.base, member)
@@ -30,23 +26,19 @@ class UIA_Browser {
 		}
 	}
 	
-	GetCurrentMainPaneElement() {
+	GetCurrentMainPaneElement() { ; Refreshes UIA_Browser.MainPaneElement and also returns it
 		ToolbarControlCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_ToolBarControlTypeId, VT_I4 := 3)
 		return this.MainPaneElement := this.TWT.GetParentElement(this.NavigationBarElement := this.BrowserElement.FindFirst(ToolbarControlCondition))
-		;PaneControlCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_PaneControlTypeId, VT_I4 := 3)
-		;PaneNameCondition := this.UIA.CreatePropertyCondition(UIA_NamePropertyId, "Google Chrome", VT_BSTR := 8)
-		;AndCondition := this.UIA.CreateAndCondition(PaneControlCondition,PaneNameCondition)
-		;this.MainPaneElement := this.BrowserElement.FindFirst(AndCondition)
 	}
 	
-	GetCurrentDocumentElement() {
+	GetCurrentDocumentElement() { ; Returns the current document/content element of the browser
 		docType := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_DocumentControlTypeId, VT_I4 := 3)
 		if (this.BrowserType == "Edge")
 			this.BrowserElement.FindFirstBuildCache(this.UIA.TrueCondition, UIA_TreeScope_Descendants, this.ControlCache)
 		return IsObject(ff := this.BrowserElement.FindFirst(docType)) ? ff : this.BrowserElement.FindFirst(docType)
 	}
 	
-	GetAllText() { ; Gets all the text from the webpage (CurrentName properties for all elements)
+	GetAllText() { ; Gets all text from the browser element (CurrentName properties for all child elements)
 		if !this.IsBrowserVisible()
 			WinActivate, % "ahk_id" this.BrowserId
 		if (this.BrowserType == "Edge")
@@ -60,7 +52,7 @@ class UIA_Browser {
 		return Text
 	}
 
-	GetAllLinks() { ; Returns all link elements in the current webpage
+	GetAllLinks() { ; Gets all link elements from the browser
 		if !this.IsBrowserVisible()
 			WinActivate, % "ahk_id" this.BrowserId
 		if (this.BrowserType == "Edge")
@@ -88,7 +80,7 @@ class UIA_Browser {
 		return 0
 	}
 	
-	WaitTitleChange(targetTitle="", timeOut=10000) {
+	WaitTitleChange(targetTitle="", timeOut=10000) { ; Waits the browser title to change to targetTitle (by default just waits for the title to change), timeOut is in milliseconds (default is 10 seconds)
 		WinGetTitle, origTitle, % "ahk_id" this.BrowserId
 		startTime := A_TickCount, newTitle := origTitle
 		while (((A_TickCount - startTime) < timeOut) && (targetTitle ? !this.__CompareTitles(targetTitle, newTitle) : (origTitle == newTitle))) {
@@ -97,7 +89,7 @@ class UIA_Browser {
 		}
 	}
 	
-	WaitPageLoad(targetTitle="", timeOut=10000, sleepAfter=500) {
+	WaitPageLoad(targetTitle="", timeOut=10000, sleepAfter=500) { ; Waits the browser page to load to targetTitle, default timeOut is 10 seconds, sleepAfter additionally sleeps for 500ms after the page has loaded. In Edge browser this just waits for the title to change, so its better to use the WaitElementExist function.
 		if (this.BrowserType != "Chrome") {
 			this.WaitTitleChange(targetTitle, timeOut)
 			Sleep, %sleepAfter%
@@ -127,15 +119,15 @@ class UIA_Browser {
 			Sleep, %sleepAfter%
 	}
 	
-	Back() {
+	Back() { ; Presses the Back button
 		this.TWT.GetFirstChildElement(this.NavigationBarElement).Click()
 	}
 	
-	Forward() {
+	Forward() { ; Presses the Forward button
 		this.TWT.GetNextSiblingElement(this.TWT.GetFirstChildElement(this.NavigationBarElement)).Click()
 	}
 
-	Reload() {
+	Reload() { ; Presses the Reload button
 		this.TWT.GetNextSiblingElement(this.TWT.GetNextSiblingElement(this.TWT.GetFirstChildElement(this.NavigationBarElement))).Click()
 		/*
 		this.MainPaneElement
@@ -146,13 +138,13 @@ class UIA_Browser {
 		*/
 	}
 
-	Home(butName="Home") {
+	Home(butName="Home") { ; Presses the Home button if it exists. If the browser language is not set to English, the correct butName can be specified.
 		this.MainPaneElement
 		ButtonCondition := this.UIA.CreatePropertyCondition(UIA_NamePropertyId, butName, VT_BSTR := 8)
 		this.NavigationBarElement.FindFirst(ButtonCondition).Click()
 	}
 	
-	GetCurrentURL(fromAddressBar=False) { ; Getting the current URL with fromAddressBar=True is not a very good method, because it gets the text straight from the URL edit element, which might be changed by the user and doesn't start with "http(s)://". Setting it to false will cause the real URL to be fetched, but the browser must be visible for it to work (if is not visible, it will be automatically activated).
+	GetCurrentURL(fromAddressBar=False) { ; Gets the current URL. fromAddressBar=True gets it straight from the URL bar element, which is not a very good method, because the text might be changed by the user and doesn't start with "http(s)://". Default of fromAddressBar=False will cause the real URL to be fetched, but the browser must be visible for it to work (if is not visible, it will be automatically activated).
 		if fromAddressBar {
 			EditControlCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_EditControlTypeId, VT_I4 := 3)
 			URLEdit := this.MainPaneElement.FindFirst(EditControlCondition)
@@ -167,7 +159,7 @@ class UIA_Browser {
 		}
 	}
 	
-	SetURL(newUrl, navigateToNewUrl = False) {
+	SetURL(newUrl, navigateToNewUrl = False) { ; Sets the URL bar to newUrl, optionally also navigates to it if navigateToNewUrl=True
 		EditControlCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_EditControlTypeId, VT_I4 := 3)
 		URLEdit := this.MainPaneElement.FindFirst(EditControlCondition)
 		try {
@@ -179,24 +171,24 @@ class UIA_Browser {
 			ControlSend,, {Enter}, % "ahk_id" this.BrowserId
 	}
 	
-	NewTab(butName="New Tab") { ; The button name might differ if the browser locale is not set to English
+	NewTab(butName="New Tab") { ; Presses the New tab button. The button name might differ if the browser language is not set to English and can be specified with butName
 		newTabBut := this.MainPaneElement.FindFirstByNameAndType(butName, UIA_ButtonControlTypeId)
 		newTabBut.Click()
 	}
 	
-	GetAllTabs() {
+	GetAllTabs() { ; Gets all tab elements
 		TabItemControlCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_TabItemControlTypeId, VT_I4 := 3)
 		return this.MainPaneElement.FindAll(TabItemControlCondition)
 	}
 
-	GetAllTabNames() {
+	GetAllTabNames() { ; Gets all the titles of tabs
 		names := []
 		for k, v in this.GetAllTabs()
 			names.Push(v.CurrentName)
 		return names
 	}
 	
-	SelectTab(tabName, matchMode=3) { ; matchMode follows SetTitleMatchMode scheme: 1=must start with; 2=can contain anywhere; 3=exact match; RegEx
+	SelectTab(tabName, matchMode=3) { ; Selects a tab with the text of tabName. matchMode follows SetTitleMatchMode scheme: 1=tab name must must start with tabName; 2=can contain anywhere; 3=exact match; RegEx
 		if (matchMode==3) {
 			TabItemControlCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_TabItemControlTypeId, VT_I4 := 3)
 			TabNameCondition := this.UIA.CreatePropertyCondition(UIA_NamePropertyId, tabName, VT_BSTR := 8)
@@ -210,7 +202,7 @@ class UIA_Browser {
 		}
 	}
 	
-	IsBrowserVisible() { ; returns True if any of window 4 corners are visible
+	IsBrowserVisible() { ; Returns True if any of window 4 corners are visible
 		WinGetPos, X, Y, W, H, % "ahk_id" this.BrowserId
 		if ((this.BrowserId == this.WindowFromPoint(X, Y)) || (this.BrowserId == this.WindowFromPoint(X, Y+H-1)) || (this.BrowserId == this.WindowFromPoint(X+W-1, Y)) || (this.BrowserId == this.WindowFromPoint(X+W-1, Y+H-1)))
 			return True

@@ -6,8 +6,10 @@ CoordMode, Mouse, Screen
 
 #include <UIA_Interface>
 
-global UIA := UIA_Interface(), IsCapturing := False, Stored := {}
+global UIA := UIA_Interface(), IsCapturing := False, Stored := {}, Acc, EnableAccTree := False
 Stored.TreeView := {}
+Acc_Init()
+Acc_Error(1)
 
 _xoffsetfirst := 8
 _xoffset := 5
@@ -35,7 +37,7 @@ Gui Add, Edit, ys-%_ysoffset% w80 vEditWinClass,
 Gui Add, Edit, w80 vEditWinProcess,
 Gui Add, Edit, w80 vEditWinProcessID,
 
-Gui Add, GroupBox, x%_xoffsetfirst% y180 w302 h265, UIAutomation Element Info
+Gui Add, GroupBox, x%_xoffsetfirst% y180 w302 h295, UIAutomation Element Info
 Gui Add, Text, xm+%_xoffsetfirst% yp+%_yoffset%, ControlType:
 Gui Add, Edit, x+%_xoffset% yp-%_ysoffset% w40 vEditControlType,
 Gui Add, Text, x+%_xoffset% yp+%_ysoffset%, LocalizedControlType:
@@ -67,7 +69,12 @@ Gui Add, CheckBox, ys +Disabled vCBIsEnabled, IsEnabled
 Gui Add, Button, xm+60 yp+30 w150 gButCapture vButCapture, Start capturing
 Gui Add, Button, xp+300 yp w192 vButRefreshTreeView gButRefreshTreeView +Disabled, Start capturing to show tree
 
-Gui Main:Add, TreeView, x320 y8 w300 h435 hwndhMainTreeView vMainTreeView gMainTreeView
+Gui Add, TreeView, x320 y8 w300 h435 hwndhMainTreeView vMainTreeView gMainTreeView
+Gui, Font, Bold
+Gui, Add, StatusBar, gMainSB vMainSB
+SB_SetText("`tClick here to enable Acc path capturing (can't be used with UIA!)")
+Gui, Font
+SB_SetParts(370)
 
 Gui Show,, UIAViewer
 Return
@@ -76,6 +83,19 @@ MainGuiEscape:
 MainGuiClose:
 	IsCapturing := False
     ExitApp
+
+MainSB:
+	GuiControlGet, SBText,, MainSB
+	if (SBText == "`tClick here to enable Acc path capturing (can't be used with UIA!)") {
+		EnableAccTree := True
+		SB_SetText("",1)
+		SB_SetText("`tClick on path to copy to Clipboard",2)
+	} else if SBText {
+		Clipboard := SubStr(SBText, 8)
+		ToolTip, % "Successfully copied """ SubStr(SBText, 8) """ to Clipboard!"
+		SetTimer, RemoveToolTip, -2000
+	}
+	return
 
 ButCapture:
 	if IsCapturing {
@@ -91,6 +111,7 @@ ButCapture:
 		GuiControl, Main: Disable, ButCapture
 		GuiControl, Main: Disable, ButRefreshTreeView
 		GuiControl, Main:, ButRefreshTreeView, Hold cursor still to construct tree
+		Stored := {}
 		
 		While (IsCapturing) {
 			MouseGetPos, mX, mY, mHwnd, mCtrl
@@ -119,6 +140,10 @@ ButCapture:
 					if !UIA.CompareElements(mEl, Stored.Element) {
 						UpdateElementFields(mEl)
 						Stored.TickCount := A_TickCount
+						if EnableAccTree {
+							oAcc := Acc_ObjectFromPoint(childId, mX, mY), Acc_Location(oAcc,childId,vAccLoc)
+							SB_SetText(" Path: " GetAccPathTopDown(mHwnd, vAccLoc), 1)
+						}
 					} else if (Stored.TickCount && (A_TickCount - Stored.TickCount > 1000)) { ; Wait for mouse to be stable for a second
 						Stored.TickCount := 0
 						RedrawTreeView(mEl, False)
@@ -126,7 +151,6 @@ ButCapture:
 							if (v == mEl)
 								TV_Modify(k)
 						}
-					
 					}
 				} 
 			}
@@ -141,12 +165,29 @@ ButCapture:
 ButRefreshTreeView:
 	if (Stored.Hwnd && WinExist("ahk_id" Stored.Hwnd))
 		RedrawTreeView(UIA.ElementFromHandle(Stored.Hwnd), True)
+	if IsObject(Stored.Element) {
+		for k,v in Stored.TreeView
+			if UIA.CompareElements(v, Stored.Element)
+				TV_Modify(k)
+		if EnableAccTree {
+			br := Stored.Element.CurrentBoundingRectangle
+			GetAccPathTopDown(Stored.Hwnd, "x" br.l " y" br.t " w" (br.r-br.l) " h" (br.b-br.t), True)
+		}
+	}
 	return
 
 MainTreeView:
 	if (A_GuiEvent == "S") {
 		UpdateElementFields(Stored.Treeview[A_EventInfo])
+		if EnableAccTree {
+			br := Stored.Treeview[A_EventInfo].CurrentBoundingRectangle
+			SB_SetText(" Path: " GetAccPathTopDown(Stored.Hwnd, "x" br.l " y" br.t " w" (br.r-br.l) " h" (br.b-br.t)), 1)
+		}
 	}
+	return
+
+RemoveToolTip:
+	ToolTip
 	return
 
 UpdateElementFields(mEl) {
@@ -203,7 +244,7 @@ RedrawTreeView(el, noAncestors=True) {
 			try {
 				elDesc := ancestors[maxInd].CurrentLocalizedControlType " """ ancestors[maxInd].CurrentName """"
 				if (elDesc == " """"")
-					return
+					break
 				Stored.TreeView[parent := TV_Add(elDesc, parent)] := ancestors[maxInd]
 			}
 		}
@@ -232,9 +273,107 @@ ConstructTreeView(el, parent="") {
 	}
 }
 
-RemoveToolTip:
-	ToolTip
-	return
+GetAccPathTopDown(hwnd, vAccPos, updateTree=False) {
+	static accTree
+	if !IsObject(accTree)
+		accTree := {}
+	if (!IsObject(accTree[hwnd]) || updateTree)
+		accTree[hwnd] := BuildAccTreeRecursive(Acc_ObjectFromWindow(hwnd, 0), {})
+	for k, v in accTree[hwnd] {
+		if (v == vAccPos)
+			return k
+	}
+}
+
+BuildAccTreeRecursive(oAcc, tree, path="") {
+	if !IsObject(oAcc)
+		return tree
+	try 
+		oAcc.accChildCount
+	catch
+		return tree
+	For i, oChild in Acc_Children(oAcc) {
+		if IsObject(oChild)
+			Acc_Location(oChild,,vChildPos)
+		else
+			Acc_Location(oAcc,oChild,vChildPos)
+		tree[path (path?(IsObject(oChild)?".":" c"):"") i] := vChildPos
+		tree := BuildAccTreeRecursive(oChild, tree, path (path?".":"") i)
+	}
+	return tree
+}
+Acc_Init()
+{
+	Static	h
+	If Not	h
+	h:=DllCall("LoadLibrary","Str","oleacc","Ptr")
+}
+Acc_ObjectFromEvent(ByRef _idChild_, hWnd, idObject, idChild)
+{
+	Acc_Init()
+	If	DllCall("oleacc\AccessibleObjectFromEvent", "Ptr", hWnd, "UInt", idObject, "UInt", idChild, "Ptr*", pacc, "Ptr", VarSetCapacity(varChild,8+2*A_PtrSize,0)*0+&varChild)=0
+	Return	ComObjEnwrap(9,pacc,1), _idChild_:=NumGet(varChild,8,"UInt")
+}
+
+Acc_ObjectFromPoint(ByRef _idChild_ = "", x = "", y = "")
+{
+	Acc_Init()
+	If	DllCall("oleacc\AccessibleObjectFromPoint", "Int64", x==""||y==""?0*DllCall("GetCursorPos","Int64*",pt)+pt:x&0xFFFFFFFF|y<<32, "Ptr*", pacc, "Ptr", VarSetCapacity(varChild,8+2*A_PtrSize,0)*0+&varChild)=0
+	Return	ComObjEnwrap(9,pacc,1), _idChild_:=NumGet(varChild,8,"UInt")
+}
+
+Acc_ObjectFromWindow(hWnd, idObject = -4)
+{
+	Acc_Init()
+	If	DllCall("oleacc\AccessibleObjectFromWindow", "Ptr", hWnd, "UInt", idObject&=0xFFFFFFFF, "Ptr", -VarSetCapacity(IID,16)+NumPut(idObject==0xFFFFFFF0?0x46000000000000C0:0x719B3800AA000C81,NumPut(idObject==0xFFFFFFF0?0x0000000000020400:0x11CF3C3D618736E0,IID,"Int64"),"Int64"), "Ptr*", pacc)=0
+	Return	ComObjEnwrap(9,pacc,1)
+}
+
+Acc_WindowFromObject(pacc)
+{
+	If	DllCall("oleacc\WindowFromAccessibleObject", "Ptr", IsObject(pacc)?ComObjValue(pacc):pacc, "Ptr*", hWnd)=0
+	Return	hWnd
+}
+Acc_Error(p="") {
+	static setting:=0
+	return p=""?setting:setting:=p
+}
+Acc_Children(Acc) {
+	if ComObjType(Acc,"Name") != "IAccessible"
+		ErrorLevel := "Invalid IAccessible Object"
+	else {
+		Acc_Init(), cChildren:=Acc.accChildCount, Children:=[]
+		if DllCall("oleacc\AccessibleChildren", "Ptr",ComObjValue(Acc), "Int",0, "Int",cChildren, "Ptr",VarSetCapacity(varChildren,cChildren*(8+2*A_PtrSize),0)*0+&varChildren, "Int*",cChildren)=0 {
+			Loop %cChildren%
+				i:=(A_Index-1)*(A_PtrSize*2+8)+8, child:=NumGet(varChildren,i), Children.Push(NumGet(varChildren,i-8)=9?Acc_Query(child):child), NumGet(varChildren,i-8)=9?ObjRelease(child):
+			return Children.MaxIndex()?Children:
+		} else
+			ErrorLevel := "AccessibleChildren DllCall Failed"
+	}
+	if Acc_Error()
+		throw Exception(ErrorLevel,-1)
+}
+Acc_Location(Acc, ChildId=0, byref Position="") { ; adapted from Sean's code
+	try Acc.accLocation(ComObj(0x4003,&x:=0), ComObj(0x4003,&y:=0), ComObj(0x4003,&w:=0), ComObj(0x4003,&h:=0), ChildId)
+	catch
+		return
+	Position := "x" NumGet(x,0,"int") " y" NumGet(y,0,"int") " w" NumGet(w,0,"int") " h" NumGet(h,0,"int")
+	return	{x:NumGet(x,0,"int"), y:NumGet(y,0,"int"), w:NumGet(w,0,"int"), h:NumGet(h,0,"int")}
+}
+Acc_Parent(Acc)
+{
+	try parent:=Acc.accParent
+	return parent?Acc_Query(parent):
+}
+Acc_Child(Acc, ChildId=0)
+{
+	try child:=Acc.accChild(ChildId)
+	return child?Acc_Query(child):
+}
+Acc_Query(Acc)
+{
+	try return ComObj(9, ComObjQuery(Acc,"{618736e0-3c3d-11cf-810c-00aa00389b71}"), 1)
+}
 
 RangeTip(x:="", y:="", w:="", h:="", color:="Red", d:=2) ; from the FindText library, credit goes to feiyue
 {

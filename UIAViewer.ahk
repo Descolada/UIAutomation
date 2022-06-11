@@ -115,8 +115,23 @@ ButCapture:
 		
 		While (IsCapturing) {
 			MouseGetPos, mX, mY, mHwnd, mCtrl
-			mEl := UIA.ElementFromPoint(mX, mY)
-			
+			try {
+				mEl := UIA.ElementFromPoint(mX, mY)
+
+				; Sometimes ElementFromPoint doesn't get the deepest child node, so iterate all the child nodes and find the smallest one under the cursor
+				bound := mEl.CurrentBoundingRectangle, mElSize := (bound.r-bound.l)*(bound.b-bound.t)
+				for k, v in mEl.FindAll(UIA.TrueCondition) {
+					bound := v.CurrentBoundingRectangle
+					if ((mX >= bound.l) && (mX <= bound.r) && (mY >= bound.t) && (mY <= bound.b) && ((newSize := (bound.r-bound.l)*(bound.b-bound.t)) < mElSize))
+						mEl := v, mElSize := newSize
+				}
+			} catch e {
+				UpdateElementFields()
+				GuiControl, Main:, EditName, % "ERROR: " e.Message
+				if InStr(e.Message, "0x80070005")
+					GuiControl, Main:, EditValue, Try running UIAViewer with Admin privileges
+			}
+		
 			if (mHwnd != Stored.Hwnd) {
 				WinGetTitle, wTitle, ahk_id %mHwnd%
 				WinGetPos, wX, wY, wW, wH, ahk_id %mHwnd%
@@ -190,9 +205,22 @@ RemoveToolTip:
 	ToolTip
 	return
 
-UpdateElementFields(mEl) {
-	if !IsObject(mEl)
+UpdateElementFields(mEl="") {
+	if !IsObject(mEl) {
+		GuiControl, Main:, EditControlType, 
+		GuiControl, Main:, EditLocalizedControlType,
+		GuiControl, Main:, EditName,
+		GuiControl, Main:, EditValue,
+		GuiControl, Main:, EditPatterns,
+		GuiControl, Main:, EditBoundingRectangle,
+		GuiControl, Main:, EditAccessKey,
+		GuiControl, Main:, EditAcceleratorKey,
+		GuiControl, Main:, EditClassName,
+		GuiControl, Main:, EditHelpText,
+		GuiControl, Main:, CBIsKeyboardFocusable,
+		GuiControl, Main:, CBIsEnabled,
 		return
+	}
 	try {
 		mElPos := mEl.CurrentBoundingRectangle
 		RangeTip(mElPos.l, mElPos.t, mElPos.r-mElPos.l, mElPos.b-mElPos.t, "Blue", 4)
@@ -405,8 +433,5 @@ RangeTip(x:="", y:="", w:="", h:="", color:="Red", d:=2) ; from the FindText lib
   }
 }
 
-Esc::
-	if IsCapturing {
-		gosub ButCapture
-	}
-	return
+#If IsCapturing
+Esc::gosub ButCapture

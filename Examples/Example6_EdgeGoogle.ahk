@@ -7,7 +7,7 @@ SetTitleMatchMode, 2
 F5::ExitApp
 F1::
 	browserExe := "msedge.exe"
-	Run, %browserExe% -inprivate
+	Run, %browserExe% -inprivate --force-renderer-accessibility ; Run in Incognito mode to avoid any extensions interfering. Force accessibility in case its disabled by default.
 	WinWaitActive, ahk_exe %browserExe%
 	cUIA := new UIA_Browser("ahk_exe " browserExe) ; Initialize UIA_Browser, which also initializes UIA_Interface
 	cUIA.WaitPageLoad("New Tab", 5000) ; Wait the New Tab page to load with a timeout of 5 seconds

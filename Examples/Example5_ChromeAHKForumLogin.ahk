@@ -7,7 +7,7 @@ SetTitleMatchMode, 2
 F5::ExitApp
 F1::
 	browserExe := "chrome.exe"
-	Run, %browserExe% -incognito
+	Run, %browserExe% -incognito --force-renderer-accessibility ; Run in Incognito mode to avoid any extensions interfering. Force accessibility in case its disabled by default.
 	WinWaitActive, ahk_exe %browserExe%
 	cUIA := new UIA_Browser("ahk_exe " browserExe) ; Initialize UIA_Browser, which also initializes UIA_Interface
 	cUIA.WaitPageLoad("New Tab", 3000) ; Wait the New Tab page to load with a timeout of 3 seconds

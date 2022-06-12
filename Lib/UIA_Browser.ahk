@@ -15,34 +15,42 @@ class UIA_Browser {
 		}
 	}
 	
+	__Get(member) {
+		if ObjHasKey(this.UIA, member)
+			return this.UIA[member]
+		if ObjHasKey(this.BrowserElement, member)
+			return this.BrowserElement[member]
+	}
+	
 	__Call(member, params*) {
-		if !ObjHasKey(this.base, member) {			
-			if ObjHasKey(this.UIA.base, member)
+		if !ObjHasKey(this.base, member) {
+			try {
 				return this.UIA[member].Call(this.UIA, params*)
-			else if ObjHasKey(this.BrowserElement.base, member)
+			}
+			try {
 				return this.BrowserElement[member].Call(this.BrowserElement, params*)
-			else
-				throw Exception("Method call not supported by " this.__Class " nor UIA_Interface or UIA_Element class.",-1,member)
+			}
+			throw Exception("Method call not supported by " this.__Class " nor UIA_Interface or UIA_Element class.",-1,member)
 		}
 	}
 	
 	GetCurrentMainPaneElement() { ; Refreshes UIA_Browser.MainPaneElement and also returns it
-		ToolbarControlCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_ToolBarControlTypeId, VT_I4 := 3)
+		static ToolbarControlCondition
+		if !ToolbarControlCondition
+			ToolbarControlCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_ToolBarControlTypeId, VT_I4 := 3)
 		return this.MainPaneElement := this.TWT.GetParentElement(this.NavigationBarElement := this.BrowserElement.FindFirst(ToolbarControlCondition))
 	}
 	
 	GetCurrentDocumentElement() { ; Returns the current document/content element of the browser
-		docType := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_DocumentControlTypeId, VT_I4 := 3)
-		if (this.BrowserType == "Edge")
-			this.BrowserElement.FindFirstBuildCache(this.UIA.TrueCondition, UIA_TreeScope_Descendants, this.ControlCache)
-		return IsObject(ff := this.BrowserElement.FindFirst(docType)) ? ff : this.BrowserElement.FindFirst(docType)
+		static docType
+		if !docType
+			docType := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_DocumentControlTypeId, VT_I4 := 3)
+		return this.BrowserElement.FindFirst(docType)
 	}
 	
 	GetAllText() { ; Gets all text from the browser element (CurrentName properties for all child elements)
 		if !this.IsBrowserVisible()
 			WinActivate, % "ahk_id" this.BrowserId
-		if (this.BrowserType == "Edge")
-			this.BrowserElement.FindFirstBuildCache(this.UIA.TrueCondition, UIA_TreeScope_Descendants, this.ControlCache)
 			
 		TextCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_TextControlTypeId, VT_I4 := 3)
 		TextArray := this.BrowserElement.FindAll(TextCondition)
@@ -54,13 +62,32 @@ class UIA_Browser {
 
 	GetAllLinks() { ; Gets all link elements from the browser
 		if !this.IsBrowserVisible()
-			WinActivate, % "ahk_id" this.BrowserId
-		if (this.BrowserType == "Edge")
-			this.BrowserElement.FindFirstBuildCache(this.UIA.TrueCondition, UIA_TreeScope_Descendants, this.ControlCache)
-			
+			WinActivate, % "ahk_id" this.BrowserId			
 		LinkCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_HyperlinkControlTypeId, VT_I4 := 3)
 		return this.BrowserElement.FindAll(LinkCondition)
 
+	}
+	
+	FindByPath(path="") {
+		el := this.BrowserElement
+		Loop, Parse, path, .
+		{
+			child := this.TWT.GetFirstChildElement(el)
+			if !IsObject(child)
+				child := this.TWT.GetFirstChildElement(el)
+			el := child
+			num := A_LoopField
+			MsgBox, % num " : " el.Dump()
+			Loop, % (num-1) {
+				next := this.TWT.GetNextSiblingElement(el)
+				if !IsObject(next)
+					next := this.TWT.GetNextSiblingElement(el)
+				el := next
+				MsgBox, % num " : " el.Dump()
+			}
+			
+		}
+		return el
 	}
 	
 	__CompareTitles(compareTitle, winTitle) {
@@ -197,7 +224,7 @@ class UIA_Browser {
 		}
 		for k, v in this.GetAllTabs() {
 			curName := v.CurrentName
-			if (((matchMode == 1) && (SubStr(curName, 1, StrLen(name)) == name)) || ((matchMode == 2) && InStr(curName, name)) || ((matchMode == "RegEx") && RegExMatch(curName, name)))
+			if (((matchMode == 1) && (SubStr(curName, 1, StrLen(tabName)) == tabName)) || ((matchMode == 2) && InStr(curName, tabName)) || ((matchMode == "RegEx") && RegExMatch(curName, tabName)))
 				return v.Click()
 		}
 	}

@@ -35,10 +35,21 @@ class UIA_Browser {
 	}
 	
 	GetCurrentMainPaneElement() { ; Refreshes UIA_Browser.MainPaneElement and also returns it
-		static ToolbarControlCondition
-		if !ToolbarControlCondition
-			ToolbarControlCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_ToolBarControlTypeId, VT_I4 := 3)
-		return this.MainPaneElement := this.TWT.GetParentElement(this.NavigationBarElement := this.BrowserElement.FindFirst(ToolbarControlCondition))
+		static EditControlCondition, EditNameCondition, EditAndCondition, ToolbarControlCondition
+		if !EditControlCondition
+			EditControlCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_EditControlTypeId, VT_I4 := 3), EditNameCondition := this.UIA.CreatePropertyCondition(UIA_NamePropertyId, "Address and search bar", VT_BSTR := 8), EditAndCondition := this.UIA.CreateAndCondition(EditControlCondition, EditNameCondition), ToolbarControlCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_ToolBarControlTypeId, VT_I4 := 3)
+		; Finding the correct Toolbar ends up to be quite tricky. In Chrome the toolbar element is located in the tree after the content element, so if the content contains a toolbar then that will be returned. Two workarounds I can think of: either look for the Toolbar by name ("Address and search bar" both in Chrome and edge), or by location (it must be the topmost toolbar). I opted for a combination of two, so if finding by name fails, all toolbar elements are evaluated.
+		if !(this.URLEditElement := this.BrowserElement.FindFirst(EditAndCondition)) {	
+			this.ToolbarElements := this.BrowserElement.FindAll(ToolbarControlCondition), topCoord := 10000000
+			for k, v in this.ToolbarElements {
+				if ((bT := v.CurrentBoundingRectangle.t) && (bt < topCoord))
+					topCoord := bT, this.NavigationBarElement := v
+			}
+		} Else {
+			this.NavigationBarElement := this.UIA.CreateTreeWalker(ToolbarControlCondition).GetParentElement(this.URLEditElement)
+		}
+		
+		return this.MainPaneElement := this.TWT.GetParentElement(this.NavigationBarElement)
 	}
 	
 	GetCurrentDocumentElement() { ; Returns the current document/content element of the browser
@@ -166,16 +177,14 @@ class UIA_Browser {
 	}
 
 	Home(butName="Home") { ; Presses the Home button if it exists. If the browser language is not set to English, the correct butName can be specified.
-		this.MainPaneElement
-		ButtonCondition := this.UIA.CreatePropertyCondition(UIA_NamePropertyId, butName, VT_BSTR := 8)
-		this.NavigationBarElement.FindFirst(ButtonCondition).Click()
+		NameCondition := this.UIA.CreatePropertyCondition(UIA_NamePropertyId, butName, VT_BSTR := 8)
+		ButtonCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_ButtonControlTypeId, VT_I4 := 3)
+		this.NavigationBarElement.FindFirst(this.UIA.CreateAndCondition(NameCondition, ButtonCondition)).Click()
 	}
 	
 	GetCurrentURL(fromAddressBar=False) { ; Gets the current URL. fromAddressBar=True gets it straight from the URL bar element, which is not a very good method, because the text might be changed by the user and doesn't start with "http(s)://". Default of fromAddressBar=False will cause the real URL to be fetched, but the browser must be visible for it to work (if is not visible, it will be automatically activated).
 		if fromAddressBar {
-			EditControlCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_EditControlTypeId, VT_I4 := 3)
-			URLEdit := this.MainPaneElement.FindFirst(EditControlCondition)
-			URL := URLEdit.GetCurrentPropertyValue(UIA_ValueValuePropertyId := 30045)
+			URL := this.URLEditElement.GetCurrentPropertyValue(UIA_ValueValuePropertyId := 30045)
 			return URL ? (RegexMatch(URL, "^https?:\/\/") ? URL : "https://" URL) : ""
 		} else {
 			; This can be used in Chrome and Edge, but works only if the window is active
@@ -187,14 +196,15 @@ class UIA_Browser {
 	}
 	
 	SetURL(newUrl, navigateToNewUrl = False) { ; Sets the URL bar to newUrl, optionally also navigates to it if navigateToNewUrl=True
-		EditControlCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_EditControlTypeId, VT_I4 := 3)
-		URLEdit := this.MainPaneElement.FindFirst(EditControlCondition)
-		try {
-			legacyPattern := URLEdit.GetCurrentPatternAs("LegacyIAccessible")
+		this.URLEditElement.SetFocus()
+		valuePattern := this.URLEditElement.GetCurrentPatternAs("Value")
+		valuePattern.SetValue(newUrl)
+		if !InStr(this.URLEditElement.GetCurrentValue(), newUrl) {
+			legacyPattern := this.URLEditElement.GetCurrentPatternAs("LegacyIAccessible")
 			legacyPattern.SetValue(newUrl)
 			legacyPattern.Select()
 		}
-		if navigateToNewUrl
+		if (navigateToNewUrl&&InStr(this.URLEditElement.GetCurrentValue(), newUrl))
 			ControlSend,, {Enter}, % "ahk_id" this.BrowserId
 	}
 	
@@ -210,8 +220,9 @@ class UIA_Browser {
 
 	GetAllTabNames() { ; Gets all the titles of tabs
 		names := []
-		for k, v in this.GetAllTabs()
+		for k, v in this.GetAllTabs() {
 			names.Push(v.CurrentName)
+		}
 		return names
 	}
 	
@@ -220,7 +231,7 @@ class UIA_Browser {
 			TabItemControlCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_TabItemControlTypeId, VT_I4 := 3)
 			TabNameCondition := this.UIA.CreatePropertyCondition(UIA_NamePropertyId, tabName, VT_BSTR := 8)
 			AndCondition := this.UIA.CreateAndCondition(TabItemControlCondition,TabNameCondition)
-			return this.BrowserElement.FindFirst(AndCondition).Click()
+			return this.MainPaneElement.FindFirst(AndCondition).Click()
 		}
 		for k, v in this.GetAllTabs() {
 			curName := v.CurrentName

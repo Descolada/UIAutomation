@@ -115,6 +115,7 @@ ButCapture:
 		
 		While (IsCapturing) {
 			MouseGetPos, mX, mY, mHwnd, mCtrl
+					
 			try {
 				mEl := UIA.ElementFromPoint(mX, mY)
 
@@ -133,6 +134,10 @@ ButCapture:
 			}
 		
 			if (mHwnd != Stored.Hwnd) {
+				; In some setups Chromium-based renderers don't react to UIA calls by enabling accessibility, so we need to send the WM_GETOBJECT message to the first renderer control for the application to enable accessibility. Thanks to users malcev and rommmcek for this tip. Explanation why this works: https://www.chromium.org/developers/design-documents/accessibility/#TOC-How-Chrome-detects-the-presence-of-Assistive-Technology 
+				WinGet, cList, ControlList, ahk_id %mHwnd%
+				if InStr(cList, "Chrome_RenderWidgetHostHWND1")
+					SendMessage, WM_GETOBJECT := 0x003D, 0, 1, Chrome_RenderWidgetHostHWND1, ahk_id %mHwnd%
 				WinGetTitle, wTitle, ahk_id %mHwnd%
 				WinGetPos, wX, wY, wW, wH, ahk_id %mHwnd%
 				WinGetClass, wClass, ahk_id %mHwnd%

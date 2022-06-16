@@ -20,7 +20,7 @@
 	- function(params, ByRef out="……")
 */
 
-#include <UIA_Constants>
+#include %A_LineFile%\..\UIA_Constants.ahk
 
 class UIA_Base {
 	__New(p="", flag=1) {

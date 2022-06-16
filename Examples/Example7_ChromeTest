@@ -1,0 +1,31 @@
+#NoEnv
+#SingleInstance force
+#Requires AutoHotkey v1.1.33+
+SetTitleMatchMode, 2
+
+#include ..\lib\UIA_Interface.ahk
+#include ..\lib\UIA_Browser.ahk
+
+
+browserExe := "chrome.exe"
+Run, %browserExe% -incognito --force-renderer-accessibility ; Run in Incognito mode to avoid any extensions interfering. Force accessibility in case its disabled by default.
+WinWaitActive, ahk_exe %browserExe%
+cUIA := new UIA_Browser("ahk_exe " browserExe) ; Initialize UIA_Browser, which also initializes UIA_Interface
+
+cUIA.WaitPageLoad("New Tab", 5000) ; Wait the New Tab page to load with a timeout of 5 seconds
+cUIA.SetURL("https://www.autohotkey.com/boards/index.php", True) ; Set the URL and navigate to it
+cUIA.WaitPageLoad() ; Wait the page to load
+
+
+cUIA.WaitElementExistByName("Scripts and Functions").Click()
+cUIA.WaitPageLoad() ; Wait the page to load
+
+cUIA.WaitElementExistByName("Search…").SetValue("UIAutomation with a focus on Chrome") ; Set some text to translate
+cUIA.WaitPageLoad()
+cUIA.FindFirstByName(" Search").Click()
+; cUIA.SetURL("javascript:alert(""Hello World"");", True) ; example to run javascript by the adressbar
+
+MsgBox, completed`, the script will exit
+ExitApp
+
+F5::ExitApp

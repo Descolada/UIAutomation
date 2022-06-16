@@ -1,8 +1,8 @@
 ﻿#NoEnv
 #SingleInstance force
 SetTitleMatchMode, 2
-#include <UIA_Interface>
-#include <UIA_Browser>
+#include ..\lib\UIA_Interface.ahk
+#include ..\lib\UIA_Browser.ahk
 
 F5::ExitApp
 F1::

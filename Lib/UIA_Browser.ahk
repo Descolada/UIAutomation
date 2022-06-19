@@ -1,11 +1,14 @@
 ﻿
 class UIA_Browser {
-	__New(wTitle="A") {
-		this.UIA := UIA_Interface()
+	__New(wTitle="A", maxVersion="") {
+		this.UIA := UIA_Interface(maxVersion)
 		this.TWT := this.UIA.TreeWalkerTrue
 		this.ControlCache := this.UIA.CreateCacheRequest()
 		this.ControlCache.SetTreeScope(0x4)
-		this.ControlCache.AddProperty(UIA_ControlTypePropertyId)
+		this.ControlCache.AddProperty(this.UIA.ControlTypePropertyId)
+		
+		this.TextCondition := this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.TextControlTypeId)
+		this.ButtonCondition := this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.ButtonControlTypeId)
 		
 		this.BrowserElement := this.UIA.ElementFromHandle(this.BrowserId := WinExist(wTitle))
 		if this.BrowserId {
@@ -16,28 +19,33 @@ class UIA_Browser {
 	}
 	
 	__Get(member) {
-		if ObjHasKey(this.UIA, member)
-			return this.UIA[member]
-		if ObjHasKey(this.BrowserElement, member)
-			return this.BrowserElement[member]
+		if member not in base 
+		{
+			if RegexMatch(member, "PatternId|EventId|PropertyId|AttributeId|ControlTypeId|AnnotationType|StyleId|LandmarkTypeId|HeadingLevel|ChangeId|MetadataId", match) 
+				return IsFunc("UIA_Enum.UIA_" match) ? UIA_Enum["UIA_" match](member) : UIA_Enum[match](member)
+			else if (SubStr(member,1,1) != "_") {
+				try
+					return this.UIA[member]
+				try
+					return this.BrowserElement[member]
+			}
+		}
 	}
 	
 	__Call(member, params*) {
 		if !ObjHasKey(this.base, member) {
-			try {
+			try
 				return this.UIA[member].Call(this.UIA, params*)
-			}
-			try {
+			try
 				return this.BrowserElement[member].Call(this.BrowserElement, params*)
-			}
-			throw Exception("Method call not supported by " this.__Class " nor UIA_Interface or UIA_Element class.",-1,member)
+			throw Exception("Method call not supported by " this.__Class " nor UIA_Interface or UIA_Element class or an error was encountered.",-1,member)
 		}
 	}
 	
 	GetCurrentMainPaneElement() { ; Refreshes UIA_Browser.MainPaneElement and also returns it
 		static EditControlCondition, EditNameCondition, EditAndCondition, ToolbarControlCondition
 		if !EditControlCondition
-			EditControlCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_EditControlTypeId, VT_I4 := 3), EditNameCondition := this.UIA.CreatePropertyCondition(UIA_NamePropertyId, "Address and search bar", VT_BSTR := 8), EditAndCondition := this.UIA.CreateAndCondition(EditControlCondition, EditNameCondition), ToolbarControlCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_ToolBarControlTypeId, VT_I4 := 3)
+			EditControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.EditControlTypeId), EditNameCondition := this.UIA.CreateOrCondition(this.UIA.CreatePropertyCondition(this.UIA.NamePropertyId, "Address and search bar"), this.UIA.CreatePropertyCondition(this.UIA.NamePropertyId, "Search or enter an address")), EditAndCondition := this.UIA.CreateAndCondition(EditControlCondition, EditNameCondition), ToolbarControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.ToolBarControlTypeId)
 		; Finding the correct Toolbar ends up to be quite tricky. In Chrome the toolbar element is located in the tree after the content element, so if the content contains a toolbar then that will be returned. Two workarounds I can think of: either look for the Toolbar by name ("Address and search bar" both in Chrome and edge), or by location (it must be the topmost toolbar). I opted for a combination of two, so if finding by name fails, all toolbar elements are evaluated.
 		if !(this.URLEditElement := this.BrowserElement.FindFirst(EditAndCondition)) {	
 			this.ToolbarElements := this.BrowserElement.FindAll(ToolbarControlCondition), topCoord := 10000000
@@ -55,16 +63,78 @@ class UIA_Browser {
 	GetCurrentDocumentElement() { ; Returns the current document/content element of the browser
 		static docType
 		if !docType
-			docType := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_DocumentControlTypeId, VT_I4 := 3)
+			docType := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.DocumentControlTypeId)
 		return this.BrowserElement.FindFirst(docType)
+	}
+	
+	JSSetTitle(newTitle) {
+		this.SetURL("javascriptdocument.title=""" js """; void(0);", True)
+	}
+	
+	JSExecute(js) {
+		this.SetURL("javascript:" js, True)
+	}
+	
+	JSAlert(js, closeAlert=True, timeOut=3000) {
+		this.SetURL("javascript:alert(" js ");", True)
+		return this.GetAlertText(closeAlert, timeOut)
+	}
+	
+	JSReturnThroughClipboard(js) {
+		saveClip := ClipboardAll
+		Clipboard=
+		this.SetURL("javascript:copyToClipboard(" js ");function copyToClipboard(text) {const elem = document.createElement('textarea');elem.value = text;document.body.appendChild(elem);elem.select();document.execCommand('copy');document.body.removeChild(elem);}", True)
+		ClipWait,2
+		returnText := Clipboard
+		Clipboard := saveClip
+		saveClip=
+		return returnText
+	}
+	
+	JSReturnThroughTitle(js, timeOut=500) {
+		WinGetTitle, origTitle, % "ahk_id " this.BrowserId
+		this.SetURL("javascript:origTitle=document.title;document.title=(" js ");void(0);setTimeout(function() {document.title=origTitle;void(0);}, " timeOut ")", True)
+		startTime := A_TickCount
+		Loop {
+			WinGetTitle, newTitle, % "ahk_id " this.BrowserId
+			Sleep, 40
+		} Until ((origTitle != newTitle) || (A_TickCount - startTime > timeOut))
+		return (origTitle == newTitle) ? "" : RegexReplace(newTitle, "(?: - Personal)? - [^-]+$")
+	}
+	
+	GetAlertText(closeAlert=True, timeOut=3000) {
+		static DialogCondition, DialogTW
+		if !IsObject(DialogCondition)
+			DialogCondition := this.CreateOrCondition(this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.CustomControlTypeId), this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.WindowControlTypeId)), DialogTW := this.UIA.CreateTreeWalker(DialogCondition)
+		startTime := A_TickCount
+		while (!(IsObject(dialogEl := DialogTW.GetLastChildElement(this.BrowserElement)) && IsObject(OKBut := dialogEl.FindFirst(this.ButtonCondition))) && ((A_tickCount - startTime) < timeOut))
+			Sleep, 100
+
+		try
+			text := dialogEl.FindFirst(this.TextCondition).CurrentName
+		if closeAlert {
+			Sleep, 500
+			try OKBut.Click()
+		}
+		return text
+	}
+	
+	CloseAlert() {
+		static DialogCondition, DialogTW
+		if !IsObject(DialogCondition)
+			DialogCondition := this.CreateOrCondition(this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.CustomControlTypeId), this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.WindowControlTypeId)), DialogTW := this.UIA.CreateTreeWalker(DialogCondition)
+		try {
+			dialogEl := DialogTW.GetLastChildElement(this.BrowserElement)
+			OKBut := dialogEl.FindFirst(this.ButtonCondition)
+			OKBut.Click()
+		}
 	}
 	
 	GetAllText() { ; Gets all text from the browser element (CurrentName properties for all child elements)
 		if !this.IsBrowserVisible()
 			WinActivate, % "ahk_id" this.BrowserId
 			
-		TextCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_TextControlTypeId, VT_I4 := 3)
-		TextArray := this.BrowserElement.FindAll(TextCondition)
+		TextArray := this.BrowserElement.FindAll(this.TextCondition)
 		Text := ""
 		for k, v in TextArray
 			Text .= v.CurrentName "`n"
@@ -74,31 +144,9 @@ class UIA_Browser {
 	GetAllLinks() { ; Gets all link elements from the browser
 		if !this.IsBrowserVisible()
 			WinActivate, % "ahk_id" this.BrowserId			
-		LinkCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_HyperlinkControlTypeId, VT_I4 := 3)
+		LinkCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.HyperlinkControlTypeId)
 		return this.BrowserElement.FindAll(LinkCondition)
 
-	}
-	
-	FindByPath(path="") {
-		el := this.BrowserElement
-		Loop, Parse, path, .
-		{
-			child := this.TWT.GetFirstChildElement(el)
-			if !IsObject(child)
-				child := this.TWT.GetFirstChildElement(el)
-			el := child
-			num := A_LoopField
-			MsgBox, % num " : " el.Dump()
-			Loop, % (num-1) {
-				next := this.TWT.GetNextSiblingElement(el)
-				if !IsObject(next)
-					next := this.TWT.GetNextSiblingElement(el)
-				el := next
-				MsgBox, % num " : " el.Dump()
-			}
-			
-		}
-		return el
 	}
 	
 	__CompareTitles(compareTitle, winTitle) {
@@ -132,7 +180,7 @@ class UIA_Browser {
 			this.WaitTitleChange(targetTitle, timeOut)
 			Sleep, %sleepAfter%
 			if (this.BrowserType == "Edge")
-				this.BrowserElement.FindFirstBuildCache(this.UIA.TrueCondition, UIA_TreeScope_Descendants, this.ControlCache)
+				this.BrowserElement.FindFirstBuildCache(this.UIA.TrueCondition, this.UIA.TreeScope_Descendants, this.ControlCache)
 			return
 		}
 		reloadBut := this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetFirstChildElement(this.NavigationBarElement)))
@@ -169,29 +217,29 @@ class UIA_Browser {
 		this.TWT.GetNextSiblingElement(this.TWT.GetNextSiblingElement(this.TWT.GetFirstChildElement(this.NavigationBarElement))).Click()
 		/*
 		this.MainPaneElement
-		ReloadCondition := this.UIA.CreatePropertyCondition(UIA_NamePropertyId, "Reload", VT_BSTR := 8) ; for Chrome
-		RefreshCondition := this.UIA.CreatePropertyCondition(UIA_NamePropertyId, "Refresh", VT_BSTR := 8) ; for Edge
+		ReloadCondition := this.UIA.CreatePropertyCondition(this.UIA.NamePropertyId, "Reload", VT_BSTR := 8) ; for Chrome
+		RefreshCondition := this.UIA.CreatePropertyCondition(this.UIA.NamePropertyId, "Refresh", VT_BSTR := 8) ; for Edge
 		OrCondition := this.UIA.CreateOrCondition(ReloadCondition, RefreshCondition)
 		this.MainPaneElement.FindFirst(OrCondition).Click()
 		*/
 	}
 
 	Home(butName="Home") { ; Presses the Home button if it exists. If the browser language is not set to English, the correct butName can be specified.
-		NameCondition := this.UIA.CreatePropertyCondition(UIA_NamePropertyId, butName, VT_BSTR := 8)
-		ButtonCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_ButtonControlTypeId, VT_I4 := 3)
+		NameCondition := this.UIA.CreatePropertyCondition(this.UIA.NamePropertyId, butName)
+		ButtonCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, UIA_Enum.UIA_ControlTypeId("Button"))
 		this.NavigationBarElement.FindFirst(this.UIA.CreateAndCondition(NameCondition, ButtonCondition)).Click()
 	}
 	
 	GetCurrentURL(fromAddressBar=False) { ; Gets the current URL. fromAddressBar=True gets it straight from the URL bar element, which is not a very good method, because the text might be changed by the user and doesn't start with "http(s)://". Default of fromAddressBar=False will cause the real URL to be fetched, but the browser must be visible for it to work (if is not visible, it will be automatically activated).
 		if fromAddressBar {
-			URL := this.URLEditElement.GetCurrentPropertyValue(UIA_ValueValuePropertyId := 30045)
+			URL := this.URLEditElement.CurrentValue
 			return URL ? (RegexMatch(URL, "^https?:\/\/") ? URL : "https://" URL) : ""
 		} else {
 			; This can be used in Chrome and Edge, but works only if the window is active
 			if !this.IsBrowserVisible()
 				WinActivate, % "ahk_id" this.BrowserId
 
-			return this.GetCurrentDocumentElement().GetCurrentValue()
+			return this.GetCurrentDocumentElement().CurrentValue
 		}
 	}
 	
@@ -199,22 +247,22 @@ class UIA_Browser {
 		this.URLEditElement.SetFocus()
 		valuePattern := this.URLEditElement.GetCurrentPatternAs("Value")
 		valuePattern.SetValue(newUrl)
-		if !InStr(this.URLEditElement.GetCurrentValue(), newUrl) {
+		if !InStr(this.URLEditElement.CurrentValue, newUrl) {
 			legacyPattern := this.URLEditElement.GetCurrentPatternAs("LegacyIAccessible")
-			legacyPattern.SetValue(newUrl)
+			legacyPattern.SetValue(newUrl " ")
 			legacyPattern.Select()
 		}
-		if (navigateToNewUrl&&InStr(this.URLEditElement.GetCurrentValue(), newUrl))
+		if (navigateToNewUrl&&InStr(this.URLEditElement.CurrentValue, newUrl))
 			ControlSend,, {Enter}, % "ahk_id" this.BrowserId
 	}
 	
 	NewTab(butName="New Tab") { ; Presses the New tab button. The button name might differ if the browser language is not set to English and can be specified with butName
-		newTabBut := this.MainPaneElement.FindFirstByNameAndType(butName, UIA_ButtonControlTypeId)
+		newTabBut := this.MainPaneElement.FindFirstByNameAndType(butName, UIA_Enum.UIA_ButtonControlTypeId)
 		newTabBut.Click()
 	}
 	
 	GetAllTabs() { ; Gets all tab elements
-		TabItemControlCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_TabItemControlTypeId, VT_I4 := 3)
+		TabItemControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, UIA_Enum.UIA_ControlTypeId("TabItem"))
 		return this.MainPaneElement.FindAll(TabItemControlCondition)
 	}
 
@@ -228,9 +276,9 @@ class UIA_Browser {
 	
 	SelectTab(tabName, matchMode=3) { ; Selects a tab with the text of tabName. matchMode follows SetTitleMatchMode scheme: 1=tab name must must start with tabName; 2=can contain anywhere; 3=exact match; RegEx
 		if (matchMode==3) {
-			TabItemControlCondition := this.UIA.CreatePropertyCondition(UIA_ControlTypePropertyId, UIA_TabItemControlTypeId, VT_I4 := 3)
-			TabNameCondition := this.UIA.CreatePropertyCondition(UIA_NamePropertyId, tabName, VT_BSTR := 8)
-			AndCondition := this.UIA.CreateAndCondition(TabItemControlCondition,TabNameCondition)
+			TabItemControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, UIA_Enum.UIA_ControlTypeId("TabItem"))
+			TabNameCondition := this.UIA.CreatePropertyCondition(this.UIA.NamePropertyId, tabName)
+			AndCondition := this.UIA.CreateAndCondition(TabItemControlCondition, TabNameCondition)
 			return this.MainPaneElement.FindFirst(AndCondition).Click()
 		}
 		for k, v in this.GetAllTabs() {
@@ -256,7 +304,7 @@ class UIA_Browser {
 	PrintArray(arr) {
 		ret := ""
 		for k, v in arr
-			ret .= "Key: " k " Value: " (IsFunc(v)? v.name:v) "`n"
+			ret .= "Key: " k " Value: " (IsFunc(v)? v.name:IsObject(v)?UIA_Browser.PrintArray(v):v) "`n"
 		return ret
 	}
 }

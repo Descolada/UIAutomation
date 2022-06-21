@@ -768,7 +768,7 @@ class UIA_Element extends UIA_Base {
 			controlType := UIA_Enum.UIA_ControlTypeId(controlType)
 		if !controlType
 			throw Exception("Invalid control type specified", -1)
-		controlCondition := this.__UIA.CreatePropertyCondition(UIA_Enum.ControlTypePropertyId, controlType)
+		controlCondition := this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_ControlTypePropertyId, controlType)
 		return this.FindAll(controlCondition, scope)
 	}
 
@@ -794,9 +794,9 @@ class UIA_Element extends UIA_Base {
 		return returnArr
 	}
 
-	FindByPath(path="") { ; Gets an element by the "path" that is displayed in the UIA_Element.DumpAll() result. This is like the Acc path, but for UIA (they are not compatible).
+	FindByPath(searchPath="") { ; Gets an element by the "path" that is displayed in the UIA_Element.DumpAll() result. This is like the Acc path, but for UIA (they are not compatible).
 		el := this
-		Loop, Parse, path, .
+		Loop, Parse, searchPath, .
 		{
 			children := el.GetChildren()
 			if !IsObject(el := children[A_LoopField])
@@ -1248,12 +1248,12 @@ class UIA_ScrollPattern extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696167
 	static	__IID := "{88f4d42a-e881-459d-a77c-73bbbb7e02dc}"
 		,	__PatternID := 10004
-		,	__Properties := "CurrentHorizontalScrollPercent,5,double`r`nCurrentVerticalScrollPercent,6,double`r`nCurrentHorizontalViewSize,7,double`r`CurrentHorizontallyScrollable,9,BOOL`r`nCurrentVerticallyScrollable,10,BOOL`r`nCachedHorizontalScrollPercent,11,double`r`nCachedVerticalScrollPercent,12,double`r`nCachedHorizontalViewSize,13,double`r`nCachedVerticalViewSize,14,double`r`nCachedHorizontallyScrollable,15,BOOL`r`nCachedVerticallyScrollable,16,BOOL"
+		,	__Properties := "CurrentHorizontalScrollPercent,5,double`r`nCurrentVerticalScrollPercent,6,double`r`nCurrentHorizontalViewSize,7,double`r`nCurrentHorizontallyScrollable,9,BOOL`r`nCurrentVerticallyScrollable,10,BOOL`r`nCachedHorizontalScrollPercent,11,double`r`nCachedVerticalScrollPercent,12,double`r`nCachedHorizontalViewSize,13,double`r`nCachedVerticalViewSize,14,double`r`nCachedHorizontallyScrollable,15,BOOL`r`nCachedVerticallyScrollable,16,BOOL"
 		
-	Scroll(horizontal, vertical) {
+	Scroll(horizontal=-1, vertical=-1) { ; Default is NoScroll
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "uint",horizontal, "uint",vertical))
 	}
-	SetScrollPercent(horizontal, vertical) {
+	SetScrollPercent(horizontal=-1, vertical=-1) { ; Default is NoScroll
 		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "double",horizontal, "double",vertical))
 	}
 	/*	UIA_ScrollPatternNoScroll	=	-1
@@ -1458,10 +1458,10 @@ class UIA_TransformPattern extends UIA_Base {
 }
 
 ;~ class UIA_TransformPattern2 extends UIA_Base {10028
-class UIA_TransformPattern2 extends UIA_TransformPattern { ; UNTESTED
+class UIA_TransformPattern2 extends UIA_TransformPattern { ; UNTESTED. It seems TransformPattern2 implementation doesn't extend TransformPattern methods/properties, yet TextPattern2 extends TextPattern... 
 	static	__IID := "{6D74D017-6ECB-4381-B38B-3C17A48FF1C2}"
 		,	__PatternID := 10028
-		,	__Properties := "CurrentCanZoom,14,bool`r`nCachedCanZoom,15,bool`r`nCurrentZoomLevel,16,double`r`nCachedZoomLevel,17,double`r`nCurrentZoomMinimum,18,double`r`nCachedZoomMinimum,19,double`r`nCurrentZoomMaximum,20,double`r`nCachedZoomMaximum,21,double"
+		,	__Properties := UIA_TransformPattern.__Properties . "`r`nCurrentCanZoom,14,bool`r`nCachedCanZoom,15,bool`r`nCurrentZoomLevel,16,double`r`nCachedZoomLevel,17,double`r`nCurrentZoomMinimum,18,double`r`nCachedZoomMinimum,19,double`r`nCurrentZoomMaximum,20,double`r`nCachedZoomMaximum,21,double"
 	Zoom(zoomValue) {
 		return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "double",zoomValue))
 	}
@@ -1715,7 +1715,7 @@ class UIA_TextRangeArray extends UIA_Base {
 		}
 		return new UIA_TextRange(e,,v:=1)
 	}
-	UIA_Pattern(p) { ; Create a new pattern with the highest available version
+	UIA_Pattern(p) { ; Create a new pattern with the highest available version. This doesn't always result in good outcomes though: TransformPattern2 doesn't extend TransformPattern for some reason, yet TextPattern2 does extend TextPattern. Thus I left the current functionality of getting the highest available version, but when trying to call TransformPattern, specify UIA_Pattern("TransformPattern")
 		static validated
 		if !IsObject(validated)
 			validated := {}

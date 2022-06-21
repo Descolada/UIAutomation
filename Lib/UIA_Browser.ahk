@@ -10,7 +10,7 @@ class UIA_Browser {
 		this.TextCondition := this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.TextControlTypeId)
 		this.ButtonCondition := this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.ButtonControlTypeId)
 		
-		this.BrowserElement := this.UIA.ElementFromHandle(this.BrowserId := WinExist(wTitle))
+		this.BrowserElement := this.UIA.ElementFromHandle(this.BrowserId := WinExist(wTitle), True)
 		if this.BrowserId {
 			WinGet, wExe, ProcessName, % "ahk_id" this.BrowserId
 			this.BrowserType := (wExe == "chrome.exe") ? "Chrome" : (wExe == "msedge.exe") ? "Edge" : "Unknown"
@@ -246,7 +246,7 @@ class UIA_Browser {
 	SetURL(newUrl, navigateToNewUrl = False) { ; Sets the URL bar to newUrl, optionally also navigates to it if navigateToNewUrl=True
 		this.URLEditElement.SetFocus()
 		valuePattern := this.URLEditElement.GetCurrentPatternAs("Value")
-		valuePattern.SetValue(newUrl)
+		valuePattern.SetValue(newUrl " ")
 		if !InStr(this.URLEditElement.CurrentValue, newUrl) {
 			legacyPattern := this.URLEditElement.GetCurrentPatternAs("LegacyIAccessible")
 			legacyPattern.SetValue(newUrl " ")
@@ -274,6 +274,10 @@ class UIA_Browser {
 		return names
 	}
 	
+	FindTabByName(searchPhrase, matchMode=3, caseSensitive=False) { ; Returns a tab element text of searchPhrase. matchMode follows SetTitleMatchMode scheme: 1=tab name must must start with tabName; 2=can contain anywhere; 3=exact match; RegEx
+		return this.MainPaneElement.FindFirstByNameAndType(searchPhrase, "TabItem",, matchMode, caseSensitive)
+	}
+	
 	SelectTab(tabName, matchMode=3) { ; Selects a tab with the text of tabName. matchMode follows SetTitleMatchMode scheme: 1=tab name must must start with tabName; 2=can contain anywhere; 3=exact match; RegEx
 		if (matchMode==3) {
 			TabItemControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, UIA_Enum.UIA_ControlTypeId("TabItem"))
@@ -285,6 +289,15 @@ class UIA_Browser {
 			curName := v.CurrentName
 			if (((matchMode == 1) && (SubStr(curName, 1, StrLen(tabName)) == tabName)) || ((matchMode == 2) && InStr(curName, tabName)) || ((matchMode == "RegEx") && RegExMatch(curName, tabName)))
 				return v.Click()
+		}
+	}
+	
+	CloseTab(tabElementOrName, matchMode=3, caseSensitive=False) { ; Close tab by either providing the tab element or the name of the tab
+		if IsObject(tabElementOrName)
+			if (tabElementOrName.CurrentControlType == this.UIA.TabItemControlType)
+				try tabElementOrName.FindFirst(this.ButtonCondition).Click()
+		else {
+			try this.MainPaneElement.FindFirstByNameAndType(searchPhrase, "TabItem",, matchMode, caseSensitive).FindFirst(this.ButtonCondition).Click()
 		}
 	}
 	

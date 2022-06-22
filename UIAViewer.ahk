@@ -37,24 +37,26 @@ Gui Add, Edit, w80 vEditWinProcessID,
 
 Gui Add, GroupBox, x%_xoffsetfirst% y180 w302 h295, UIAutomation Element Info
 Gui Add, Text, xm+%_xoffsetfirst% yp+%_yoffset%, ControlType:
-Gui Add, Edit, x+%_xoffset% yp-%_ysoffset% w40 vEditControlType,
-Gui Add, Text, x+%_xoffset% yp+%_ysoffset%, LocalizedControlType:
-Gui Add, Edit, x+%_xoffset% yp-%_ysoffset% w62 vEditLocalizedControlType,
+Gui Add, Edit, x+%_xoffset% yp-%_ysoffset% w216 vEditControlType,
 
 Gui Add, Text, xm+%_xoffsetfirst% yp+30 Section, Name:
 Gui Add, Text,, Value:
+
 Gui Add, Text,, Patterns:
 Gui Add, Edit, ys-%_ysoffset% w228 vEditName,
 Gui Add, Edit, w228 vEditValue,
 Gui Add, Edit, w228 vEditPatterns,
 
-Gui Add, Text, xm+%_xoffsetfirst% yp+30 Section, BoundingRectangle:
-Gui Add, Text,, ClassName:
-Gui Add, Text,, HelpText:
+Gui Add, Text, xm+%_xoffsetfirst% yp+30, AutomationId:
+Gui Add, Edit, x+%_xoffset% yp-%_ysoffset% w208 vEditAutomationId,
 
+Gui Add, Text, xm+%_xoffsetfirst% yp+30 Section, BoundingRectangle:
 Gui Add, Edit, ys-%_ysoffset% w174 vEditBoundingRectangle,
-Gui Add, Edit, w174 vEditClassName,
-Gui Add, Edit, w174 vEditHelpText,
+
+Gui Add, Text, xm+%_xoffsetfirst% yp+30, ClassName:
+Gui Add, Edit, x+3 yp-%_ysoffset% w68 vEditClassName,
+Gui Add, Text, x+%_xoffset% yp+%_ysoffset%, HelpText:
+Gui Add, Edit, x+%_xoffset% yp-%_ysoffset% w97 vEditHelpText,
 
 Gui Add, Text, xm+%_xoffsetfirst% yp+30, AccessKey:
 Gui Add, Edit, x+%_xoffset% yp-%_ysoffset% w68 vEditAccessKey,
@@ -212,10 +214,10 @@ RemoveToolTip:
 UpdateElementFields(mEl="") {
 	if !IsObject(mEl) {
 		GuiControl, Main:, EditControlType, 
-		GuiControl, Main:, EditLocalizedControlType,
 		GuiControl, Main:, EditName,
 		GuiControl, Main:, EditValue,
 		GuiControl, Main:, EditPatterns,
+		GuiControl, Main:, EditAutomationId,
 		GuiControl, Main:, EditBoundingRectangle,
 		GuiControl, Main:, EditAccessKey,
 		GuiControl, Main:, EditAcceleratorKey,
@@ -228,14 +230,14 @@ UpdateElementFields(mEl="") {
 	try {
 		mElPos := mEl.CurrentBoundingRectangle
 		RangeTip(mElPos.l, mElPos.t, mElPos.r-mElPos.l, mElPos.b-mElPos.t, "Blue", 4)
-		GuiControl, Main:, EditControlType, % mEl.CurrentControlType
-		GuiControl, Main:, EditLocalizedControlType, % mEl.CurrentLocalizedControlType
+		GuiControl, Main:, EditControlType, % (ctrlType := mEl.CurrentControlType) " (" UIA_ControlTypeId(ctrlType) ")`t[Localized: " mEl.CurrentLocalizedControlType "]"
 		GuiControl, Main:, EditName, % mEl.CurrentName
 		GuiControl, Main:, EditValue, % mEl.GetCurrentPropertyValue(UIA_ValueValuePropertyId := 30045)
 		patterns := ""
 		for k, v in UIA.PollForPotentialSupportedPatterns(mEl)
 			patterns .= ", " RegexReplace(k, "Pattern$")
 		GuiControl, Main:, EditPatterns, % SubStr(patterns, 3)
+		GuiControl, Main:, EditAutomationId, % mEl.CurrentAutomationId
 		GuiControl, Main:, EditBoundingRectangle, % "l: " mElPos.l " t: " mElPos.t " r: " mElPos.r " b: " mElPos.b
 		GuiControl, Main:, EditAccessKey, % mEl.CurrentAccessKey
 		GuiControl, Main:, EditAcceleratorKey, % mEl.CurrentAcceleratorKey
@@ -528,6 +530,17 @@ UIA_PropertyId(n="") {
 	n := StrReplace(StrReplace(n, "UIA_"), "PropertyId")
 	RegexMatch(ids, "(?:^|,)" n "(?:" n ")?(?:Id)?:(\d+)", m)
 	return m1
+}
+
+UIA_ControlTypeId(n="") {
+	static id:={Button:50000,Calendar:50001,CheckBox:50002,ComboBox:50003,Edit:50004,Hyperlink:50005,Image:50006,ListItem:50007,List:50008,Menu:50009,MenuBar:50010,MenuItem:50011,ProgressBar:50012,RadioButton:50013,ScrollBar:50014,Slider:50015,Spinner:50016,StatusBar:50017,Tab:50018,TabItem:50019,Text:50020,ToolBar:50021,ToolTip:50022,Tree:50023,TreeItem:50024,Custom:50025,Group:50026,Thumb:50027,DataGrid:50028,DataItem:50029,Document:50030,SplitButton:50031,Window:50032,Pane:50033,Header:50034,HeaderItem:50035,Table:50036,TitleBar:50037,Separator:50038,SemanticZoom:50039,AppBar:50040}, name:={50000:"Button",50001:"Calendar",50002:"CheckBox",50003:"ComboBox",50004:"Edit",50005:"Hyperlink",50006:"Image",50007:"ListItem",50008:"List",50009:"Menu",50010:"MenuBar",50011:"MenuItem",50012:"ProgressBar",50013:"RadioButton",50014:"ScrollBar",50015:"Slider",50016:"Spinner",50017:"StatusBar",50018:"Tab",50019:"TabItem",50020:"Text",50021:"ToolBar",50022:"ToolTip",50023:"Tree",50024:"TreeItem",50025:"Custom",50026:"Group",50027:"Thumb",50028:"DataGrid",50029:"DataItem",50030:"Document",50031:"SplitButton",50032:"Window",50033:"Pane",50034:"Header",50035:"HeaderItem",50036:"Table",50037:"TitleBar",50038:"Separator",50039:"SemanticZoom",50040:"AppBar"}
+	if !n
+		return id
+	if n is integer
+		return name[n]
+	if ObjHasKey(id, n)
+		return id[n]
+	return id[StrReplace(StrReplace(n, "ControlTypeId"), "UIA_")]
 }
 
 ; Acc functions

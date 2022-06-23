@@ -14,7 +14,7 @@ _xoffset := 5
 _yoffset := 20
 _ysoffset := 2
 
-Gui Main: New, AlwaysOnTop, UIAViewer
+Gui Main: New, AlwaysOnTop Resize, UIAViewer
 Gui Main: Default
 
 Gui Add, GroupBox, x8 y10 w302 h160, Window/Control Info
@@ -84,6 +84,13 @@ MainGuiEscape:
 MainGuiClose:
 	IsCapturing := False
     ExitApp
+
+MainGuiSize(GuiHwnd, EventInfo, Width, Height){
+	GuiControlGet, Pos, Pos , MainTreeView
+	GuiControl, Move, MainTreeView, % "w" Width -Posx-10 " h" Height -Posy-60
+	GuiControl, Move, ButRefreshTreeView, % "y" Height -50
+	WinSet, Redraw,,UIAViewer
+}
 
 MainSB:
 	GuiControlGet, SBText,, MainSB

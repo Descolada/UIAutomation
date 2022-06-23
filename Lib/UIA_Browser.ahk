@@ -36,8 +36,16 @@ class UIA_Browser {
 		if !ObjHasKey(this.base, member) {
 			try
 				return this.UIA[member].Call(this.UIA, params*)
+			catch e {
+				if !InStr(e.Message, "Property not supported by the")
+					throw Exception(e.Message, -1, e.What)
+			}
 			try
 				return this.BrowserElement[member].Call(this.BrowserElement, params*)
+			catch e {
+				if !InStr(e.Message, "Property not supported by the")
+					throw Exception(e.Message, -1, e.What)
+			}
 			throw Exception("Method call not supported by " this.__Class " nor UIA_Interface or UIA_Element class or an error was encountered.",-1,member)
 		}
 	}
@@ -53,6 +61,7 @@ class UIA_Browser {
 				if ((bT := v.CurrentBoundingRectangle.t) && (bt < topCoord))
 					topCoord := bT, this.NavigationBarElement := v
 			}
+			this.URLEditElement := this.NavigationBarElement.FindFirst(EditControlCondition)
 		} Else {
 			this.NavigationBarElement := this.UIA.CreateTreeWalker(ToolbarControlCondition).GetParentElement(this.URLEditElement)
 		}

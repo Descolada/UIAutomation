@@ -616,11 +616,11 @@ class UIA_Element extends UIA_Base {
 		}
 		return returnStr
 	}
-	Dump() { ; Returns info about the element: ControlType, Name, Value, LocalizedControlType, AcceleratorKey. 
-		return "Type: " this.CurrentControlType ((name := this.CurrentName) ? " Name: """ name """" : "") ((val := this.CurrentValue) ? " Value: """ val """": "") ((lct := this.CurrentLocalizedControlType) ? " LocalizedControlType: """ lct """" : "") ((ak := this.CurrentAcceleratorKey) ? " AcceleratorKey: """ ak """": "")
+	Dump() { ; Returns info about the element: ControlType, Name, Value, LocalizedControlType, AutomationId, AcceleratorKey. 
+		return "Type: " this.CurrentControlType ((name := this.CurrentName) ? " Name: """ name """" : "") ((val := this.CurrentValue) ? " Value: """ val """": "") ((lct := this.CurrentLocalizedControlType) ? " LocalizedControlType: """ lct """" : "") ((aid := this.CurrentAutomationId) ? " AutomationId: """ aid """": "") ((ak := this.CurrentAcceleratorKey) ? " AcceleratorKey: """ ak """": "")
 	}
 	DumpAll(maxDepth=20) { ; Returns info (ControlType, Name etc) for all descendants of the element. maxDepth is the allowed depth of recursion, by default 20 layers. DO NOT call this on the root element!
-		return this.TWRecursive(maxDepth)
+		return (this.Dump() .  "`n" . this.TWRecursive(maxDepth))
 	}
 	/*
 		FindFirst using search criteria. Scope by default is UIA_TreeScope_Descendants. If using Name as a criteria, matchMode follows SetTitleMatchMode scheme: 1=name must must start with the specified name; 2=can contain anywhere; 3=exact match; RegEx. The Name can't be empty.
@@ -658,10 +658,10 @@ class UIA_Element extends UIA_Base {
 			for k, v in this.FindAll(fullCondition, scope) {
 				curName := v.CurrentName
 				if notProp {
-					if (((matchMode == 1) && (SubStr(curName, 1, StrLen(name)) == name)) || ((matchMode == "RegEx") && RegExMatch(curName, name)))
+					if (((matchMode == 1) && (SubStr(curName, 1, StrLen(name)) = name)) || (InStr(matchMode, "RegEx") && RegExMatch(curName, name)))
 						return v
 				} else {
-					if (((matchMode == 1) && (SubStr(curName, 1, StrLen(name)) != name)) || ((matchMode == "RegEx") && !RegExMatch(curName, name)))
+					if (((matchMode == 1) && !(SubStr(curName, 1, StrLen(name)) = name)) || (InStr(matchMode, "RegEx") && !RegExMatch(curName, name)))
 						return v
 				}
 			}
@@ -672,14 +672,13 @@ class UIA_Element extends UIA_Base {
 	
 	FindFirstByName(name, scope=0x4, matchMode=3, caseSensitive=True) { ; MatchMode has same convention as window TitleMatchMode: 1=needs to start with the specified name, 2=can contain anywhere, 3=exact match, RegEx=regex match
 		if (matchMode == 3 || matchMode == 2) {
-			;MsgBox, % "Find: " UIA_Enum.NamePropertyId " ControlType: " name
 			nameCondition := this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, ((matchMode==3)?0:2)|!caseSensitive)
 			return this.FindFirst(nameCondition, scope)
 		}
 		nameCondition := (matchMode==1)?this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, 2|!caseSensitive):this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_NamePropertyId, ""))
 		for k, v in this.FindAll(nameCondition, scope) {
 			curName := v.CurrentName
-			if (((matchMode == 1) && (SubStr(curName, 1, StrLen(name)) == name)) || ((matchMode == "RegEx") && RegExMatch(curName, name)))
+			if (((matchMode == 1) && (SubStr(curName, 1, StrLen(name)) = name)) || ((matchMode == "RegEx") && RegExMatch(curName, name)))
 				return v		
 		}
 	}
@@ -704,11 +703,11 @@ class UIA_Element extends UIA_Base {
 			AndCondition := this.__UIA.CreateAndCondition(nameCondition, controlCondition)
 			return this.FindFirst(AndCondition, scope)
 		}
-		nameCondition := (matchMode==1)?this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, 2|!caseSensitive):this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_NamePropertyId, ""))
+		nameCondition := (matchMode==1)?this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, 2|(!caseSensitive)):this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_NamePropertyId, ""))
 		AndCondition := this.__UIA.CreateAndCondition(nameCondition, controlCondition)
 		for k, v in this.FindAll(AndCondition, scope) {
 			curName := v.CurrentName
-			if (((matchMode == 1) && (SubStr(curName, 1, StrLen(name)) == name)) || ((matchMode == "RegEx") && RegExMatch(curName, name)))
+			if (((matchMode == 1) && InStr(SubStr(curName, 1, StrLen(name)), name)) || ((matchMode == "RegEx") && RegExMatch(curName, name)))
 				return v		
 		}
 	}
@@ -722,7 +721,6 @@ class UIA_Element extends UIA_Base {
 				bufName[1] := match1, bufName[2] := match2
 				Continue
 			} else {
-				;MsgBox, % "Creating condition with: m1: """ match1 """ m2: """ match2 """ m3: """ match3 """ flags: " ((matchMode==2)?2:0)|!caseSensitive
 				newCondition := (SubStr(match1, 1, 4) == "NOT ") ? this.__UIA.CreateNotCondition(this.__UIA.CreateCondition(SubStr(match1, 5), match2)) : this.__UIA.CreateCondition(match1, match2, ((matchMode==2 && match1=="Name")?2:0)|!caseSensitive)
 			}
 			fullCondition := (operator == " AND " || operator == " && ") ? this.__UIA.CreateAndCondition(fullCondition, newCondition) : (operator == " OR " || operator == " || ") ? this.__UIA.CreateOrCondition(fullCondition, newCondition) : newCondition
@@ -735,10 +733,10 @@ class UIA_Element extends UIA_Base {
 			for k, v in this.FindAll(fullCondition, scope) {
 				curName := v.CurrentName
 				if notProp {
-					if (((matchMode == 1) && (SubStr(curName, 1, StrLen(name)) == name)) || ((matchMode == "RegEx") && RegExMatch(curName, name)))
+					if (((matchMode == 1) && (SubStr(curName, 1, StrLen(name)) = name)) || ((matchMode == "RegEx") && RegExMatch(curName, name)))
 						returnArr.Push(v)
 				} else {
-					if (((matchMode == 1) && (SubStr(curName, 1, StrLen(name)) != name)) || ((matchMode == "RegEx") && !RegExMatch(curName, name)))
+					if (((matchMode == 1) && !(SubStr(curName, 1, StrLen(name)) = name)) || ((matchMode == "RegEx") && !RegExMatch(curName, name)))
 						returnArr.Push(v)
 				}
 			}
@@ -757,7 +755,7 @@ class UIA_Element extends UIA_Base {
 		retList := []
 		for k, v in this.FindAll(nameCondition, scope) {
 			curName := v.CurrentName
-			if (((matchMode == 1) && (SubStr(curName, 1, StrLen(name)) == name))|| ((matchMode == "RegEx") && RegExMatch(curName, name)))
+			if (((matchMode == 1) && (SubStr(curName, 1, StrLen(name)) = name)) || ((matchMode == "RegEx") && RegExMatch(curName, name)))
 				retList.Push(v)		
 		}
 		return retList
@@ -788,7 +786,7 @@ class UIA_Element extends UIA_Base {
 		returnArr := []
 		for k, v in this.FindAll(AndCondition, scope) {
 			curName := v.CurrentName
-			if (((matchMode == 1) && (SubStr(curName, 1, StrLen(name)) == name)) || ((matchMode == "RegEx") && RegExMatch(curName, name)))
+			if (((matchMode == 1) && (SubStr(curName, 1, StrLen(name)) = name)) || ((matchMode == "RegEx") && RegExMatch(curName, name)))
 				returnArr.Push(v)	
 		}
 		return returnArr
@@ -997,6 +995,7 @@ class UIA_BoolCondition extends UIA_Condition {
 class UIA_NotCondition extends UIA_Condition {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696106(v=vs.85).aspx
 	static __IID := "{f528b657-847b-498c-8896-d52b565407a1}"
+			,	__Properties := ""
 
 	GetChild() { ; Type of the received condition can be determined with out.__Class
 		ret := UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out)), obj := ComObject(9, out, 1)
@@ -1041,6 +1040,7 @@ class UIA_CacheRequest extends UIA_Base {
 class _UIA_EventHandler extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696044(v=vs.85).aspx
 	static __IID := "{146c3c17-f12e-4e22-8c27-f894b9b79c69}"
+		,	__Properties := ""
 
 	HandleAutomationEvent(sender, eventId) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
@@ -1051,6 +1051,7 @@ class _UIA_EventHandler extends UIA_Base {
 class _UIA_FocusChangedEventHandler extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696051(v=vs.85).aspx
 	static __IID := "{c270f6b5-5c69-4290-9745-7a7f97169468}"
+		,	__Properties := ""
 	HandleFocusChangedEvent(sender) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
 		%funcName%(UIA_Element(sender))
@@ -1060,6 +1061,7 @@ class _UIA_FocusChangedEventHandler extends UIA_Base {
 class _UIA_PropertyChangedEventHandler extends UIA_Base { ; UNTESTED
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696119(v=vs.85).aspx
 	static __IID := "{40cd37d4-c756-4b0c-8c6f-bddfeeb13b50}"
+		,	__Properties := ""
 	HandlePropertyChangedEvent(sender, propertyId, newValue) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
 		%funcName%(UIA_Element(sender), eventId, UIA_VariantData(newValue))
@@ -1069,6 +1071,7 @@ class _UIA_PropertyChangedEventHandler extends UIA_Base { ; UNTESTED
 class _UIA_StructureChangedEventHandler extends UIA_Base { ; UNTESTED
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696197(v=vs.85).aspx
 	static __IID := "{e81d1b4e-11c5-42f8-9754-e7036c79f054}"
+		,	__Properties := ""
 	HandleStructureChangedEvent(sender, changeType, runtimeId) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
 		%funcName%(UIA_Element(sender), changeType, UIA_SafeArrayToAHKArray(ComObj(0x2003,runtimeId,1)))
@@ -1078,6 +1081,7 @@ class _UIA_StructureChangedEventHandler extends UIA_Base { ; UNTESTED
 class _UIA_TextEditTextChangedEventHandler { ; UNTESTED
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/dn302202(v=vs.85).aspx
 	static __IID := "{92FAA680-E704-4156-931A-E32D5BB38F3F}"
+		,	__Properties := ""
 	HandleTextEditTextChangedEvent(sender, changeType, eventStrings) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
 		%funcName%(UIA_Element(sender), changeType, UIA_SafeArrayToAHKArray(ComObj(0x2008,eventStrings,1)))
@@ -1088,6 +1092,7 @@ class _UIA_TextEditTextChangedEventHandler { ; UNTESTED
 
 class _UIA_ChangesEventHandler { ; UNTESTED
 	static __IID := "{58EDCA55-2C3E-4980-B1B9-56C17F27A2A0}"
+		,	__Properties := ""
 	HandleChangesEvent(sender, uiaChanges, changesCount) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version, changes := {}
 		changes.uiaId := NumGet(uiaChanges, 0), changes.payload := UIA_VariantData(uiaChanges, 8), changes.extraInfo := UIA_VariantData(uiaChanges,16+2*A_PtrSize)
@@ -1099,6 +1104,7 @@ class _UIA_ChangesEventHandler { ; UNTESTED
 
 class _UIA_NotificationEventHandler {
 	static __IID := "{C7CB2637-E6C2-4D0C-85DE-4948C02175C7}"
+		,	__Properties := ""
 	HandleNotificationEvent(sender, notificationKind, notificationProcessing, displayString, activityId) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
 		%funcName%(UIA_Element(sender), notificationKind, notificationProcessing, StrGet(displayString), StrGet(activityId))
@@ -1156,13 +1162,14 @@ class UIA_GridPattern extends UIA_Base {
 		,	__Properties := "CurrentRowCount,4,int`r`nCurrentColumnCount,5,int`r`nCachedRowCount,6,int`r`nCachedColumnCount,7,int"
 
 	GetItem(row,column) { ; Hr!=0 if no result, or blank output?
-		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "uint",row, "uint",column, "ptr*",out))? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "uint",row, "uint",column, "ptr*",out))&&out? UIA_Element(out):
 	}
 }
 class UIA_InvokePattern extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696070
 	static	__IID := "{fb377fbe-8ea6-46d5-9c73-6499642d3059}"
 		,	__PatternID := 10000
+		,	__Properties := ""
 	
 	Invoke() {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value))
@@ -1172,6 +1179,7 @@ class UIA_ItemContainerPattern extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696072
 	static	__IID := "{c690fdb2-27a8-423c-812d-429773c9084e}"
 		,	__PatternID := 10019
+		,	__Properties := ""
 
 	FindItemByProperty(startAfter, propertyId, ByRef value, type=8) {	; Hr!=0 if no result, or blank output?
 		if (type!="Variant")
@@ -1239,6 +1247,7 @@ class UIA_ScrollItemPattern extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696165
 	static	__IID := "{b488300f-d015-4f19-9c29-bb595e3645ef}"
 		,	__PatternID := 10017
+		,	__Properties := ""
 
 	ScrollIntoView() {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value))
@@ -1283,7 +1292,7 @@ class UIA_SelectionPattern extends UIA_Base {
 	static	__IID := "{5ED5202E-B2AC-47A6-B638-4B0BF140D78E}"
 		,	__PatternID := 10001
 		,	__Properties := "CurrentCanSelectMultiple,4,int`r`nCurrentIsSelectionRequired,5,int`r`nCachedCanSelectMultiple,7,int`r`nCachedIsSelectionRequired,8,int"
-	GetCurrentSelection() { ; returns an array of selected elements
+	GetCurrentSelection() { ; Returns an array of selected elements
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*", out))&&out?UIA_ElementArray(out):
 	}
 	GetCachedSelection() {
@@ -1291,7 +1300,7 @@ class UIA_SelectionPattern extends UIA_Base {
 	}
 }
 
-class UIA_SelectionPattern2 extends UIA_SelectionPattern {
+class UIA_SelectionPattern2 extends UIA_SelectionPattern { ; Does not extend SelectionPattern properties and methods
 	static	__IID := "{0532bfae-c011-4e32-a343-6d642d798555"
 		,	__PatternID := 10034
 		,	__Properties := "CurrentFirstSelectedItem,9,IUIAutomationElement`r`nCurrentLastSelectedItem,10,IUIAutomationElement`r`nCurrentCurrentSelectedItem,11,IUIAutomationElement`r`nCurrentItemCount,12,int`r`nCachedFirstSelectedItem,13,IUIAutomationElement`r`nCachedLastSelectedItem,14,IUIAutomationElement`r`nCachedCurrentSelectedItem,15,IUIAutomationElement`r`nCachedItemCount,16,int"
@@ -1348,7 +1357,7 @@ class UIA_SynchronizedInputPattern extends UIA_Base { ; UNTESTED
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value))
 	}
 }
-class UIA_TableItemPattern extends UIA_Base { ; UNTESTED
+class UIA_TableItemPattern extends UIA_Base {
 	static	__IID := "{0B964EB3-EF2E-4464-9C79-61D61737A27E}"
 		,	__PatternID := 10013
 		,	__Properties := ""
@@ -1365,7 +1374,7 @@ class UIA_TableItemPattern extends UIA_Base { ; UNTESTED
 		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*", out))&&out?UIA_ElementArray(out):
 	}
 }
-class UIA_TablePattern extends UIA_Base { ; UNTESTED
+class UIA_TablePattern extends UIA_Base {
 	static	__IID := "{620E691C-EA96-4710-A850-754B24CE2417}"
 		,	__PatternID := 10012
 		,	__Properties := "CurrentRowOrColumnMajor,5,int`r`nCachedRowOrColumnMajor,5,int"
@@ -1533,6 +1542,7 @@ class UIA_ObjectModelPattern extends UIA_Base {			; Windows 8 [desktop apps only
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/hh437262(v=vs.85).aspx
 	static	__IID := "{71c284b3-c14d-4d14-981e-19751b0d756d}"
 		,	__PatternID := 10022
+		,	__Properties := ""
 	
 	GetUnderlyingObjectModel() { ; UNTESTED. Returns IUnknown interface used to access the underlying object model of the provider.
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*", out))?out:

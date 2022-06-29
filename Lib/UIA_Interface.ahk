@@ -1,11 +1,32 @@
-﻿;~ Credit for this file mostly goes to jethrow: https://github.com/jethrow/UIA_Interface/blob/master/UIA_Interface.ahk
-;~ I have added a lot of modifications to it, including custom methods for elements (eg element.Click()), UIA_Enum class etc
+﻿/*
+	Introduction & credits
+	This library implements Microsoft's UI Automation framework. More information is here: https://docs.microsoft.com/en-us/windows/win32/winauto/entry-uiauto-win32
+	Credit for this file mostly goes to jethrow: https://github.com/jethrow/UIA_Interface/blob/master/UIA_Interface.ahk
+	I have added a lot of modifications to it, including custom methods for elements (eg element.Click()), UIA_Enum class etc
+*/
 
-;~ UI Automation Constants: http://msdn.microsoft.com/en-us/library/windows/desktop/ee671207(v=vs.85).aspx
-;~ UI Automation Enumerations: http://msdn.microsoft.com/en-us/library/windows/desktop/ee671210(v=vs.85).aspx
-;~ http://www.autohotkey.com/board/topic/94619-ahk-l-screen-reader-a-tool-to-get-text-anywhere/
+/* 
+	Usage
+	UIA needs to be initialized with UIA_Interface() function, which returns a UIA_Interface object:
+	UIA := UIA_Interface()
+	After calling this function, all UIA_Interface class properties and methods can be accessed through it. 
+	In addition some extra variables are initialized: 
+		CurrentVersion contains the version number of IUIAutomation interface
+		TrueCondition contains a UIA_TrueCondition
+		TreeWalkerTrue contains an UIA_TreeWalker that was created with UIA_TrueCondition
+	Note that a new UIA_Interface object can't be created with the "new" keyword. 
+	
+	UIAutomation constants and enumerations are available from the UIA_Enum class (see a more thorough description at the class header).
+	Microsoft documentation for constants and enumerations:
+		UI Automation Constants: https://docs.microsoft.com/en-us/windows/win32/winauto/uiauto-entry-constants
+		UI Automation Enumerations: https://docs.microsoft.com/en-us/windows/win32/winauto/uiauto-entry-enumerations
+	
+	For more information, see the AHK Forums post on UIAutomation: https://www.autohotkey.com/boards/viewtopic.php?f=6&t=104999
+*/
 
-/* Questions:
+
+/* 	
+	Questions:
 	- better way to do __properties?
 	- better way to do __properties for multiple versions of objects? (eg UIA_Element2 being and UIA_Element.__properties + UIA_Element2.__properties)
 	- if method returns a SafeArray, should we return a Wrapped SafeArray, Raw SafeArray, or AHK Array. Currently we return wrapped AHK arrays for SafeArrays. Although SafeArrays are more convenient to loop over, this causes more confusion in users who are not familiar with SafeArrays (questions such as why are they 0-indexed not 1-indexed, why doesnt for k, v in SafeArray work properly etc). 
@@ -21,6 +42,7 @@
 	- Get methods vs property getter: currently we use properties when the item stores data, fetching the data is "cheap" and when it doesn't have side-effects, and in computationally expensive cases use Get...(). 
 */
 
+; Base class for all UIA objects (UIA_Interface, UIA_Element etc), that is used to fetch properties from __Properties, and get constants and enumerations from UIA_Enum.
 class UIA_Base {
 	__New(p="", flag=0, version="") {
 		ObjInsert(this,"__Type","IUIAutomation" SubStr(this.__Class,5))
@@ -68,21 +90,28 @@ class UIA_Base {
 	}
 }	
 
+/* 
+	Exposes methods that enable to discover, access, and filter UI Automation elements. UI Automation exposes every element of the UI Automation as an object represented by the IUIAutomation interface. The members of this interface are not specific to a particular element.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomation
+*/
 class UIA_Interface extends UIA_Base {
-	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee671406(v=vs.85).aspx
 	static __IID := "{30cbe57d-d9d0-452a-ab13-7ac5ac4825ee}"
 		,  __properties := "ControlViewWalker,14,IUIAutomationTreeWalker`r`nContentViewWalker,15,IUIAutomationTreeWalker`r`nRawViewWalker,16,IUIAutomationTreeWalker`r`nRawViewCondition,17,IUIAutomationCondition`r`nControlViewCondition,18,IUIAutomationCondition`r`nContentViewCondition,19,IUIAutomationCondition`r`nProxyFactoryMapping,48,IUIAutomationProxyFactoryMapping`r`nReservedNotSupportedValue,54,IUnknown`r`nReservedMixedAttributeValue,55,IUnknown"
-	
-	CompareElements(e1,e2) {
+		
+	; Compares two UI Automation elements to determine whether they represent the same underlying UI element.
+	CompareElements(e1,e2) { 
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",e1.__Value, "ptr",e2.__Value, "int*",out))? out:
 	}
-	CompareRuntimeIds(r1,r2) {
-		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr",ComObjValue(r1), "ptr",ComObjValue(r2), "int*",out))? out:
+	; Compares two integer arrays containing run-time identifiers (IDs) to determine whether their content is the same and they belong to the same UI element. r1 and r2 need to be RuntimeId arrays (returned by GetRuntimeId()), where array.base.__Value contains the corresponding safearray.
+	CompareRuntimeIds(r1,r2) { 
+		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr",ComObjValue(r1.__Value), "ptr",ComObjValue(r2.__Value), "int*",out))? out:
 	}
-	GetRootElement() {
+	; Retrieves the UI Automation element that represents the desktop.
+	GetRootElement() { 
 		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))? UIA_Element(out):
 	}
-	ElementFromHandle(hwnd, activateChromiumAccessibility=False) {
+	; Retrieves a UI Automation element for the specified window. Additionally activateChromiumAccessibility flag can be set to True to send the WM_GETOBJECT message to Chromium-based apps to activate accessibility if it isn't activated.
+	ElementFromHandle(hwnd, activateChromiumAccessibility=False) { 
 		if activateChromiumAccessibility {
 			WinGet, cList, ControlList, ahk_id %hwnd%
 			if InStr(cList, "Chrome_RenderWidgetHostHWND1")
@@ -90,7 +119,8 @@ class UIA_Interface extends UIA_Base {
 		}
 		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",hwnd, "ptr*",out))? UIA_Element(out):
 	}
-	ElementFromPoint(x="", y="", activateChromiumAccessibility=False) {
+	; Retrieves the UI Automation element at the specified point on the desktop. Additionally activateChromiumAccessibility flag can be set to True to send the WM_GETOBJECT message to Chromium-based apps to activate accessibility if it isn't activated.
+	ElementFromPoint(x="", y="", activateChromiumAccessibility=False) { 
 		if (x==""||y=="")
 			DllCall("GetCursorPos","Int64*",pt)
 		if (activateChromiumAccessibility && (hwnd := DllCall("GetAncestor", "UInt", DllCall("WindowFromPoint", pt), "UInt", GA_ROOT := 2))) { ; hwnd from point by SKAN
@@ -100,39 +130,44 @@ class UIA_Interface extends UIA_Base {
 		}
 		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "UInt64",x==""||y==""?pt:x&0xFFFFFFFF|(y&0xFFFFFFFF)<<32, "ptr*",out))? UIA_Element(out):
 	}	
-	GetFocusedElement() {
+	; Retrieves the UI Automation element that has the input focus.
+	GetFocusedElement() { 
 		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))? UIA_Element(out):
 	}
-
-	GetRootElementBuildCache(cacheRequest) { ; UNTESTED
+	; Retrieves the UI Automation element that represents the desktop, prefetches the requested properties and control patterns, and stores the prefetched items in the cache.
+	GetRootElementBuildCache(cacheRequest) { ; UNTESTED. 
 		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}
-	ElementFromHandleBuildCache(hwnd, cacheRequest) {
+	; Retrieves a UI Automation element for the specified window, prefetches the requested properties and control patterns, and stores the prefetched items in the cache.
+	ElementFromHandleBuildCache(hwnd, cacheRequest) { 
 		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr",hwnd, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}
-
-	ElementFromPointBuildCache(x="", y="", cacheRequest="") { ; UNTESTED
+	; Retrieves the UI Automation element at the specified point on the desktop, prefetches the requested properties and control patterns, and stores the prefetched items in the cache.
+	ElementFromPointBuildCache(x="", y="", cacheRequest=0) { ; UNTESTED. 
 		return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "UInt64",x==""||y==""?0*DllCall("GetCursorPos","Int64*",pt)+pt:x&0xFFFFFFFF|(y&0xFFFFFFFF)<<32, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}	
-
-	GetFocusedElementBuildCache(cacheRequest) { ; UNTESTED
+	; Retrieves the UI Automation element that has the input focus, prefetches the requested properties and control patterns, and stores the prefetched items in the cache. 
+	GetFocusedElementBuildCache(cacheRequest) { ; UNTESTED. 
 		return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}
-	CreateTreeWalker(condition) {
+	; Retrieves a UIA_TreeWalker object that can be used to traverse the Microsoft UI Automation tree.
+	CreateTreeWalker(condition) { 
 		return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "ptr",Condition.__Value, "ptr*",out))? new UIA_TreeWalker(out):
 	}
-	
-	CreateCacheRequest() {
+	CreateCacheRequest() { 
 		return UIA_Hr(DllCall(this.__Vt(20), "ptr",this.__Value, "ptr*",out))? new UIA_CacheRequest(out):
 	}
-
-	CreateTrueCondition() {
+	; Creates a condition that is always true.
+	CreateTrueCondition() { 
 		return UIA_Hr(DllCall(this.__Vt(21), "ptr",this.__Value, "ptr*",out))? new UIA_BoolCondition(out):
 	}
-	CreateFalseCondition() {
+	; Creates a condition that is always false.
+	CreateFalseCondition() { 
 		return UIA_Hr(DllCall(this.__Vt(22), "ptr",this.__Value, "ptr*",out))? new UIA_BoolCondition(out):
 	}
-	CreatePropertyCondition(propertyId, var, type="Variant") {
+	; Creates a condition that selects elements that have a property with the specified value (var). 
+	; If type is specified then a new variant is created with the specified variant type, otherwise the type is fetched from UIA_PropertyVariantType enums (so usually this can be left unchanged).
+	CreatePropertyCondition(propertyId, var, type="Variant") { 
 		if (type!="Variant")
 			UIA_Variant(var,type,var)
 		else if (maybeVar := UIA_Enum.UIA_PropertyVariantType(propertyId)) {
@@ -140,8 +175,8 @@ class UIA_Interface extends UIA_Base {
 		}
 		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(23), "ptr",this.__Value, "int",propertyId, "int64", NumGet(var, 0, "int64"), "int64", NumGet(var, 8, "int64"), "ptr*",out) : DllCall(this.__Vt(23), "ptr",this.__Value, "int",propertyId, "ptr",&var, "ptr*",out))? new UIA_PropertyCondition(out):
 	}
-	CreatePropertyConditionEx(propertyId, var, type="Variant", flags=0x1) {
-		; PropertyConditionFlags_IgnoreCase = 0x1
+	; Creates a condition that selects elements that have a property with the specified value (var), using optional flags. If type is specified then a new variant is created with the specified variant type, otherwise the type is fetched from UIA_PropertyVariantType enums (so usually this can be left unchanged). flags can be one of PropertyConditionFlags, default is PropertyConditionFlags_IgnoreCase = 0x1.
+	CreatePropertyConditionEx(propertyId, var, type="Variant", flags=0x1) { 
 		if (type!="Variant")
 			UIA_Variant(var,type,var)
 		else if (maybeVar := UIA_Enum.UIA_PropertyVariantType(propertyId)) {
@@ -149,10 +184,12 @@ class UIA_Interface extends UIA_Base {
 		}
 		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(24), "ptr",this.__Value, "int",propertyId, "int64", NumGet(var, 0, "int64"), "int64", NumGet(var, 8, "int64"), "uint",flags, "ptr*",out) : DllCall(this.__Vt(24), "ptr",this.__Value, "int",propertyId, "ptr",&var, "uint",flags, "ptr*",out))? new UIA_PropertyCondition(out):
 	}
-	CreateAndCondition(c1,c2) {
+	; Creates a condition that selects elements that match both of two conditions.
+	CreateAndCondition(c1,c2) { 
 		return UIA_Hr(DllCall(this.__Vt(25), "ptr",this.__Value, "ptr",c1.__Value, "ptr",c2.__Value, "ptr*",out))? new UIA_AndCondition(out):
 	}
-	CreateAndConditionFromArray(array) { ; ComObj(0x2003)??
+	; Creates a condition that selects elements based on multiple conditions, all of which must be true.
+	CreateAndConditionFromArray(array) { 
 	;->in: AHK Array or Wrapped SafeArray
 		if ComObjValue(array)&0x2000
 			SafeArray:=array
@@ -163,19 +200,22 @@ class UIA_Interface extends UIA_Base {
 		}
 		return UIA_Hr(DllCall(this.__Vt(26), "ptr",this.__Value, "ptr",ComObjValue(SafeArray), "ptr*",out))? new UIA_AndCondition(out):
 	}
-	CreateAndConditionFromNativeArray(conditions, conditionCount) { ; UNTESTED
+	; Creates a condition that selects elements from a native array, based on multiple conditions that must all be true
+	CreateAndConditionFromNativeArray(conditions, conditionCount) { ; UNTESTED. 
 		/*	[in]           IUIAutomationCondition **conditions,
 			[in]           int conditionCount,
 			[out, retval]  IUIAutomationCondition **newCondition
 		*/
 		return UIA_Hr(DllCall(this.__Vt(27), "ptr",this.__Value, "ptr", conditions, "int", conditionCount, "ptr*",out))? new UIA_AndCondition(out):
 	}
-	CreateOrCondition(c1,c2) {
+	; Creates a combination of two conditions where a match exists if either of the conditions is true.
+	CreateOrCondition(c1,c2) { 
 		return UIA_Hr(DllCall(this.__Vt(28), "ptr",this.__Value, "ptr",c1.__Value, "ptr",c2.__Value, "ptr*",out))? new UIA_OrCondition(out):
 	}
-	CreateOrConditionFromArray(array) {
+	; Creates a combination of two or more conditions where a match exists if any of the conditions is true.
+	CreateOrConditionFromArray(array) { 
 	;->in: AHK Array or Wrapped SafeArray
-		if ComObjValue(array)&0x2000 ; equivalent to ComObjType(array) == VT_ARRAY ?
+		if ComObjValue(array)&0x2000
 			SafeArray:=array
 		else {
 			SafeArray:=ComObj(0x2003,DllCall("oleaut32\SafeArrayCreateVector", "uint",13, "uint",0, "uint",array.MaxIndex()),1)
@@ -191,19 +231,23 @@ class UIA_Interface extends UIA_Base {
 		[out, retval]  IUIAutomationCondition **newCondition
 	*/
 	}
-	CreateNotCondition(c) {
+	; Creates a condition that is the negative of a specified condition.
+	CreateNotCondition(c) { 
 		return UIA_Hr(DllCall(this.__Vt(31), "ptr",this.__Value, "ptr",c.__Value, "ptr*",out))? new UIA_NotCondition(out):
 	}
-	AddAutomationEventHandler(eventId, element, scope=0x4, cacheRequest=0, handler="") {
+	; Registers a method that handles Microsoft UI Automation events. eventId must be an EventId enum. scope must be a TreeScope enum. cacheRequest can be specified is caching is used. handler is an event handler object, which can be created with UIA_CreateEventHandler function.
+	AddAutomationEventHandler(eventId, element, scope=0x4, cacheRequest=0, handler="") { 
 		return UIA_Hr(DllCall(this.__Vt(32), "ptr",this.__Value, "int", eventId, "ptr", element.__Value, "uint", scope, "ptr",cacheRequest.__Value,"ptr",handler.__Value))
 	}
-	RemoveAutomationEventHandler(eventId, element, handler) {
+	; Removes the specified UI Automation event handler.
+	RemoveAutomationEventHandler(eventId, element, handler) { 
 		return UIA_Hr(DllCall(this.__Vt(33), "ptr",this.__Value, "int", eventId, "ptr", element.__Value, "ptr",handler.__Value))
 	}
 
 	;~ AddPropertyChangedEventHandlerNativeArray 	34
 	
-	AddPropertyChangedEventHandler(element,scope=0x1,cacheRequest=0,handler="",propertyArray="") {
+	; Registers a method that handles an array of property-changed events
+	AddPropertyChangedEventHandler(element,scope=0x1,cacheRequest=0,handler="",propertyArray="") { 
 		SafeArray:=ComObjArray(0x3,propertyArray.MaxIndex())
 		for i,propertyId in propertyArray
 			SafeArray[i-1]:=propertyId
@@ -213,14 +257,14 @@ class UIA_Interface extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(36), "ptr",this.__Value, "ptr",element.__Value, "ptr", handler.__Value))
 	}
 
-	AddStructureChangedEventHandler(element, handler) { ; UNTESTED
+	AddStructureChangedEventHandler(element, handler) { ; UNTESTED. 
 		return UIA_Hr(DllCall(this.__Vt(37), "ptr",this.__Value, "ptr",element.__Value, "ptr",handler.__Value))
 	}
 	RemoveStructureChangedEventHandler(element, handler) { ; UNTESTED
 		return UIA_Hr(DllCall(this.__Vt(38), "ptr",this.__Value, "ptr", element.__Value, "ptr",handler.__Value))
 	}
-
-	AddFocusChangedEventHandler(handler="", cacheRequest=0) { ; handler is required, cacheRequest can be left to 0
+	; Registers a method that handles ChangedEvent events. handler is required, cacheRequest can be left to 0
+	AddFocusChangedEventHandler(handler, cacheRequest=0) { 
 		return UIA_Hr(DllCall(this.__Vt(39), "ptr",this.__Value, "ptr",cacheRequest.__Value, "ptr",handler.__Value))
 	}
 	RemoveFocusChangedEventHandler(handler) {
@@ -230,7 +274,7 @@ class UIA_Interface extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(41), "ptr",this.__Value))
 	}
 
-	IntNativeArrayToSafeArray(ByRef nArr, n="") {
+	IntNativeArrayToSafeArray(ByRef nArr, n="") { 
 		return UIA_Hr(DllCall(this.__Vt(42), "ptr",this.__Value, "ptr",&nArr, "int",n?n:VarSetCapacity(nArr)/4, "ptr*",out))? ComObj(0x2003,out,1):
 	}
 	IntSafeArrayToNativeArray(sArr, Byref nArr, Byref arrayCount) { ; NOT WORKING
@@ -252,13 +296,17 @@ class UIA_Interface extends UIA_Base {
 
 	;~ SafeArrayToRectNativeArray 	46
 	;~ CreateProxyFactoryEntry 	47
-	GetPropertyProgrammaticName(Id) {
+	
+	; Retrieves the registered programmatic name of a property. Intended for debugging and diagnostic purposes only. The string is not localized.
+	GetPropertyProgrammaticName(Id) { 
 		return UIA_Hr(DllCall(this.__Vt(49), "ptr",this.__Value, "int",Id, "ptr*",out))? StrGet(out):
 	}
-	GetPatternProgrammaticName(Id) {
+	; Retrieves the registered programmatic name of a control pattern. Intended for debugging and diagnostic purposes only. The string is not localized.
+	GetPatternProgrammaticName(Id) { 
 		return UIA_Hr(DllCall(this.__Vt(50), "ptr",this.__Value, "int",Id, "ptr*",out))? StrGet(out):
 	}
-	PollForPotentialSupportedPatterns(e, Byref Ids="", Byref Names="") { ; Returns an object where keys are the names and values are the Ids
+	; Returns an object where keys are the names and values are the Ids
+	PollForPotentialSupportedPatterns(e, Byref Ids="", Byref Names="") { 
 		return UIA_Hr(DllCall(this.__Vt(51), "ptr",this.__Value, "ptr",e.__Value, "ptr*",Ids, "ptr*",Names))? UIA_SafeArraysToObject(Names:=ComObj(0x2008,Names,1),Ids:=ComObj(0x2003,Ids,1)):
 	}
 	PollForPotentialSupportedProperties(e, Byref Ids="", Byref Names="") {
@@ -276,10 +324,10 @@ class UIA_Interface extends UIA_Base {
 	;~ ReservedMixedAttributeValue 	55
 	
 	ElementFromIAccessible(IAcc, childId=0) {
-	/* The method returns E_INVALIDARG - "One or more arguments are not valid" - if the underlying implementation of the
-	Microsoft UI Automation element is not a native Microsoft Active Accessibility server; that is, if a client attempts to retrieve
-	the IAccessible interface for an element originally supported by a proxy object from Oleacc.dll, or by the UIA-to-MSAA Bridge.
-	*/
+		/* The method returns E_INVALIDARG - "One or more arguments are not valid" - if the underlying implementation of the
+		Microsoft UI Automation element is not a native Microsoft Active Accessibility server; that is, if a client attempts to retrieve
+		the IAccessible interface for an element originally supported by a proxy object from Oleacc.dll, or by the UIA-to-MSAA Bridge.
+		*/
 		return UIA_Hr(DllCall(this.__Vt(56), "ptr",this.__Value, "ptr",ComObjValue(IAcc), "int",childId, "ptr*",out))? UIA_Element(out):
 	}
 	ElementFromIAccessibleBuildCache(IAcc, childId, cacheRequest) {
@@ -287,7 +335,14 @@ class UIA_Interface extends UIA_Base {
 	}
 
 	; ------- ONLY CUSTOM FUNCTIONS FROM HERE ON ----------------
-	CreateCondition(property, val, flags=0) { ; flags: 0=no flags; 1=ignore case; 2=match substring; 3=ignore case and match substring
+	
+	/*
+		CreateCondition is a wrapper for CreatePropertyConditionEx. 
+		Property can be the PropertyId, or (partial) name (eg 30000 == "ControlType" == "ControlTypePropertyId"). 
+		Similarly the value can be the id or (partial) name. 
+		Flags: 0=no flags; 1=ignore case; 2=match substring; 3=ignore case and match substring
+	*/
+	CreateCondition(property, val, flags=0) { 
 		if !RegexMatch(property, "^\d+$")
 			RegexMatch(property, "(?:UIA_)?\K.+?(?=(Id)?PropertyId|$)", property), propCond := UIA_Enum.UIA_PropertyId(property), property := StrReplace(StrReplace(property, "AnnotationAnnotation", "Annotation"), "StylesStyle", "Style")
 		else
@@ -298,12 +353,24 @@ class UIA_Interface extends UIA_Base {
 		if (propCond && val)
 			return this.CreatePropertyConditionEx(propCond, val,, flags)
 	}
+	; Gets ElementFromPoint and filters out the smallest subelement that is under the specified point.
+	SmallestElementFromPoint(x="", y="", activateChromiumAccessibility=False) { 
+		element := this.ElementFromPoint(x, y, activateChromiumAccessibility)
+		bound := element.CurrentBoundingRectangle, elementSize := (bound.r-bound.l)*(bound.b-bound.t), prevElementSize := 0
+		for k, v in element.FindAll(IUIA.TrueCondition) {
+			bound := v.CurrentBoundingRectangle
+			if ((x >= bound.l) && (x <= bound.r) && (y >= bound.t) && (y <= bound.b) && ((newSize := (bound.r-bound.l)*(bound.b-bound.t)) < elementSize))
+				element := v, elementSize := newSize
+		}
+		return element
+	}
 }
 
 class UIA_Interface2 extends UIA_Interface {
 	static __IID := "{34723aff-0c9d-49d0-9896-7ab52df8cd8a}"
 		, __Properties := UIA_Interface.__Properties
 
+	; Specifies whether calls to UI Automation control pattern methods automatically set focus to the target element. Default is True. 
 	AutoSetFocus[] 
 	{
 		get {
@@ -313,6 +380,7 @@ class UIA_Interface2 extends UIA_Interface {
 			return UIA_Hr(DllCall(this.__Vt(59), "ptr",this.__Value, "int", value))
 		}
 	}
+	; Specifies the length of time that UI Automation will wait for a provider to respond to a client request for an automation element.
 	ConnectionTimeout[] 
 	{
 		get {
@@ -322,6 +390,7 @@ class UIA_Interface2 extends UIA_Interface {
 			return UIA_Hr(DllCall(this.__Vt(61), "ptr",this.__Value, "int", value))
 		}
 	}
+	; Specifies the length of time that UI Automation will wait for a provider to respond to a client request for information about an automation element.
 	TransactionTimeout[] 
 	{
 		get {
@@ -333,7 +402,7 @@ class UIA_Interface2 extends UIA_Interface {
 	}
 }
 
-class UIA_Interface3 extends UIA_Interface2 {
+class UIA_Interface3 extends UIA_Interface2 { ; UNTESTED
 	static __IID := "{73d768da-9b51-4b89-936e-c209290973e7}"
 		, __Properties := UIA_Interface2.__Properties
 	AddTextEditTextChangedEventHandler(element, scope, textEditChangeType, cacheRequest=0, handler="") {
@@ -344,7 +413,7 @@ class UIA_Interface3 extends UIA_Interface2 {
 	}
 }
 
-class UIA_Interface4 extends UIA_Interface3 {
+class UIA_Interface4 extends UIA_Interface3 { ; UNTESTED
 	static __IID := "{1189c02a-05f8-4319-8e21-e817e3db2860}"
 		, __Properties := UIA_Interface3.__Properties
 	AddChangesEventHandler(element, scope, changeTypes, changesCount, cacheRequest=0, handler="") {
@@ -354,7 +423,7 @@ class UIA_Interface4 extends UIA_Interface3 {
 		return UIA_Hr(DllCall(this.__Vt(67), "ptr",this.__Value, "ptr", element.__Value, "ptr", handler.__Value))
 	}
 }
-class UIA_Interface5 extends UIA_Interface4 {
+class UIA_Interface5 extends UIA_Interface4 { ; UNTESTED
 	static __IID := "{25f700c8-d816-4057-a9dc-3cbdee77e256}"
 		, __Properties := UIA_Interface4.__Properties
 	AddNotificationEventHandler(element, scope, cacheRequest, handler) {
@@ -367,40 +436,44 @@ class UIA_Interface5 extends UIA_Interface4 {
 class UIA_Interface6 extends UIA_Interface5 { ; NOT IMPLEMENTED
 	static __IID := "{aae072da-29e3-413d-87a7-192dbf81ed10}"
 		, __Properties := UIA_Interface5.__Properties
-/*
-#define IUIAutomation6_CreateEventHandlerGroup(This,handlerGroup)	\
-    ( (This)->lpVtbl -> CreateEventHandlerGroup(This,handlerGroup) ) 
+	/*
+	#define IUIAutomation6_CreateEventHandlerGroup(This,handlerGroup)	\
+		( (This)->lpVtbl -> CreateEventHandlerGroup(This,handlerGroup) ) 
 
-#define IUIAutomation6_AddEventHandlerGroup(This,element,handlerGroup)	\
-    ( (This)->lpVtbl -> AddEventHandlerGroup(This,element,handlerGroup) ) 
+	#define IUIAutomation6_AddEventHandlerGroup(This,element,handlerGroup)	\
+		( (This)->lpVtbl -> AddEventHandlerGroup(This,element,handlerGroup) ) 
 
-#define IUIAutomation6_RemoveEventHandlerGroup(This,element,handlerGroup)	\
-    ( (This)->lpVtbl -> RemoveEventHandlerGroup(This,element,handlerGroup) ) 
+	#define IUIAutomation6_RemoveEventHandlerGroup(This,element,handlerGroup)	\
+		( (This)->lpVtbl -> RemoveEventHandlerGroup(This,element,handlerGroup) ) 
 
-#define IUIAutomation6_get_ConnectionRecoveryBehavior(This,connectionRecoveryBehaviorOptions)	\
-    ( (This)->lpVtbl -> get_ConnectionRecoveryBehavior(This,connectionRecoveryBehaviorOptions) ) 
+	#define IUIAutomation6_get_ConnectionRecoveryBehavior(This,connectionRecoveryBehaviorOptions)	\
+		( (This)->lpVtbl -> get_ConnectionRecoveryBehavior(This,connectionRecoveryBehaviorOptions) ) 
 
-#define IUIAutomation6_put_ConnectionRecoveryBehavior(This,connectionRecoveryBehaviorOptions)	\
-    ( (This)->lpVtbl -> put_ConnectionRecoveryBehavior(This,connectionRecoveryBehaviorOptions) ) 
+	#define IUIAutomation6_put_ConnectionRecoveryBehavior(This,connectionRecoveryBehaviorOptions)	\
+		( (This)->lpVtbl -> put_ConnectionRecoveryBehavior(This,connectionRecoveryBehaviorOptions) ) 
 
-#define IUIAutomation6_get_CoalesceEvents(This,coalesceEventsOptions)	\
-    ( (This)->lpVtbl -> get_CoalesceEvents(This,coalesceEventsOptions) ) 
+	#define IUIAutomation6_get_CoalesceEvents(This,coalesceEventsOptions)	\
+		( (This)->lpVtbl -> get_CoalesceEvents(This,coalesceEventsOptions) ) 
 
-#define IUIAutomation6_put_CoalesceEvents(This,coalesceEventsOptions)	\
-    ( (This)->lpVtbl -> put_CoalesceEvents(This,coalesceEventsOptions) ) 
+	#define IUIAutomation6_put_CoalesceEvents(This,coalesceEventsOptions)	\
+		( (This)->lpVtbl -> put_CoalesceEvents(This,coalesceEventsOptions) ) 
 
-#define IUIAutomation6_AddActiveTextPositionChangedEventHandler(This,element,scope,cacheRequest,handler)	\
-    ( (This)->lpVtbl -> AddActiveTextPositionChangedEventHandler(This,element,scope,cacheRequest,handler) ) 
+	#define IUIAutomation6_AddActiveTextPositionChangedEventHandler(This,element,scope,cacheRequest,handler)	\
+		( (This)->lpVtbl -> AddActiveTextPositionChangedEventHandler(This,element,scope,cacheRequest,handler) ) 
 
-#define IUIAutomation6_RemoveActiveTextPositionChangedEventHandler(This,element,handler)	\
-    ( (This)->lpVtbl -> RemoveActiveTextPositionChangedEventHandler(This,element,handler) ) 
-*/
+	#define IUIAutomation6_RemoveActiveTextPositionChangedEventHandler(This,element,handler)	\
+		( (This)->lpVtbl -> RemoveActiveTextPositionChangedEventHandler(This,element,handler) ) 
+	*/
 }
 class UIA_Interface7 extends UIA_Interface6 {
 	static __IID := "{29de312e-83c6-4309-8808-e8dfcb46c3c2}"
 		, __Properties := UIA_Interface6.__Properties
 }
 
+/*
+	Exposes methods and properties for a UI Automation element, which represents a UI item.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationelement
+*/
 class UIA_Element extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee671425(v=vs.85).aspx
 	static __IID := "{d22108aa-8ac5-49a5-837b-37bbb3d7591e}"
@@ -409,86 +482,96 @@ class UIA_Element extends UIA_Base {
 	SetFocus() {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value))
 	}
-	GetRuntimeId(ByRef stringId="") {
+	; Retrieves the unique identifier assigned to the UI element. The identifier is only guaranteed to be unique to the UI of the desktop on which it was generated. Identifiers can be reused over time.
+	GetRuntimeId() { 
 		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",sa))? UIA_SafeArrayToAHKArray(ComObj(0x2003,sa,1)):
 	}
-	FindFirst(c="", scope=0x4) {
+	; Retrieves the first child or descendant element that matches the specified condition. scope must be one of TreeScope enums (default is TreeScope_Descendants := 0x4).
+	FindFirst(c="", scope=0x4) { 
 		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:c).__Value, "ptr*",out))&&out? UIA_Element(out):
 	}
-	FindAll(c="", scope=0x4) {
+	; Returns all UI Automation elements that satisfy the specified condition. scope must be one of TreeScope enums (default is TreeScope_Descendants := 0x4).
+	FindAll(c="", scope=0x4) { 
 		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:c).__Value, "ptr*",out))&&out? UIA_ElementArray(out):
 	}
-	FindFirstBuildCache(c="", scope=0x4, cacheRequest="") { ; UNTESTED
+	; Retrieves the first child or descendant element that matches the specified condition, prefetches the requested properties and control patterns, and stores the prefetched items in the cache
+	FindFirstBuildCache(c="", scope=0x4, cacheRequest="") { ; UNTESTED. 
 		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:c).__Value, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}
-	FindAllBuildCache(c="", scope=0x4, cacheRequest="") { ; UNTESTED
+	; Returns all UI Automation elements that satisfy the specified condition, prefetches the requested properties and control patterns, and stores the prefetched items in the cache.
+	FindAllBuildCache(c="", scope=0x4, cacheRequest="") { ; UNTESTED. 
 		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:c).__Value, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_ElementArray(out):
 	}
-	BuildUpdatedCache(cacheRequest) { ; UNTESTED
+	; Retrieves a new UI Automation element with an updated cache.
+	BuildUpdatedCache(cacheRequest) { ; UNTESTED. 
 		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}
-	GetCurrentPropertyValue(propertyId, ByRef out="") {
+	; Retrieves the current value of a property for this element. "out" will be set to the raw variant (generally not used).
+	GetCurrentPropertyValue(propertyId, ByRef out="") { 
 		if propertyId is not integer
 			propertyId := UIA_Enum.UIA_PropertyId(propertyId)
 		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "uint", propertyId, "ptr",UIA_Variant(out)))? UIA_VariantData(out):
 		
 	}
-	GetCurrentPropertyValueEx(propertyId, ignoreDefaultValue=1, ByRef out="") {
-	; Passing FALSE in the ignoreDefaultValue parameter is equivalent to calling GetCurrentPropertyValue
+	; Retrieves a property value for this element, optionally ignoring any default value. Passing FALSE in the ignoreDefaultValue parameter is equivalent to calling GetCurrentPropertyValue
+	GetCurrentPropertyValueEx(propertyId, ignoreDefaultValue=1, ByRef out="") { 
 		if propertyId is not integer
 			propertyId := UIA_Enum.UIA_PropertyId(propertyId)
 		return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "uint",propertyId, "uint",ignoreDefaultValue, "ptr",UIA_Variant(out)))? UIA_VariantData(out):
 	}
-	GetCachedPropertyValue(propertyId, ByRef out="") { ; UNTESTED
+	; Retrieves a property value from the cache for this element.
+	GetCachedPropertyValue(propertyId, ByRef out="") { ; UNTESTED. 
 		if propertyId is not integer
 			propertyId := UIA_Enum.UIA_PropertyId(propertyId)
 		return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "uint",propertyId, "ptr",UIA_Variant(out)))? UIA_VariantData(out):
 	}
-	GetCachedPropertyValueEx(propertyId, ignoreDefaultValue=1, ByRef out="") {
+	; Retrieves a property value from the cache for this element, optionally ignoring any default value. Passing FALSE in the ignoreDefaultValue parameter is equivalent to calling GetCachedPropertyValue
+	GetCachedPropertyValueEx(propertyId, ignoreDefaultValue=1, ByRef out="") { 
 		if propertyId is not integer
 			propertyId := UIA_Enum.UIA_PropertyId(propertyId)
-	; Passing FALSE in the ignoreDefaultValue parameter is equivalent to calling GetCachedPropertyValue
 		return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "uint",propertyId, "uint",ignoreDefaultValue, "ptr",UIA_Variant(out)))? UIA_VariantData(out):
 	}
-	GetCurrentPatternAs(pattern="", ByRef usedPattern="") { ; If a full pattern name is specified then that exact version will be used (eg "TextPattern" will return a UIA_TextPattern object), otherwise the highest version will be used (eg "Text" might return UIA_TextPattern2 if it is available). usedPattern will be set to the actual string used to look for the pattern (used mostly for debugging purposes)
-		if (InStr(usedPattern:=pattern, "Pattern")||(usedPattern := UIA_Pattern(pattern)))
+	; Retrieves a UIA_Pattern object of the specified control pattern on this element. If a full pattern name is specified then that exact version will be used (eg "TextPattern" will return a UIA_TextPattern object), otherwise the highest version will be used (eg "Text" might return UIA_TextPattern2 if it is available). usedPattern will be set to the actual string used to look for the pattern (used mostly for debugging purposes)
+	GetCurrentPatternAs(pattern="", ByRef usedPattern="") { 
+		if (InStr(usedPattern:=pattern, "Pattern")||(usedPattern := UIA_Pattern(pattern, this)))
 			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "int",UIA_%usedPattern%.__PatternId, "ptr",UIA_GUID(riid,UIA_%usedPattern%.__iid), "ptr*",out)) ? new UIA_%usedPattern%(out):
 		else throw Exception("Pattern not implemented.",-1, "UIA_" pattern "Pattern")
 	}
-	;~ GetCachedPatternAs 	15	void **ppv
-	GetCachedPatternAs(pattern="", ByRef usedPattern="") {
-		if (InStr(usedPattern:=pattern, "Pattern")||(usedPattern := UIA_Pattern(pattern)))
+	; Retrieves a UIA_Pattern object of the specified control pattern on this element from the cache of this element. 
+	GetCachedPatternAs(pattern="", ByRef usedPattern="") { 
+		if (InStr(usedPattern:=pattern, "Pattern")||(usedPattern := UIA_Pattern(pattern, this)))
 			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "int",UIA_%usedPattern%.__PatternId, "ptr",UIA_GUID(riid,UIA_%usedPattern%.__iid), "ptr*",out)) ? new UIA_%usedPattern%(out):
 		else throw Exception("Pattern not implemented.",-1, "UIA_" pattern "Pattern")
 	}
-	;~ GetCurrentPattern 	16	Iunknown **patternObject
-	GetCurrentPattern(patternId) {
-		UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "int",patternId, "ptr*",out))
-		if name:=UIA_Enum.UIA_PatternId(patternId)
-			return new UIA_%name%(out)
-		return out
+	GetCurrentPattern(pattern, ByRef usedPattern="") {
+		; I don't know the difference between this and GetCurrentPatternAs
+		if (InStr(usedPattern:=pattern, "Pattern")||(usedPattern := UIA_Pattern(pattern, this)))
+			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "int",UIA_%usedPattern%.__PatternId, "ptr*",out)) ? new UIA_%usedPattern%(out):
+		else throw Exception("Pattern not implemented.",-1, "UIA_" pattern "Pattern")
 	}
-	;~ GetCachedPattern 	17	Iunknown **patternObject
-	GetCachedPattern(patternId) {
-		UIA_Hr(DllCall(this.__Vt(17), "ptr",this.__Value, "int",patternId, "ptr*",out))
-		if name:=UIA_Enum.UIA_PatternId(patternId)
-			return new UIA_%name%(out)
-		return out
+	GetCachedPattern(patternId, ByRef usedPattern="") {
+		; I don't know the difference between this and GetCachedPatternAs
+		if (InStr(usedPattern:=pattern, "Pattern")||(usedPattern := UIA_Pattern(pattern, this)))
+			return UIA_Hr(DllCall(this.__Vt(17), "ptr",this.__Value, "int", UIA_%usedPattern%.__PatternId, "ptr*",out)) ? new UIA_%usedPattern%(out):
+		else throw Exception("Pattern not implemented.",-1, "UIA_" pattern "Pattern")
 	}
-	;~ GetCachedParent 	18	IUIAutomationElement
-	GetCachedParent() {
+	; Retrieves from the cache the parent of this UI Automation element
+	GetCachedParent() { 
 		return UIA_Hr(DllCall(this.__Vt(18), "ptr",this.__Value, "ptr*",out))&&out? UIA_Element(out):
 	}
-	GetCachedChildren() { ; Haven't successfully tested
+	; Retrieves the cached child elements of this UI Automation element
+	GetCachedChildren() { ; UNTESTED. 
 		return UIA_Hr(DllCall(this.__Vt(19), "ptr",this.__Value, "ptr*",out))&&out? UIA_ElementArray(out):
 	}
-	;~ GetClickablePoint 	84	POINT, BOOL
-	GetClickablePoint() {
+	; Retrieves the physical screen coordinates of a point on the element that can be clicked
+	GetClickablePoint() { 
 		UIA_Hr(DllCall(this.__Vt(84), "ptr",this.__Value, "ptr", &(point,VarSetCapacity(point,8)), "ptr*", out))&&out? {x:NumGet(point,0,"int"), y:NumGet(point,4,"int")}:
 	}
 	
 	; ------- ONLY CUSTOM FUNCTIONS FROM HERE ON ----------------
-	CurrentValue[] { ; Gets or sets the current value of the element. Getter is a wrapper for GetCurrentPropertyValue("Value"), setter a wrapper for SetValue
+	
+	; Gets or sets the current value of the element. Getter is a wrapper for GetCurrentPropertyValue("Value"), setter a wrapper for SetValue
+	CurrentValue[] { 
 		get {
 			return this.GetCurrentPropertyValue("Value")
 		}
@@ -496,7 +579,24 @@ class UIA_Element extends UIA_Base {
 			return this.SetValue(value)
 		}
 	}
-	GetClickablePointRelativeTo(relativeTo="") { ; relativeTo can be window, screen or client, default is A_CoordModeMouse
+	CurrentExists[] {
+		get {
+			try {
+				if ((val := this.CurrentName this.CurrentValue (this.CurrentBoundingRectangle.t ? 1 : "")) == "")
+					return 0
+			} 
+			return 1
+		}
+	}
+	; Wait until the element doesn't exist, with a default timeOut of 10000ms (10 seconds). Returns 1 if the element doesn't exist, otherwise 0.
+	WaitNotExist(timeOut=10000) { 
+		startTime := A_TickCount
+		while ((exists := this.CurrentExists) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
+			Sleep, 100
+		return !exists
+	}
+	; Wrapper for GetClickablePoint(), where additionally the coordinates are converted to relative coordinates. relativeTo can be window, screen or client, default is A_CoordModeMouse
+	GetClickablePointRelativeTo(relativeTo="") { 
 		res := this.GetClickablePoint()
 		relativeTo := (relativeTo == "") ? A_CoordModeMouse : relativeTo
 		StringLower, relativeTo, relativeTo
@@ -515,8 +615,8 @@ class UIA_Element extends UIA_Base {
 			}
 		}
 	}
-
-	GetSupportedPatterns() { ; Get all available patterns for the element. Use of this should be avoided, since it calls GetCurrentPatternAs for every possible pattern. A better option is PollForPotentialSupportedPatterns.
+	; Get all available patterns for the element. Use of this should be avoided, since it calls GetCurrentPatternAs for every possible pattern. A better option is PollForPotentialSupportedPatterns.
+	GetSupportedPatterns() { 
 		result := []
 		patterns := "Invoke,Selection,Value,RangeValue,Scroll,ExpandCollapse,Grid,GridItem,MultipleView,Window,SelectionItem,Dock,Table,TableItem,Text,Toggle,Transform,ScrollItem,ItemContainer,VirtualizedItem,SyncronizedInput,LegacyIAccessible"
 
@@ -530,7 +630,8 @@ class UIA_Element extends UIA_Base {
 		}
 		return result
 	}
-	GetParentHwnd() { ; Get the parent window hwnd from the element
+	; Get the parent window hwnd from the element
+	GetParentHwnd() { 
 		hwndNotZeroCond := this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_PropertyId("NativeWindowHandle"), 0)) ; create a condition to find NativeWindowHandlePropertyId of not 0
 		TW := this.__UIA.CreateTreeWalker(hwndNotZeroCond)
 		try {
@@ -540,7 +641,8 @@ class UIA_Element extends UIA_Base {
 			return 0
 		}
 	}
-	SetValue(val, pattern="") { ; Set element value using Value pattern, or as a fall-back using LegacyIAccessible pattern. If a pattern is specified then that is used instead.
+	; Set element value using Value pattern, or as a fall-back using LegacyIAccessible pattern. If a pattern is specified then that is used instead.
+	SetValue(val, pattern="") { 
 		if !pattern {
 			try {
 				this.GetCurrentPatternAs("Value").SetValue(val)
@@ -551,27 +653,43 @@ class UIA_Element extends UIA_Base {
 			this.GetCurrentPatternAs(pattern).SetValue(val)
 		}
 	}
-	Click(but="", clickCount=1) { ; Click using LegacyIAccessible pattern DoDefaultAction(), or the Toggle pattern with Toggle() method or Invoke pattern Invoke() as fall-back, in these cases clickCount is ignored. If but is specified (for example "left", "right") then the native mouse Click function will be used to click the center of the element.
-		;StringLower, but, but		
-		if (but == "") {
+	; Click using LegacyIAccessible pattern DoDefaultAction(), or the Toggle pattern with Toggle() method or Invoke pattern Invoke() as fall-back, in these cases ClickCount is ignored. If WhichButton is specified (for example "left", "right") then the native mouse Click function will be used to click the center of the element.
+	Click(WhichButton="", ClickCount=1, DownOrUp="", Relative="") { 
+		;StringLower, WhichButton, WhichButton		
+		if (WhichButton == "") {
 			if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsInvokePatternAvailablePropertyId))
 				this.GetCurrentPatternAs("Invoke").Invoke()
 			else if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsTogglePatternAvailablePropertyId))
 				this.GetCurrentPatternAs("Toggle").Toggle()
 			else if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsExpandCollapsePatternAvailablePropertyId)) {
-				if (this.GetCurrentPatternAs("ExpandCollapse").CurrentExpandCollapseState == 0)
+				if ((pattern := this.GetCurrentPatternAs("ExpandCollapse")).CurrentExpandCollapseState == 0)
 					pattern.Expand()
 				Else
 					pattern.Collapse()
+			} else if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsSelectionItemPatternAvailablePropertyId)) {
+				this.GetCurrentPatternAs("SelectionItem").Select()
 			} else if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsLegacyIAccessiblePatternAvailablePropertyId))
 				this.GetCurrentPatternAs("LegacyIAccessible").DoDefaultAction()
 		} else {
-			pos := this.CurrentPos() ; or should GetClickablePos be used instead?
-			Click, % pos.x+pos.w//2 " " pos.y+pos.h//2 " " but " " clickCount
-		} 
-			
+			if !(pos := this.GetClickablePoint()).x {
+				pos := this.CurrentPos() ; or should only GetClickablePoint be used instead?
+				Click, % pos.x+pos.w//2 " " pos.y+pos.h//2 " " WhichButton (ClickCount ? " " ClickCount : "") (DownOrUp ? " " DownOrUp : "") (Relative ? " " Relative : "")
+			} else
+				Click, % pos.x " " pos.y " " WhichButton (ClickCount ? " " ClickCount : "") (DownOrUp ? " " DownOrUp : "") (Relative ? " " Relative : "")
+		}
 	}
-	CurrentPos(relativeTo="") { ; Returns an object containing the x, y coordinates and width and height: {x:x coordinate, y:y coordinate, w:width, h:height}. relativeTo can be client, window or screen, default is A_CoordModeMouse.
+	; ControlClicks the element by getting relative coordinates with GetClickablePointRelativeTo("window"). Specifying WinTitle makes the function faster, since it bypasses getting the Hwnd from the element.
+	ControlClick(WinTitle="", WinText="", WhichButton="", ClickCount="", Options="", ExcludeTitle="", ExcludeText="") { 
+		if (WinTitle == "")
+			WinTitle := "ahk_id " this.GetParentHwnd()
+		if !(pos := this.GetClickablePointRelativeTo("window")).x {
+			pos := this.CurrentPos("window") ; or should GetClickablePoint be used instead?
+			ControlClick, % "X" pos.x+pos.w//2 " Y" pos.y+pos.h//2, % WinTitle, % WinText, % WhichButton, % ClickCount, % Options, % ExcludeTitle, % ExcludeText
+		} else
+			ControlClick, % "X" pos.x " Y" pos.y, % WinTitle, % WinText, % WhichButton, % ClickCount, % Options, % ExcludeTitle, % ExcludeText
+	}
+	; Returns an object containing the x, y coordinates and width and height: {x:x coordinate, y:y coordinate, w:width, h:height}. relativeTo can be client, window or screen, default is A_CoordModeMouse.
+	CurrentPos(relativeTo="") { 
 		relativeTo := (relativeTo == "") ? A_CoordModeMouse : relativeTo
 		StringLower, relativeTo, relativeTo
 		br := this.CurrentBoundingRectangle
@@ -592,10 +710,12 @@ class UIA_Element extends UIA_Base {
 			}
 		}			
 	}
-	GetChildren(scope=0x2) { ; By default get only direct children (UIA_TreeScope_Children)
+	; By default get only direct children (UIA_TreeScope_Children := 0x2)
+	GetChildren(scope=0x2) { 
 		return this.FindAll(this.TrueCondition, scope)
 	}
-	TWGetChildren() { ; Get all child elements using TreeViewer
+	; Get all child elements using TreeViewer
+	TWGetChildren() { 
 		arr := []
 		if !IsObject(nextChild := this.TreeWalkerTrue.GetFirstChildElement(this))
 			return 0
@@ -616,25 +736,42 @@ class UIA_Element extends UIA_Base {
 		}
 		return returnStr
 	}
-	Dump() { ; Returns info about the element: ControlType, Name, Value, LocalizedControlType, AutomationId, AcceleratorKey. 
+	; Returns info about the element: ControlType, Name, Value, LocalizedControlType, AutomationId, AcceleratorKey. 
+	Dump() { 
 		return "Type: " this.CurrentControlType ((name := this.CurrentName) ? " Name: """ name """" : "") ((val := this.CurrentValue) ? " Value: """ val """": "") ((lct := this.CurrentLocalizedControlType) ? " LocalizedControlType: """ lct """" : "") ((aid := this.CurrentAutomationId) ? " AutomationId: """ aid """": "") ((ak := this.CurrentAcceleratorKey) ? " AcceleratorKey: """ ak """": "")
 	}
-	DumpAll(maxDepth=20) { ; Returns info (ControlType, Name etc) for all descendants of the element. maxDepth is the allowed depth of recursion, by default 20 layers. DO NOT call this on the root element!
+	; Returns info (ControlType, Name etc) for all descendants of the element. maxDepth is the allowed depth of recursion, by default 20 layers. DO NOT call this on the root element!
+	DumpAll(maxDepth=20) { 
 		return (this.Dump() .  "`n" . this.TWRecursive(maxDepth))
 	}
 	/*
-		FindFirst using search criteria. Scope by default is UIA_TreeScope_Descendants. If using Name as a criteria, matchMode follows SetTitleMatchMode scheme: 1=name must must start with the specified name; 2=can contain anywhere; 3=exact match; RegEx. The Name can't be empty.
+		FindFirst using search criteria. 
+		expr: 
+			Takes a value in the form of "PropertyId=matchvalue" to match a specific property with the value matchValue. PropertyId can be most properties from UIA_Enum.UIA_PropertyId method (for example Name, ControlType, AutomationId etc). 
+			
+			Example1: "Name=Username:" would use FindFirst with UIA_Enum.UIA_NamePropertyId matching the name "Username:"
+			Example2: "ControlType=Button would FindFirst using UIA_Enum.UIA_ControlTypePropertyId and matching for UIA_Enum.UIA_ButtonControlTypeId. Alternatively "ControlType=50000" can be used (direct value for UIA_ButtonControlTypeId which is 50000)
+			
+			Criteria can be combined with AND, OR, &&, ||:
+			Example3: "Name=Username: AND ControlType=Button" would FindFirst an element with the name property of "Username:" and control type of button.
+			Parenthesis are not supported! Criteria are evaluated left to right, so "a AND b OR c" would be evaluated as "(a and b) or c".
+			
+			Negation can be specified with NOT:
+			Example4: "NOT ControlType=Edit" would return the first element that is not an edit element
 		
-		For a specific criteria the following syntax is used: PropertyId=matchvalue
-		Example1: "Name=Username:" would use FindFirst with UIA_Enum.UIA_NamePropertyId looking for the string "Username:"
-		Example2: "ControlType=Button would FindFirst using UIA_Enum.UIA_ControlTypePropertyId and UIA_ButtonControlTypeId. Alternatively "ControlType=50000" can be used (direct value for UIA_ButtonControlTypeId which is 50000)
+		scope:
+			Scope by default is UIA_TreeScope_Descendants. 
+			
+		matchMode:
+			If using Name PropertyId as a criteria, this follows the SetTitleMatchMode scheme: 
+				1=name must must start with the specified name
+				2=can contain anywhere
+				3=exact match
+				RegEx=using regular expression. In this case the Name can't be empty.
 		
-		Criteria can be combined with AND, OR, &&, ||:
-		Example3: "Name=Username: AND ControlType=Button" would FindFirst an element with the name property of "Username:" and control type of button.
-		Parenthesis are not supported! Criteria are evaluated left to right, so "a AND b OR c" would be evaluated as "(a and b) or c".
-		
-		Negation can be specified with NOT:
-		Example4: "NOT ControlType=Edit" would return the first element that is not an edit element
+		caseSensitive:
+			If matching for a string, this will specify case-sensitivity.
+
 	*/
 	FindFirstBy(expr, scope=0x4, matchMode=3, caseSensitive=True) { 
 		pos := 1, match := "", createCondition := "", operator := "", bufName := []
@@ -646,7 +783,7 @@ class UIA_Element extends UIA_Base {
 				Continue
 			} else {
 				;MsgBox, % "Creating condition with: m1: """ match1 """ m2: """ match2 """ m3: """ match3 """ flags: " ((matchMode==2)?2:0)|!caseSensitive
-				newCondition := (SubStr(match1, 1, 4) == "NOT ") ? this.__UIA.CreateNotCondition(this.__UIA.CreateCondition(SubStr(match1, 5), match2)) : this.__UIA.CreateCondition(match1, match2, ((matchMode==2 && match1=="Name")?2:0)|!caseSensitive)
+				newCondition := (SubStr(match1, 1, 4) == "NOT ") ? this.__UIA.CreateNotCondition(this.__UIA.CreateCondition(SubStr(match1, 5), match2, ((matchMode==2 && match1=="Name")?2:0)|!caseSensitive)) : this.__UIA.CreateCondition(match1, match2, ((matchMode==2 && match1=="Name")?2:0)|!caseSensitive)
 			}
 			fullCondition := (operator == " AND " || operator == " && ") ? this.__UIA.CreateAndCondition(fullCondition, newCondition) : (operator == " OR " || operator == " || ") ? this.__UIA.CreateOrCondition(fullCondition, newCondition) : newCondition
 			operator := match3
@@ -669,8 +806,8 @@ class UIA_Element extends UIA_Base {
 			return this.FindFirst(fullCondition, scope)
 		}
 	}
-	
-	FindFirstByName(name, scope=0x4, matchMode=3, caseSensitive=True) { ; MatchMode has same convention as window TitleMatchMode: 1=needs to start with the specified name, 2=can contain anywhere, 3=exact match, RegEx=regex match
+	; FindFirst using UIA_NamePropertyId. "scope" is search scope, which can be any of UIA_Enum TreeScope values. "MatchMode" has same convention as window TitleMatchMode: 1=needs to start with the specified name, 2=can contain anywhere, 3=exact match, RegEx=regex match. 
+	FindFirstByName(name, scope=0x4, matchMode=3, caseSensitive=True) { 
 		if (matchMode == 3 || matchMode == 2) {
 			nameCondition := this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, ((matchMode==3)?0:2)|!caseSensitive)
 			return this.FindFirst(nameCondition, scope)
@@ -682,7 +819,7 @@ class UIA_Element extends UIA_Base {
 				return v		
 		}
 	}
-	
+	; FindFirst using UIA_ControlTypeId. controlType can be the ControlTypeId numeric value, or in string form (eg "Button")
 	FindFirstByType(controlType, scope=0x4) {
 		if controlType is not integer
 			controlType := UIA_Enum.UIA_ControlTypeId(controlType)
@@ -691,8 +828,8 @@ class UIA_Element extends UIA_Base {
 		controlCondition := this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_ControlTypePropertyId, controlType)
 		return this.FindFirst(controlCondition, scope)
 	}
-	
-	FindFirstByNameAndType(name, controlType, scope=0x4, matchMode=3, caseSensitive=True) {
+	; FindFirst using UIA_NamePropertyId and UIA_ControlTypeId. controlType can be the ControlTypeId numeric value, or in string form (eg "Button"). scope is search scope, which can be any of UIA_Enum TreeScope values. matchMode has same convention as window TitleMatchMode: 1=needs to start with the specified name, 2=can contain anywhere, 3=exact match, RegEx=regex match
+	FindFirstByNameAndType(name, controlType, scope=0x4, matchMode=3, caseSensitive=True) { 
 		if controlType is not integer
 			controlType := UIA_Enum.UIA_ControlTypeId(controlType)
 		if !controlType
@@ -711,7 +848,7 @@ class UIA_Element extends UIA_Base {
 				return v		
 		}
 	}
-
+	; FindAll using an expression containing the desired conditions. For more information about expr, see FindFirstBy explanation
 	FindAllBy(expr, scope=0x4, matchMode=3, caseSensitive=True) { 
 		pos := 1, match := "", createCondition := "", operator := "", bufName := []
 		while (pos := RegexMatch(expr, "(.*?)=(.*?)( AND | OR | && | \|\| |$)", match, pos+StrLen(match))) {
@@ -745,8 +882,8 @@ class UIA_Element extends UIA_Base {
 			return this.FindAll(fullCondition, scope)
 		}
 	}
-
-	FindAllByName(name, scope=0x4, matchMode=3, caseSensitive=True) {
+	; FindAll using UIA_NamePropertyId. scope is search scope, which can be any of UIA_Enum TreeScope values. matchMode has same convention as window TitleMatchMode: 1=needs to start with the specified name, 2=can contain anywhere, 3=exact match, RegEx=regex match
+	FindAllByName(name, scope=0x4, matchMode=3, caseSensitive=True) { 
 		if (matchMode == 3 || matchMode == 2) {
 			nameCondition := this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, ((matchMode==3)?0:2)|!caseSensitive)
 			return this.FindAll(nameCondition, scope)
@@ -760,7 +897,7 @@ class UIA_Element extends UIA_Base {
 		}
 		return retList
 	}
-
+	; FindAll using UIA_ControlTypeId. controlType can be the ControlTypeId numeric value, or in string form (eg "Button"). scope is search scope, which can be any of UIA_Enum TreeScope values.
 	FindAllByType(controlType, scope=0x4) {
 		if controlType is not integer
 			controlType := UIA_Enum.UIA_ControlTypeId(controlType)
@@ -769,8 +906,8 @@ class UIA_Element extends UIA_Base {
 		controlCondition := this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_ControlTypePropertyId, controlType)
 		return this.FindAll(controlCondition, scope)
 	}
-
-	FindAllByNameAndType(name, controlType, scope=0x4, matchMode=3) {
+	; FindAll using UIA_NamePropertyId and UIA_ControlTypeId. controlType can be the ControlTypeId numeric value, or in string form (eg "Button"). scope is search scope, which can be any of UIA_Enum TreeScope values. matchMode has same convention as window TitleMatchMode: 1=needs to start with the specified name, 2=can contain anywhere, 3=exact match, RegEx=regex match
+	FindAllByNameAndType(name, controlType, scope=0x4, matchMode=3) { 
 		if controlType is not integer
 			controlType := UIA_Enum.UIA_ControlTypeId(controlType)
 		if !controlType
@@ -791,8 +928,8 @@ class UIA_Element extends UIA_Base {
 		}
 		return returnArr
 	}
-
-	FindByPath(searchPath="") { ; Gets an element by the "path" that is displayed in the UIA_Element.DumpAll() result. This is like the Acc path, but for UIA (they are not compatible).
+	; Gets an element by the "path" that is displayed in the UIA_Element.DumpAll() result. This is like the Acc path, but for UIA (they are not compatible).
+	FindByPath(searchPath="") { 
 		el := this
 		Loop, Parse, searchPath, .
 		{
@@ -802,12 +939,16 @@ class UIA_Element extends UIA_Base {
 		}
 		return el
 	}
-	
-	WaitElementExist(expr, scope=0x4, matchMode=3, caseSensitive=True, timeOut=10000) { ; Calls UIA_Element.FindFirstBy until the element is found and then returns it, with a timeOut of 10000ms (10 seconds)
+	; Calls UIA_Element.FindFirstBy until the element is found and then returns it, with a timeOut of 10000ms (10 seconds). For explanations of the other arguments, see FindFirstBy
+	WaitElementExist(expr, scope=0x4, matchMode=3, caseSensitive=True, timeOut=10000) { 
 		startTime := A_TickCount
 		while (!IsObject(el := this.FindFirstBy(expr, scope, matchMode, caseSensitive)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
 			Sleep, 100
 		return el
+	}
+	; Calls UIA_Element.FindFirstBy until the element is not found and then returns it, with a timeOut of 10000ms (10 seconds). For explanations of the other arguments, see FindFirstBy
+	WaitElementNotExist(expr, scope=0x4, matchMode=3, caseSensitive=True, timeOut=10000) { 
+		return !IsObject(el := this.FindFirstBy(expr, scope, matchMode, caseSensitive)) || el.WaitNotExist(timeOut)
 	}
 	WaitElementExistByName(name, scope=0x4, matchMode=3, caseSensitive=True, timeOut=10000) {
 		startTime := A_TickCount
@@ -815,7 +956,7 @@ class UIA_Element extends UIA_Base {
 			Sleep, 100
 		return el
 	}
-	WaitElementExistByType(controlType, scope=0x4, timeOut=10000) {
+	WaitElementExistByType(controlType, scope=0x4, timeOut=10000) { 
 		startTime := A_TickCount
 		while (!IsObject(el := this.FindFirstByType(controlType, scope)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
 			Sleep, 100
@@ -857,7 +998,7 @@ class UIA_Element6 extends UIA_Element5 {
 class UIA_Element7 extends UIA_Element6 {
 	static __IID := "{204E8572-CFC3-4C11-B0C8-7DA7420750B7}"
 		,  __properties := UIA_Element6.__properties
-	FindFirstWithOptions(scope, c, traversalOptions=0, root=0) {
+	FindFirstWithOptions(scope, c, traversalOptions=0, root=0) { ; Finds the first matching element in the specified order. traversalOptions must be one of TreeTraversalOptions enums. [optional] root is pointer to the element with which to begin the search.
 		return UIA_Hr(DllCall(this.__Vt(110), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:c).__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out))&&out? UIA_Element(out):
 	}
 	FindAllWithOptions(scope, c, traversalOptions=0, root=0) {
@@ -882,7 +1023,10 @@ class UIA_ElementArray extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "int",i, "ptr*",out))? UIA_Element(out):
 	}
 }
-
+/*
+	Exposes properties and methods that UI Automation client applications use to view and navigate the UI Automation elements on the desktop.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtreewalker
+*/
 class UIA_TreeWalker extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee671470(v=vs.85).aspx
 	static __IID := "{4042c624-389c-4afc-a630-9df854a541fc}"
@@ -926,20 +1070,30 @@ class UIA_TreeWalker extends UIA_Base {
 	}
 }
 
+/*
+	This is the primary interface for conditions used in filtering when searching for elements in the UI Automation tree. This interface has no members.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationcondition
+*/
 class UIA_Condition extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee671420(v=vs.85).aspx
 	static __IID := "{352ffba8-0973-437c-a61f-f64cafd81df9}"
 		,  __properties := ""
 }
 
+/*
+	Represents a condition based on a property value that is used to find UI Automation elements.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationpropertycondition
+*/
 class UIA_PropertyCondition extends UIA_Condition {
-	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696121(v=vs.85).aspx
 	static __IID := "{99ebf2cb-5578-4267-9ad4-afd6ea77e94b}"
 		,  __properties := "PropertyId,3,PROPERTYID`r`nPropertyValue,4,VARIANT`r`nPropertyConditionFlags,5,PropertyConditionFlags"
 }
 
+/*
+	Exposes properties and methods that Microsoft UI Automation client applications can use to retrieve information about an AND-based property condition.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationandcondition
+*/
 class UIA_AndCondition extends UIA_Condition {
-	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee671407(v=vs.85).aspx
 	static __IID := "{a7d0af36-b912-45fe-9855-091ddc174aec}"
 		,  __properties := "ChildCount,3,int"
 	
@@ -962,8 +1116,12 @@ class UIA_AndCondition extends UIA_Condition {
 		return
 	}
 }
+
+/*
+	Represents a condition made up of multiple conditions, at least one of which must be true.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationorcondition
+*/
 class UIA_OrCondition extends UIA_Condition {
-	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696108(v=vs.85).aspx
 	static __IID := "{8753f032-3db1-47b5-a1fc-6e34a266c712}"
 		,  __properties := "ChildCount,3,int"
 	
@@ -986,14 +1144,21 @@ class UIA_OrCondition extends UIA_Condition {
 		return
 	}
 }
+
+/*
+	Represents a condition that can be either TRUE=1 (selects all elements) or FALSE=0(selects no elements).
+	Microsoft documentation: 
+*/
 class UIA_BoolCondition extends UIA_Condition {
-	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee671411(v=vs.85).aspx
 	static __IID := "{1B4E1F2E-75EB-4D0B-8952-5A69988E2307}"
 		,  __properties := "BooleanValue,3,boolVal"
 }
 
+/*
+	Represents a condition that is the negative of another condition.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationnotcondition
+*/
 class UIA_NotCondition extends UIA_Condition {
-	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696106(v=vs.85).aspx
 	static __IID := "{f528b657-847b-498c-8896-d52b565407a1}"
 			,	__Properties := ""
 
@@ -1012,8 +1177,11 @@ class UIA_IUnknown extends UIA_Base {
 	static __IID := "{00000000-0000-0000-C000-000000000046}"
 }
 
+/*
+	Exposes properties and methods of a cache request. Client applications use this interface to specify the properties and control patterns to be cached when a Microsoft UI Automation element is obtained.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationcacherequest
+*/
 class UIA_CacheRequest extends UIA_Base {
-	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee671413(v=vs.85).aspx
 	static __IID := "{b32a92b5-bc25-4078-9c08-d7ee95c48e03}"
 		,  __properties := "CurrentTreeScope,6,int`r`nCurrentTreeFilter,8,int`r`nCurrentAutomationElementMode,10,int"
 
@@ -1037,6 +1205,10 @@ class UIA_CacheRequest extends UIA_Base {
 	}
 }
 
+/*
+	Exposes a method to handle Microsoft UI Automation events
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationeventhandler
+*/
 class _UIA_EventHandler extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696044(v=vs.85).aspx
 	static __IID := "{146c3c17-f12e-4e22-8c27-f894b9b79c69}"
@@ -1048,6 +1220,10 @@ class _UIA_EventHandler extends UIA_Base {
 		return param1
 	}
 }
+/*
+	Exposes a method to handle events that are raised when the keyboard focus moves to another UI Automation element.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationfocuschangedeventhandler
+*/
 class _UIA_FocusChangedEventHandler extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696051(v=vs.85).aspx
 	static __IID := "{c270f6b5-5c69-4290-9745-7a7f97169468}"
@@ -1058,6 +1234,10 @@ class _UIA_FocusChangedEventHandler extends UIA_Base {
 		return param1
 	}
 }
+/*
+	Exposes a method to handle Microsoft UI Automation events that occur when a property is changed.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationpropertychangedeventhandler
+*/
 class _UIA_PropertyChangedEventHandler extends UIA_Base { ; UNTESTED
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696119(v=vs.85).aspx
 	static __IID := "{40cd37d4-c756-4b0c-8c6f-bddfeeb13b50}"
@@ -1068,6 +1248,10 @@ class _UIA_PropertyChangedEventHandler extends UIA_Base { ; UNTESTED
 		return param1
 	}
 }
+/*
+	Exposes a method to handle events that occur when the Microsoft UI Automation tree structure is changed.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationstructurechangedeventhandler
+*/
 class _UIA_StructureChangedEventHandler extends UIA_Base { ; UNTESTED
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696197(v=vs.85).aspx
 	static __IID := "{e81d1b4e-11c5-42f8-9754-e7036c79f054}"
@@ -1078,6 +1262,10 @@ class _UIA_StructureChangedEventHandler extends UIA_Base { ; UNTESTED
 		return param1
 	}
 }
+/*
+	Exposes a method to handle events that occur when Microsoft UI Automation reports a text-changed event from text edit controls
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtextedittextchangedeventhandler
+*/
 class _UIA_TextEditTextChangedEventHandler { ; UNTESTED
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/dn302202(v=vs.85).aspx
 	static __IID := "{92FAA680-E704-4156-931A-E32D5BB38F3F}"
@@ -1089,7 +1277,10 @@ class _UIA_TextEditTextChangedEventHandler { ; UNTESTED
 	}
 	;~ HandleTextEditTextChangedEvent	3
 }
-
+/*
+	Exposes a method to handle one or more Microsoft UI Automation change events
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationchangeseventhandler
+*/
 class _UIA_ChangesEventHandler { ; UNTESTED
 	static __IID := "{58EDCA55-2C3E-4980-B1B9-56C17F27A2A0}"
 		,	__Properties := ""
@@ -1101,7 +1292,10 @@ class _UIA_ChangesEventHandler { ; UNTESTED
 		return param1
 	}
 }
-
+/*
+	Exposes a method to handle Microsoft UI Automation notification events
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationnotificationeventhandler
+*/
 class _UIA_NotificationEventHandler {
 	static __IID := "{C7CB2637-E6C2-4D0C-85DE-4948C02175C7}"
 		,	__Properties := ""
@@ -1112,8 +1306,10 @@ class _UIA_NotificationEventHandler {
 	}
 }
 
-
-;~ 		UIA_Patterns - http://msdn.microsoft.com/en-us/library/windows/desktop/ee684023
+/*
+	Provides access to a control that enables child elements to be arranged horizontally and vertically, relative to each other.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationdockpattern
+*/
 class UIA_DockPattern extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee671421
 	static	__IID := "{fde5ef97-1464-48f6-90bf-43d0948e86ec}"
@@ -1131,8 +1327,12 @@ class UIA_DockPattern extends UIA_Base {
 		DockPosition_None	= 5
 	*/
 }
+
+/*
+	Provides access to a control that can visually expand to display content, and collapse to hide content.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationexpandcollapsepattern
+*/
 class UIA_ExpandCollapsePattern extends UIA_Base {
-	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696046
 	static	__IID := "{619be086-1f4e-4ee4-bafa-210128738730}"
 		,	__PatternID := 10005
 		,	__Properties := "CachedExpandCollapseState,6,int`r`nCurrentExpandCollapseState,5,int"
@@ -1149,12 +1349,22 @@ class UIA_ExpandCollapsePattern extends UIA_Base {
 		ExpandCollapseState_LeafNode	= 3
 	*/
 }
+
+/*
+	Provides access to a child control in a grid-style container that supports the IUIAutomationGridPattern interface.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationgriditempattern
+*/
 class UIA_GridItemPattern extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696053
 	static	__IID := "{78f8ef57-66c3-4e09-bd7c-e79b2004894d}"
 		,	__PatternID := 10007
 		,	__Properties := "CurrentContainingGrid,3,IUIAutomationElement`r`nCurrentRow,4,int`r`nCurrentColumn,5,int`r`nCurrentRowSpan,6,int`r`nCurrentColumnSpan,7,int`r`nCachedContainingGrid,8,IUIAutomationElement`r`nCachedRow,9,int`r`nCachedColumn,10,int`r`nCachedRowSpan,11,int`r`nCachedColumnSpan,12,int"
 }
+
+/*
+	Provides access to a control that acts as a container for a collection of child controls that are organized in a two-dimensional logical coordinate system that can be traversed by row and column. The children of this element support the GridItemPattern interface.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationgridpattern
+*/
 class UIA_GridPattern extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696064
 	static	__IID := "{414c3cdc-856b-4f5b-8538-3131c6302550}"
@@ -1165,6 +1375,11 @@ class UIA_GridPattern extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "uint",row, "uint",column, "ptr*",out))&&out? UIA_Element(out):
 	}
 }
+
+/*
+	Exposes a method that enables a client application to invoke the action of a control (typically a button). A control should support this interface if it initiates or performs a single, unambiguous action and does not maintain state when activated.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationinvokepattern
+*/
 class UIA_InvokePattern extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696070
 	static	__IID := "{fb377fbe-8ea6-46d5-9c73-6499642d3059}"
@@ -1175,6 +1390,11 @@ class UIA_InvokePattern extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value))
 	}
 }
+
+/*
+	Exposes a method that retrieves an item from a container, such as a virtual list. This interface is not limited to use by virtualized containers. Any container that can implement efficient name lookup can support this control pattern, enabling clients to look up names more quickly than by using methods such as FindFirst, which must traverse the Microsoft UI Automation tree.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationitemcontainerpattern
+*/
 class UIA_ItemContainerPattern extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696072
 	static	__IID := "{c690fdb2-27a8-423c-812d-429773c9084e}"
@@ -1184,11 +1404,15 @@ class UIA_ItemContainerPattern extends UIA_Base {
 	FindItemByProperty(startAfter, propertyId, ByRef value, type=8) {	; Hr!=0 if no result, or blank output?
 		if (type!="Variant")
 			UIA_Variant(value,type,value)
-		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",startAfter.__Value, "int",propertyId, "ptr",&value, "ptr*",out))? UIA_Element(out):
+		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",startAfter.__Value, "int",propertyId, "int64",NumGet(value, 0, "int64"),"int64",NumGet(value, 8, "int64"), "ptr*",out) : DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",startAfter.__Value, "int",propertyId, "ptr",&value, "ptr*",out))? UIA_Element(out):
 	}
 }
+
+/*
+	Exposes methods and properties that enable Microsoft UI Automation clients to retrieve UI information from Microsoft Active Accessibility (MSAA) servers.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationlegacyiaccessiblepattern
+*/
 class UIA_LegacyIAccessiblePattern extends UIA_Base {
-	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696074
 	static	__IID := "{828055ad-355b-4435-86d5-3b51c14a9b1b}"
 		,	__PatternID := 10018
 		,	__Properties := "CurrentChildId,6,int`r`nCurrentName,7,BSTR`r`nCurrentValue,8,BSTR`r`nCurrentDescription,9,BSTR`r`nCurrentRole,10,DWORD`r`nCurrentState,11,DWORD`r`nCurrentHelp,12,BSTR`r`nCurrentKeyboardShortcut,13,BSTR`r`nCurrentDefaultAction,15,BSTR`r`nCachedChildId,16,int`r`nCachedName,17,BSTR`r`nCachedValue,18,BSTR`r`nCachedDescription,19,BSTR`r`nCachedRole,20,DWORD`r`nCachedState,21,DWORD`r`nCachedHelp,22,BSTR`r`nCachedKeyboardShortcut,23,BSTR`r`nCachedDefaultAction,25,BSTR"
@@ -1214,6 +1438,11 @@ class UIA_LegacyIAccessiblePattern extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(26), "ptr",this.__Value, "ptr*",pacc))&&pacc? ComObj(9,pacc,1):
 	}
 }
+
+/*
+	Provides access to a control that can switch between multiple representations of the same information or set of child controls.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationmultipleviewpattern
+*/
 class UIA_MultipleViewPattern extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696099
 	static	__IID := "{8d253c91-1dc5-4bb5-b18f-ade16fa495e8}"
@@ -1233,6 +1462,11 @@ class UIA_MultipleViewPattern extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))? UIA_SafeArrayToAHKArray(ComObj(0x2003,out,1)):
 	}
 }
+
+/*
+	Provides access to a control that presents a range of values.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationrangevaluepattern
+*/
 class UIA_RangeValuePattern extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696147
 	static	__IID := "{59213f4f-7346-49e5-b120-80555987a148}"
@@ -1243,6 +1477,11 @@ class UIA_RangeValuePattern extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "double",val))
 	}
 }
+
+/*
+	Exposes a method that enables an item in a scrollable view to be placed in a visible portion of the view.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationscrollitempattern
+*/
 class UIA_ScrollItemPattern extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696165
 	static	__IID := "{b488300f-d015-4f19-9c29-bb595e3645ef}"
@@ -1253,16 +1492,21 @@ class UIA_ScrollItemPattern extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value))
 	}
 }
+
+/*
+	Provides access to a control that acts as a scrollable container for a collection of child elements. The children of this element support IUIAutomationScrollItemPattern.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationscrollpattern
+*/
 class UIA_ScrollPattern extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696167
 	static	__IID := "{88f4d42a-e881-459d-a77c-73bbbb7e02dc}"
 		,	__PatternID := 10004
 		,	__Properties := "CurrentHorizontalScrollPercent,5,double`r`nCurrentVerticalScrollPercent,6,double`r`nCurrentHorizontalViewSize,7,double`r`nCurrentHorizontallyScrollable,9,BOOL`r`nCurrentVerticallyScrollable,10,BOOL`r`nCachedHorizontalScrollPercent,11,double`r`nCachedVerticalScrollPercent,12,double`r`nCachedHorizontalViewSize,13,double`r`nCachedVerticalViewSize,14,double`r`nCachedHorizontallyScrollable,15,BOOL`r`nCachedVerticallyScrollable,16,BOOL"
 		
-	Scroll(horizontal=-1, vertical=-1) { ; Default is NoScroll
+	Scroll(horizontal=-1, vertical=-1) { ; Default is ScrollAmount_NoAmount
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "uint",horizontal, "uint",vertical))
 	}
-	SetScrollPercent(horizontal=-1, vertical=-1) { ; Default is NoScroll
+	SetScrollPercent(horizontal=-1, vertical=-1) { ; Default is ScrollAmount_NoAmount
 		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "double",horizontal, "double",vertical))
 	}
 	/*	UIA_ScrollPatternNoScroll	=	-1
@@ -1273,6 +1517,11 @@ class UIA_ScrollPattern extends UIA_Base {
 		ScrollAmount_SmallIncrement	= 4
 	*/
 }
+
+/*
+	Provides access to the selectable child items of a container control that supports SelectionPattern
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationselectionitempattern
+*/
 class UIA_SelectionItemPattern extends UIA_Base { ; UNTESTED
 	static	__IID := "{A8EFA66A-0FDA-421A-9194-38021F3578EA}"
 		,	__PatternID := 10010
@@ -1288,6 +1537,10 @@ class UIA_SelectionItemPattern extends UIA_Base { ; UNTESTED
 	}
 }
 
+/*
+	Provides access to a control that contains selectable child items. The children of this element support SelectionItemPattern.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationselectionpattern
+*/
 class UIA_SelectionPattern extends UIA_Base {
 	static	__IID := "{5ED5202E-B2AC-47A6-B638-4B0BF140D78E}"
 		,	__PatternID := 10001
@@ -1300,13 +1553,17 @@ class UIA_SelectionPattern extends UIA_Base {
 	}
 }
 
-class UIA_SelectionPattern2 extends UIA_SelectionPattern { ; Does not extend SelectionPattern properties and methods
-	static	__IID := "{0532bfae-c011-4e32-a343-6d642d798555"
+class UIA_SelectionPattern2 extends UIA_SelectionPattern { ; UNTESTED
+	static	__IID := "{0532bfae-c011-4e32-a343-6d642d798555}"
 		,	__PatternID := 10034
-		,	__Properties := "CurrentFirstSelectedItem,9,IUIAutomationElement`r`nCurrentLastSelectedItem,10,IUIAutomationElement`r`nCurrentCurrentSelectedItem,11,IUIAutomationElement`r`nCurrentItemCount,12,int`r`nCachedFirstSelectedItem,13,IUIAutomationElement`r`nCachedLastSelectedItem,14,IUIAutomationElement`r`nCachedCurrentSelectedItem,15,IUIAutomationElement`r`nCachedItemCount,16,int"
+		,	__Properties := UIA_SelectionPattern.__Properties .  "`r`nCurrentFirstSelectedItem,9,IUIAutomationElement`r`nCurrentLastSelectedItem,10,IUIAutomationElement`r`nCurrentCurrentSelectedItem,11,IUIAutomationElement`r`nCurrentItemCount,12,int`r`nCachedFirstSelectedItem,13,IUIAutomationElement`r`nCachedLastSelectedItem,14,IUIAutomationElement`r`nCachedCurrentSelectedItem,15,IUIAutomationElement`r`nCachedItemCount,16,int"
 	
 }
 
+/*
+	Enables a client application to retrieve information about an item (cell) in a spreadsheet. 
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationspreadsheetitempattern
+*/
 class UIA_SpreadsheetItemPattern extends UIA_Base { ; UNTESTED
 	static	__IID := "{7D4FB86C-8D34-40E1-8E83-62C15204E335}"
 		,	__PatternID := 10027
@@ -1325,6 +1582,10 @@ class UIA_SpreadsheetItemPattern extends UIA_Base { ; UNTESTED
 	}
 }
 
+/*
+	Enables a client application to access the items (cells) in a spreadsheet
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationspreadsheetpattern
+*/
 class UIA_SpreadsheetPattern extends UIA_Base { ; UNTESTED
 	static	__IID := "{7517A7C8-FAAE-4DE9-9F08-29B91E8595C1}"
 		,	__PatternID := 10026
@@ -1334,6 +1595,10 @@ class UIA_SpreadsheetPattern extends UIA_Base { ; UNTESTED
 	}
 }
 
+/*
+	Enables Microsoft UI Automation clients to retrieve the visual styles associated with an element in a document.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationstylespattern
+*/
 class UIA_StylesPattern extends UIA_Base { ; UNTESTED
 	static	__IID := "{85B5F0A2-BD79-484A-AD2B-388C9838D5FB}"
 		,	__PatternID := 10025
@@ -1346,6 +1611,10 @@ class UIA_StylesPattern extends UIA_Base { ; UNTESTED
 	}
 }
 
+/*
+	Provides access to the keyboard or mouse input of a control.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationsynchronizedinputpattern
+*/
 class UIA_SynchronizedInputPattern extends UIA_Base { ; UNTESTED
 	static	__IID := "{2233BE0B-AFB7-448B-9FDA-3B378AA5EAE1}"
 		,	__PatternID := 10021
@@ -1357,6 +1626,11 @@ class UIA_SynchronizedInputPattern extends UIA_Base { ; UNTESTED
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value))
 	}
 }
+
+/*
+	Provides access to a child element in a container that supports TablePattern
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtableitempattern
+*/
 class UIA_TableItemPattern extends UIA_Base {
 	static	__IID := "{0B964EB3-EF2E-4464-9C79-61D61737A27E}"
 		,	__PatternID := 10013
@@ -1374,6 +1648,11 @@ class UIA_TableItemPattern extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*", out))&&out?UIA_ElementArray(out):
 	}
 }
+
+/*
+	Provides access to a control that acts as a container for a collection of child elements. The children of this element support TableItemPattern and are organized in a two-dimensional logical coordinate system that can be traversed by row and column.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtablepattern
+*/
 class UIA_TablePattern extends UIA_Base {
 	static	__IID := "{620E691C-EA96-4710-A850-754B24CE2417}"
 		,	__PatternID := 10012
@@ -1392,20 +1671,27 @@ class UIA_TablePattern extends UIA_Base {
 	}
 }
 
+/*
+	Provides access to a control that contains text. Note that TextPattern nor TextRange can't be used to change the text itself, only to get information about the text or select text. To change the text, UIA_Element.SetValue(val) can be used.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtextpattern
+*/
 class UIA_TextPattern extends UIA_Base {
 	static	__IID := "{32EBA289-3583-42C9-9C59-3B6D9A1E9B6A}"
 		,	__PatternID := 10014
-		,	__Properties := "DocumentRange,7,IUIAutomationTextRange`r`nSupportedTextSelection,8,int"
-	RangeFromPoint(x, y) {
+		,	__Properties := "DocumentRange,7,IUIAutomationTextRange`r`nSupportedTextSelection,8,int" ; DocumentRange returns a TextRange that encloses the main text of a document.
+	RangeFromPoint(x, y) { ; Retrieves an empty TextRange nearest to the specified screen coordinates
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "int64",x&0xFFFFFFFF|y<<32, "ptr*",out))?UIA_TextRange(out):
 	}
-	RangeFromChild(child) {
+	; Retrieves a text range enclosing a child element such as an image, hyperlink, Microsoft Excel spreadsheet, or other embedded object.
+	RangeFromChild(child) { 
 		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr",child.__Value, "ptr*",out))?UIA_TextRange(out):
 	}
-	GetSelection() {
+	; Returns the currently selected text
+	GetSelection() { 
 		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?UIA_TextRangeArray(out):
 	}
-	GetVisibleRanges() {
+	; Retrieves an array of disjoint text ranges from a text-based control where each text range represents a contiguous span of visible text
+	GetVisibleRanges() { 
 		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?UIA_TextRangeArray(out):
 	}
 }
@@ -1422,6 +1708,10 @@ class UIA_TextPattern2 extends UIA_TextPattern {
 	}
 }
 
+/*
+	Provides access to a control that modifies text, for example a control that performs auto-correction or enables input composition through an Input Method Editor (IME).
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtexteditpattern
+*/
 class UIA_TextEditPattern extends UIA_TextPattern { ; UNTESTED
 	static	__IID := "{17E21576-996C-4870-99D9-BFF323380C06}"
 		,	__PatternID := 10032
@@ -1434,12 +1724,20 @@ class UIA_TextEditPattern extends UIA_TextPattern { ; UNTESTED
 	}
 }
 
+/*
+	Provides access a text-based control (or an object embedded in text) that is a child or descendant of another text-based control.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtextchildpattern
+*/
 class UIA_TextChildPattern extends UIA_Base { ; UNTESTED
 	static	__IID := "{6552B038-AE05-40C8-ABFD-AA08352AAB86}"
 		,	__PatternID := 10029
 		,	__Properties := "TextContainer,3,IUIAutomationElement`r`nTextRange,4,IUIAutomationTextRange"
 }
 
+/*
+	Provides access to a control that can cycle through a set of states, and maintain a state after it is set.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtogglepattern
+*/
 class UIA_TogglePattern extends UIA_Base
 {
     ; https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtogglepattern
@@ -1451,6 +1749,10 @@ class UIA_TogglePattern extends UIA_Base
     }
 }
 
+/*
+	Provides access to a control that can be moved, resized, or rotated.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtransformpattern 
+*/
 class UIA_TransformPattern extends UIA_Base {
 	static	__IID := "{A9B55844-A55D-4EF0-926D-569C16FF89BB}"
 		,	__PatternID := 10016
@@ -1466,8 +1768,7 @@ class UIA_TransformPattern extends UIA_Base {
 	}
 }
 
-;~ class UIA_TransformPattern2 extends UIA_Base {10028
-class UIA_TransformPattern2 extends UIA_TransformPattern { ; UNTESTED. It seems TransformPattern2 implementation doesn't extend TransformPattern methods/properties, yet TextPattern2 extends TextPattern... 
+class UIA_TransformPattern2 extends UIA_TransformPattern { ; UNTESTED 
 	static	__IID := "{6D74D017-6ECB-4381-B38B-3C17A48FF1C2}"
 		,	__PatternID := 10028
 		,	__Properties := UIA_TransformPattern.__Properties . "`r`nCurrentCanZoom,14,bool`r`nCachedCanZoom,15,bool`r`nCurrentZoomLevel,16,double`r`nCachedZoomLevel,17,double`r`nCurrentZoomMinimum,18,double`r`nCachedZoomMinimum,19,double`r`nCurrentZoomMaximum,20,double`r`nCachedZoomMaximum,21,double"
@@ -1479,6 +1780,10 @@ class UIA_TransformPattern2 extends UIA_TransformPattern { ; UNTESTED. It seems 
 	}
 }
 
+/*
+	Provides access to a control that presents a range of values.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationrangevaluepattern
+*/
 class UIA_ValuePattern extends UIA_Base {
 	static	__IID := "{A94CD8B1-0844-4CD6-9D2D-640537AB39E9}"
 		,	__PatternID := 10002
@@ -1489,6 +1794,10 @@ class UIA_ValuePattern extends UIA_Base {
 	}
 }
 
+/*
+	Represents a virtualized item, which is an item that is represented by a placeholder automation element in the Microsoft UI Automation tree.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationvirtualizeditempattern
+*/
 class UIA_VirtualizedItemPattern extends UIA_Base {
 	static	__IID := "{6BA3D7A6-04CF-4F11-8793-A8D1CDE9969F}"
 		,	__PatternID := 10020
@@ -1499,6 +1808,10 @@ class UIA_VirtualizedItemPattern extends UIA_Base {
 	}
 }
 
+/*
+	Provides access to the fundamental functionality of a window.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationwindowpattern
+*/
 class UIA_WindowPattern extends UIA_Base {
 	static __IID := "{0FAEF453-9208-43EF-BBB2-3B485177864F}"
 		, __PatternID := 10009
@@ -1514,12 +1827,20 @@ class UIA_WindowPattern extends UIA_Base {
 	}
 }
 
+/*
+	Provides access to the properties of an annotation in a document.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationannotationpattern
+*/
 class UIA_AnnotationPattern extends UIA_Base {	
 	static __IID := "{9A175B21-339E-41B1-8E8B-623F6B681098}"
 		, __PatternID := 10023
 		,  __Properties := "CurrentAnnotationTypeId,3,int`r`nCurrentAnnotationTypeName,4,BSTR`r`nCurrentAuthor,5,BSTR`r`nCurrentDateTime,6,BSTR`r`nCurrentTarget,7,IUIAutomationElement`r`nCachedAnnotationTypeId,8,int`r`nCachedAnnotationTypeName,9,BSTR`r`nCachedAuthor,10,BSTR`r`nCachedDateTime,11,BSTR`r`nCachedTarget,12,IUIAutomationElement"
 }
 
+/*
+	Provides access to information exposed by a UI Automation provider for an element that can be dragged as part of a drag-and-drop operation.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationdragpattern
+*/
 class UIA_DragPattern extends UIA_Base { ; UNTESTED, couldn't find a window that supported this
 	static __IID := "{1DC7B570-1F54-4BAD-BCDA-D36A722FB7BD}"
 		, __PatternID := 10030
@@ -1532,12 +1853,20 @@ class UIA_DragPattern extends UIA_Base { ; UNTESTED, couldn't find a window that
 	}
 }
 
+/*
+	Provides access to drag-and-drop information exposed by a Microsoft UI Automation provider for an element that can be the drop target of a drag-and-drop operation.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationdroptargetpattern
+*/
 class UIA_DropTargetPattern extends UIA_Base { ; UNTESTED
 	static __IID := "{69A095F7-EEE4-430E-A46B-FB73B1AE39A5}"
 		, __PatternID := 10031
 		,  __Properties := "CurrentDropTargetEffect,3,BSTR`r`nCachedDropTargetEffect,4,BSTR`r`nCurrentDropTargetEffects,5,VARIANT`r`nCachedDropTargetEffects,6,VARIANT`r`n"
 }
 
+/*
+	Provides access to the underlying object model implemented by a control or application.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationobjectmodelpattern
+*/
 class UIA_ObjectModelPattern extends UIA_Base {			; Windows 8 [desktop apps only]
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/hh437262(v=vs.85).aspx
 	static	__IID := "{71c284b3-c14d-4d14-981e-19751b0d756d}"
@@ -1552,69 +1881,93 @@ class UIA_ObjectModelPattern extends UIA_Base {			; Windows 8 [desktop apps only
 ;~ class UIA_PatternHandler extends UIA_Base {
 ;~ class UIA_PatternInstance extends UIA_Base {
 
+/*
+	Provides access to a span of continuous text in a container that supports the TextPattern interface. TextRange can be used to select, compare, and retrieve embedded objects from the text span. The interface uses two endpoints to delimit where the text span starts and ends. Disjoint spans of text are represented by a TextRangeArray, which is an array of TextRange interfaces.
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtextrange
+*/
 class UIA_TextRange extends UIA_Base {
 	static __IID := "{A543CC6A-F4AE-494B-8239-C814481187A8}"
 		,  __Properties := ""
-	
-	Clone() {
+	; Returns a copy of the TextRange (retrieves a new IUIAutomationTextRange identical to the original and inheriting all properties of the original).
+	Clone() { 
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?UIA_TextRange(out):
 	}
-	Compare(comparisonTextRange) {
+	; Compares whether this TextRange has the same endpoints as comparisonTextRange
+	Compare(comparisonTextRange) { 
 		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value,"ptr",comparisonTextRange.__Value, "ptr*",out))?out:
 	}
-	CompareEndPoints(srcEndPoint, comparisonTextRange, targetEndPoint) {
+	; Retrieves a value that specifies whether the start or end endpoint of this text range is the same as the start or end endpoint of comparisonTextRange. Returns a negative value if the caller's endpoint occurs earlier in the text than the target endpoint; 0 if the caller's endpoint is at the same location as the target endpoint; or a positive value if the caller's endpoint occurs later in the text than the target endpoint. srcEndPoint and targetEndPoint need to be TextPatternRangeEndpoint enums.
+	CompareEndPoints(srcEndPoint, comparisonTextRange, targetEndPoint) { 
 		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value,"int", srcEndPoint,"ptr",comparisonTextRange.__Value, "int", targetEndPoint,"ptr*",out))?out:
 	}
-	ExpandToEnclosingUnit(unit=6) {
+	; Normalizes the text range by the specified text unit. The range is expanded if it is smaller than the specified unit, or shortened if it is longer than the specified unit. unit needs to be a TextUnit enum (default is TextUnit_Document == 6)
+	ExpandToEnclosingUnit(unit=6) { 
 		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value,"int",unit))
 	}
-	FindAttribute(attr, val, backward=False) {
-		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(7), "ptr",this.__Value,"int",attr,"int64",NumGet(val, 0, "int64"),"int64",NumGet(val, 8, "int64"), "ptr*",out) : DllCall(this.__Vt(7), "ptr",this.__Value,"int",attr,"ptr",&val, "ptr*",out))?UIA_TextRange(out):
+	; Retrieves a text range subset that has the specified text attribute value. attr needs to be a UIA_TextAttributeId enum, and val the desired value (some can be strings, others text attribute enums such as BulletStyle enum)
+	FindAttribute(attr, val, backward=False) { 
+		if attr is not integer
+			attr := UIA_Enum.UIA_AttributeId(attr)
+		UIA_Variant(var, UIA_Enum.UIA_AttributeVariantType(attr), val)
+		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(7), "ptr",this.__Value,"int",attr,"int64",NumGet(var, 0, "int64"),"int64",NumGet(var, 8, "int64"),"int",backward, "ptr*",out) : DllCall(this.__Vt(7), "ptr",this.__Value,"int",attr,"ptr",&var,"int",backward,"ptr*",out))?UIA_TextRange(out):
 	}
-	FindText(text, backward=False, ignoreCase=False) {
+	; Retrieves a text range subset that contains the specified text.
+	FindText(text, backward=False, ignoreCase=False) { 
 		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value,"ptr", &text,"int",backward, "int", ignoreCase,"ptr*",out))?UIA_TextRange(out):
 	}					
-	GetAttributeValue(attr) {
+	; Retrieves the value of the specified text attribute across the entire text range. attr needs to be a UIA_TextAttributeId enum.
+	GetAttributeValue(attr) { 
 		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value,"int", attr,"ptr",UIA_Variant(out)))?UIA_VariantData(out):
 	}
-	GetBoundingRectangles() { ; Returns an array of rect objects {l:left,t:top,r:right,b:bottom}
+	; Returns an array of bounding rectangle objects {x:top left X-coord,y:top left Y-coord,w:width,h:height} for each fully or partially visible line of text in a text range.
+	GetBoundingRectangles() { 
 		static b:={__Class:"object",__Type:"RECT",Struct:Func("UIA_RectStructure")}
 		if UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value,"ptr*",out)) {
 			DllCall("oleaut32\SafeArrayGetVartype", "ptr", out, "ushort*", baseType)
 			sa := UIA_GetSafeArrayValue(out, baseType), retArr := []
 			Loop, % sa.MaxIndex() / 4
-				retArr.Push({l:Floor(sa[4*(A_Index-1)+1]),t:Floor(sa[4*(A_Index-1)+2]),r:Floor(sa[4*(A_Index-1)+3]),b:Floor(sa[4*(A_Index-1)+4]),base:b})
+				retArr.Push({x:Floor(sa[4*(A_Index-1)+1]),y:Floor(sa[4*(A_Index-1)+2]),w:Floor(sa[4*(A_Index-1)+3]),h:Floor(sa[4*(A_Index-1)+4]),base:b})
 			return retArr
 		}
 	}
-	GetEnclosingElement() {
+	; Returns the innermost UI Automation element that encloses the text range.
+	GetEnclosingElement() { 
 		return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value,"ptr*",out))?UIA_Element(out):
 	}
-	GetText(maxLength=-1) {
+	; Returns the plain text of the text range. maxLength is the maximum length of the string to return, or -1 if no limit is required.
+	GetText(maxLength=-1) { 
 		return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value,"int", maxLength,"ptr*",out))?StrGet(out):
 	}
-	Move(unit, count) {
+	; Moves the text range forward or backward by the specified number of text units. unit needs to be a TextUnit enum.
+	Move(unit, count) { 
 		return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value,"int", unit,"int",count, "ptr*",out))?out:
 	}
-	MoveEndpointByUnit(endpoint, unit, count) {
+	; Moves one endpoint of the text range the specified number of text units within the document range. endpoint needs to be TextPatternRangeEndpoint enum. unit needs to be a TextUnit enum.
+	MoveEndpointByUnit(endpoint, unit, count) { 
 		return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value,"int", endpoint,"int", unit, "int", count, "ptr*",out))?out:
 	}
-	MoveEndpointByRange(srcEndPoint, range, targetEndPoint) {
+	; Moves one endpoint of the current text range to the specified endpoint of a second text range. srcEndPoint and targetEndPoint need to be TextPatternRangeEndpoint enums.
+	MoveEndpointByRange(srcEndPoint, range, targetEndPoint) { 
 		return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value,"int", srcEndPoint,"ptr",range.__Value, "int", targetEndPoint,"ptr*",out))
 	}
-	Select() {
+	; Selects the span of text that corresponds to this text range, and removes any previous selection.
+	Select() { 
 		return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value))
 	}
-	AddToSelection() {
+	; Adds the text range to the collection of selected text ranges in a control that supports multiple, disjoint spans of selected text.
+	AddToSelection() { 
 		return UIA_Hr(DllCall(this.__Vt(17), "ptr",this.__Value))
 	}
-	RemoveFromSelection() {
+	; Removes the text range from an existing collection of selected text in a text container that supports multiple, disjoint selections.
+	RemoveFromSelection() { 
 		return UIA_Hr(DllCall(this.__Vt(18), "ptr",this.__Value))
 	}
-	ScrollIntoView(alignToTop) {
+	; Causes the text control to scroll until the text range is visible in the viewport. alignToTop is a boolean value.
+	ScrollIntoView(alignToTop) { 
 		return UIA_Hr(DllCall(this.__Vt(19), "ptr",this.__Value,"int", alignToTop))
 	}
-	GetChildren() {
+	; Retrieves a collection of all embedded objects that fall within the text range.
+	GetChildren() { 
 		return UIA_Hr(DllCall(this.__Vt(20), "ptr",this.__Value,"ptr*",out))?UIA_ElementArray(out):
 	}
 }
@@ -1647,6 +2000,10 @@ class UIA_TextRange3 extends UIA_TextRange2 { ; UNTESTED
 	}
 }
 
+/*
+	Represents a collection (array) of TextRange objects
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtextrangearray
+*/
 class UIA_TextRangeArray extends UIA_Base {
 	static __IID := "{CE4AE76A-E717-4C98-81EA-47371D028EB6}"
 		,  __Properties := "Length,3,int"
@@ -1657,9 +2014,20 @@ class UIA_TextRangeArray extends UIA_Base {
 }
 
 {  ;~ UIA Functions
+	/*
+		UIAInterface function initializes the UIAutomation interface and returns a UIA_Interface object. After calling this function, all UIA_Interface class properties and methods can be accessed through the returned object. 
+			maxVersion can be used to limit the UIA_Interface version being created. By default the highest version available is used (usually IUIAutomation7 interface). 
+			Specifiying maxVersion:=2 would try to initialize IUIAutomation2 interface, and if that fails then IUIAutomation interface.
+		In addition some extra variables are initialized: 
+			CurrentVersion contains the version number of IUIAutomation interface
+			TrueCondition contains a UIA_TrueCondition
+			TreeWalkerTrue contains an UIA_TreeWalker that was created with UIA_TrueCondition
+		On subsequent calls of UIA_Interface(), the previously created UIA interface object is returned to avoid multiple connections being made. To bypass this, specify a maxVersion
+		Note that a new UIA_Interface object can't be created with the "new" keyword. 
+	*/
 	UIA_Interface(maxVersion="") {
 		static uia
-		if IsObject(uia)
+		if (IsObject(uia) && (maxVersion == ""))
 			return uia
 		max := (maxVersion?maxVersion:UIA_Enum.UIA_MaxVersion_Interface)+1
 		while (--max) {
@@ -1686,6 +2054,7 @@ class UIA_TextRangeArray extends UIA_Base {
 			MsgBox, 262160, UIA Startup Error, % IsObject(e)?"IUIAutomation Interface is not registered.":e.Message
 		return
 	}
+	; Converts an error code to the corresponding error message
 	UIA_Hr(hr) {
 		;~ http://blogs.msdn.com/b/eldar/archive/2007/04/03/a-lot-of-hresult-codes.aspx
 		static err:={0x8000FFFF:"Catastrophic failure.",0x80004001:"Not implemented.",0x8007000E:"Out of memory.",0x80070057:"One or more arguments are not valid.",0x80004002:"Interface not supported.",0x80004003:"Pointer not valid.",0x80070006:"Handle not valid.",0x80004004:"Operation aborted.",0x80004005:"Unspecified error.",0x80070005:"General access denied.",0x800401E5:"The object identified by this moniker could not be found.",0x80040201:"UIA_E_ELEMENTNOTAVAILABLE",0x80040200:"UIA_E_ELEMENTNOTENABLED",0x80131509:"UIA_E_INVALIDOPERATION",0x80040202:"UIA_E_NOCLICKABLEPOINT",0x80040204:"UIA_E_NOTSUPPORTED",0x80040203:"UIA_E_PROXYASSEMBLYNOTLOADED"} ; //not completed
@@ -1699,6 +2068,7 @@ class UIA_TextRangeArray extends UIA_Base {
 		RegExMatch(Exception("",-2).What,"(\D+)\.(\D+)",m)
 		MsgBox, 262192, UIA Message, Class:`t%m1%`nMember:`t%m2%`n`nMethod has not been implemented yet.
 	}
+	; Used by UIA methods to create new UIA_Element objects of the highest available version. The highest version to try can be changed by modifying UIA_Enum.UIA_CurrentVersion_Element value.
 	UIA_Element(e) {
 		static v, previousVersion
 		if (previousVersion != UIA_Enum.UIA_CurrentVersion_Element) ; Check if the user wants an element with a different version
@@ -1712,6 +2082,7 @@ class UIA_TextRangeArray extends UIA_Base {
 		}
 		return new UIA_Element(e,,v:=1)
 	}
+	; Used by UIA methods to create new UIA_TextRange objects of the highest available version. The highest version to try can be changed by modifying UIA_Enum.UIA_CurrentVersion_TextRange value.
 	UIA_TextRange(e) {
 		static v, previousVersion
 		if (previousVersion != UIA_Enum.UIA_CurrentVersion_TextRange) ; Check if the user wants an element with a different version
@@ -1725,38 +2096,34 @@ class UIA_TextRangeArray extends UIA_Base {
 		}
 		return new UIA_TextRange(e,,v:=1)
 	}
-	UIA_Pattern(p) { ; Create a new pattern with the highest available version. This doesn't always result in good outcomes though: TransformPattern2 doesn't extend TransformPattern for some reason, yet TextPattern2 does extend TextPattern. Thus I left the current functionality of getting the highest available version, but when trying to call TransformPattern, specify UIA_Pattern("TransformPattern")
-		static validated
-		if !IsObject(validated)
-			validated := {}
+	; Used by UIA methods to create new Pattern objects of the highest available version for a given pattern.
+	UIA_Pattern(p, el) {
 		patternName := InStr(p, "Pattern") ? p : p "Pattern", i:=1
-		if (v:=validated[patternName])
-			return (v==1)?patternName:(patternName v)
-		if !(IsObject(UIA_%patternName%)&&UIA_%patternName%.__iid&&UIA_%patternName%.__PatternID) {
-			return
-		}
 		Loop {
 			i++
-			if !(IsObject(UIA_%patternName%%i%)&&UIA_%patternName%%i%.__iid&&UIA_%patternName%%i%.__PatternID)
+			if !(IsObject(UIA_%patternName%%i%) && UIA_%patternName%%i%.__iid && UIA_%patternName%%i%.__PatternID)
 				break
 		}
-		if (--i > 1)
-			return patternName i, validated[patternName] := i
-		return patternName, validated[patternName] := 1
+		While (--i > 1) {
+			if ((patternAvailableId := UIA_Enum["UIA_Is" patternName i "AvailablePropertyId"]) && el.GetCurrentPropertyValue(patternAvailableId))
+				return patternName i
+		}
+		return patternName
 	}
+	; Used to fetch constants and enumerations from the UIA_Enum class. The "UIA_" part of a variable name can be left out (eg UIA_Enum("ButtonControlTypeId") will return 50000).
 	UIA_Enum(e) {
 		if ObjHasKey(UIA_Enum, e)
 			return UIA_Enum[e]
 		else if ObjHasKey(UIA_Enum, "UIA_" e)
 			return UIA_Enum["UIA_" e]
 	}
-	UIA_ElementArray(p, uia="") { ; should AHK Object be 0 or 1 based? /// answer: 1 based ///
+	UIA_ElementArray(p, uia="") { ; Should AHK Object be 0 or 1 based? Currently 1 based.
 		a:=new UIA_ElementArray(p),out:=[]
 		Loop % a.Length
 			out[A_Index]:=a.GetElement(A_Index-1)
 		return out, out.base:={UIA_ElementArray:a}
 	}
-	UIA_TextRangeArray(p, uia="") { ; should AHK Object be 0 or 1 based? /// answer: 1 based ///
+	UIA_TextRangeArray(p, uia="") { ; Should AHK Object be 0 or 1 based? Currently 1 based.
 		a:=new UIA_TextRangeArray(p),out:=[]
 		Loop % a.Length
 			out[A_Index]:=a.GetElement(A_Index-1)
@@ -1773,10 +2140,11 @@ class UIA_TextRangeArray extends UIA_Base {
 			NumPut(this[A_LoopField],r,(A_Index-1)*4,"Int")
 	}
 	UIA_SafeArrayToAHKArray(safearray) {
+		b:={__Class:"object",__Type:"SafeArray",__Value:safearray}
 		out := []
 		for k in safearray
 			out.Push(k)
-		return out
+		return out, out.base:=b
 	}
 	UIA_SafeArraysToObject(keys,values) {
 	;~	1 dim safearrays w/ same # of elements
@@ -1861,12 +2229,6 @@ class UIA_TextRangeArray extends UIA_Base {
 		VT_BYREF     = 0x4000  		; Pointer to another type of value
 					 = 0x1000  4096
 
-		COM_VariantChangeType(pvarDst, pvarSrc, vt=8) {
-			return DllCall("oleaut32\VariantChangeTypeEx", "ptr",pvarDst, "ptr",pvarSrc, "Uint",1024, "Ushort",0, "Ushort",vt)
-		}
-		COM_VariantClear(pvar) {
-			DllCall("oleaut32\VariantClear", "ptr",pvar)
-		}
 		COM_SysAllocString(str) {
 			Return	DllCall("oleaut32\SysAllocString", "Uint", &str)
 		}
@@ -1882,7 +2244,6 @@ class UIA_TextRangeArray extends UIA_Base {
 		  _In_   SAFEARRAY *psa,
 		  _Out_  VARTYPE *pvt
 		);
-
 		DllCall("oleaut32\SafeArrayDestroy", "ptr",ComObjValue(SafeArray))
 		HRESULT SafeArrayDestroy(
 		  _In_  SAFEARRAY *psa
@@ -1902,7 +2263,21 @@ class UIA_TextRangeArray extends UIA_Base {
 		}
 		return item
 	}
-	UIA_CreateEventHandler(funcName, handlerType="") { ; Possible handlerType values: empty, FocusChanged, StructureChanged, TextEditTextChanged, Changes, Notification
+	/*
+		UIA_CreateEventHandler(funcName, handlerType) returns a new handler object that can be used with methods that create EventHandlers (eg AddAutomationEventHandler)
+			funcName: name of the function that will receive the calls when an event happens
+			handlerType: needed by some of the newer Add...EventHandler functions. In the case of AddAutomationEventHandler, this should be left empty. For other Add...EventHandler cases, specify the ... part: FocusChanged, StructureChanged, TextEditTextChanged, Changes, Notification. So for AddFocusChangedEventHandler, set this value to "FocusChanged"
+		
+		The function funcName needs to be able to receive a certain number of arguments that depends on the type on handler being created:
+			HandleAutomationEvent(sender, eventId)  <--- this is the most common handler type created with AddAutomationEventHandler, and the handler function needs to have exactly two arguments: sender (the element which sent the event), and eventId.
+			HandleFocusChangedEvent(sender)
+			HandlePropertyChangedEvent(sender, propertyId, newValue)
+			HandleStructureChangedEvent(sender, changeType, runtimeId)
+			HandleTextEditTextChangedEvent(sender, changeType, eventStrings)
+			HandleChangesEvent(sender, uiaChanges, changesCount)
+			HandleNotificationEvent(sender, notificationKind, notificationProcessing, displayString, activityId)
+	*/
+	UIA_CreateEventHandler(funcName, handlerType="") { ; Possible handlerType values: empty, FocusChanged, StructureChanged, TextEditTextChanged, Changes, Notification.
 		if !IsFunc(funcName){
 			msgbox %funcName% is not a function.
 			return
@@ -1926,12 +2301,6 @@ class UIA_TextRangeArray extends UIA_Base {
 	_UIA_Release(pSelf){
 	}
 }
-
-
-
-
-
-
 
 
 
@@ -2640,9 +3009,10 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	; enum PropertyConditionFlags Contains values used in creating property conditions.
 	static PropertyConditionFlags_None := 0x0
 	static PropertyConditionFlags_IgnoreCase := 0x1
+	static PropertyConditionFlags_MatchSubstring = 0x2
 
 	PropertyConditionFlags(Value="") {
-		static v1:={0x0:"None", 0x1:"IgnoreCase"}
+		static v1:={0x0:"None", 0x1:"IgnoreCase", 0x2:"MatchSubstring"}
 		if Value is not integer
 			return this["PropertyConditionFlags_" Value]
 		return (Value=="")?v1:v1[Value]

@@ -380,7 +380,7 @@ class UIA_Interface extends UIA_Base {
 		} else {
 			element := this.ElementFromPoint(x, y, activateChromiumAccessibility)
 			bound := element.CurrentBoundingRectangle, elementSize := (bound.r-bound.l)*(bound.b-bound.t), prevElementSize := 0
-			for k, v in element.FindAll(IUIA.TrueCondition) {
+			for k, v in element.FindAll(this.__UIA.TrueCondition) {
 				bound := v.CurrentBoundingRectangle
 				if ((x >= bound.l) && (x <= bound.r) && (y >= bound.t) && (y <= bound.b) && ((newSize := (bound.r-bound.l)*(bound.b-bound.t)) < elementSize))
 					element := v, elementSize := newSize

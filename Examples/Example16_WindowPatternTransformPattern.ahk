@@ -19,7 +19,7 @@ MsgBox, % "WindowPattern properties: "
 	. "`nCurrentIsTopmost: " windowPattern.CurrentIsTopmost
 	. "`nCurrentWindowVisualState: " (visualState := windowPattern.CurrentWindowVisualState) " (" UIA_Enum.WindowVisualState(visualState) ")"
 	. "`nCurrentWindowInteractionState: " (interactionState := windowPattern.CurrentWindowInteractionState) " (" UIA_Enum.WindowInteractionState(interactionState) ")"
-
+Sleep, 50
 MsgBox, Press OK to try minimizing
 windowPattern.SetWindowVisualState(UIA_Enum.WindowVisualState_Minimized)
 

@@ -12,6 +12,7 @@ WinWaitActive, (C:)
 explorerEl := UIA.ElementFromHandle(WinActive("A"))
 treeEl := explorerEl.FindFirstByType("Tree")
 
+MsgBox, % "For this example, make sure that the folder tree on the left side in File Explorer has some scrollable elements (make the window small enough)."
 scrollPattern := treeEl.GetCurrentPatternAs("Scroll")
 Sleep, 500
 MsgBox, % "ScrollPattern properties: "
@@ -20,7 +21,7 @@ MsgBox, % "ScrollPattern properties: "
 	. "`nCurrentHorizontalViewSize: " scrollPattern.CurrentHorizontalViewSize
 	. "`nCurrentHorizontallyScrollable: " scrollPattern.CurrentHorizontallyScrollable
 	. "`nCurrentVerticallyScrollable: " scrollPattern.CurrentVerticallyScrollable
-
+Sleep, 50
 MsgBox, % "Press OK to set scroll percent to 50% vertically and 0% horizontally."
 scrollPattern.SetScrollPercent(,50)
 Sleep, 500

@@ -18,7 +18,7 @@ TextSelectionChangedEventHandler(el, eventId) {
 
 ExitFunc() {
 	global UIA, handler, NotepadEl
-	UIA.RemoveAutomationEventHandler(UIA.Text_TextSelectionChangedEventId, NotepadEl, handler) ; Remove the event handler. Alternatively use UIA.RemoveAllEventHandlers() to remove all handlers
+	try UIA.RemoveAutomationEventHandler(UIA.Text_TextSelectionChangedEventId, NotepadEl, handler) ; Remove the event handler. Alternatively use UIA.RemoveAllEventHandlers() to remove all handlers. If the Notepad window doesn't exist any more, this throws an error.
 }
 	
 lorem =

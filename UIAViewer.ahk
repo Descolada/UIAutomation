@@ -4,6 +4,8 @@ SetWorkingDir %A_ScriptDir%
 SetBatchLines -1
 CoordMode, Mouse, Screen
 
+global DeepSearchFromPoint := False ; When set to True, UIAViewer iterates through the whole UIA tree to find the smallest element from mouse point. This might be very slow with large trees.
+
 global UIA := UIA_Interface(), IsCapturing := False, Stored := {}, Acc, EnableAccTree := False
 Stored.TreeView := {}
 Acc_Init()
@@ -125,15 +127,7 @@ ButCapture:
 			MouseGetPos, mX, mY, mHwnd, mCtrl
 					
 			try {
-				mEl := UIA.ElementFromPoint(mX, mY)
-
-				; Sometimes ElementFromPoint doesn't get the deepest child node, so iterate all the child nodes and find the smallest one under the cursor
-				bound := mEl.CurrentBoundingRectangle, mElSize := (bound.r-bound.l)*(bound.b-bound.t)
-				for k, v in mEl.FindAll(UIA.TrueCondition) {
-					bound := v.CurrentBoundingRectangle
-					if ((mX >= bound.l) && (mX <= bound.r) && (mY >= bound.t) && (mY <= bound.b) && ((newSize := (bound.r-bound.l)*(bound.b-bound.t)) < mElSize))
-						mEl := v, mElSize := newSize
-				}
+				mEl := UIA.SmallestElementFromPoint(mX, mY,, DeepSearchFromPoint ? UIA.ElementFromHandle(mHwnd) : "")
 			} catch e {
 				UpdateElementFields()
 				GuiControl, Main:, EditName, % "ERROR: " e.Message
@@ -371,6 +365,40 @@ class UIA_Interface extends UIA_Base {
 	}
 	PollForPotentialSupportedPatterns(e, Byref Ids="", Byref Names="") { ; Returns an object where keys are the names and values are the Ids
 		return UIA_Hr(DllCall(this.__Vt(51), "ptr",this.__Value, "ptr",e.__Value, "ptr*",Ids, "ptr*",Names))? UIA_SafeArraysToObject(Names:=ComObj(0x2008,Names,1),Ids:=ComObj(0x2003,Ids,1)):
+	}
+	; Gets ElementFromPoint and filters out the smallest subelement that is under the specified point. If windowEl (window under the point) is provided, then a deep search is performed for the smallest element (this might be very slow in large trees).
+	SmallestElementFromPoint(x="", y="", activateChromiumAccessibility=False, windowEl="") { 
+		if IsObject(windowEl) {
+			element := this.ElementFromPoint(x, y, activateChromiumAccessibility)
+			bound := element.CurrentBoundingRectangle, elementSize := (bound.r-bound.l)*(bound.b-bound.t), prevElementSize := 0, stack := [windowEl]
+			Loop 
+			{
+				bound := stack[1].CurrentBoundingRectangle
+				if ((x >= bound.l) && (x <= bound.r) && (y >= bound.t) && (y <= bound.b)) { ; If parent is not in bounds, then children arent either
+					if ((newSize := (bound.r-bound.l)*(bound.b-bound.t)) < elementSize)
+						element := stack[1], elementSize := newSize
+					for _, childEl in stack[1].FindAll(this.__UIA.TrueCondition, 0x2) {
+						bound := childEl.CurrentBoundingRectangle
+						if ((x >= bound.l) && (x <= bound.r) && (y >= bound.t) && (y <= bound.b)) {
+							stack.Push(childEl)
+							if ((newSize := (bound.r-bound.l)*(bound.b-bound.t)) < elementSize)
+								elementSize := newSize, element := childEl
+						}
+					}
+				}
+				stack.RemoveAt(1)
+			} Until !stack.MaxIndex()
+			return element
+		} else {
+			element := this.ElementFromPoint(x, y, activateChromiumAccessibility)
+			bound := element.CurrentBoundingRectangle, elementSize := (bound.r-bound.l)*(bound.b-bound.t), prevElementSize := 0
+			for k, v in element.FindAll(this.__UIA.TrueCondition) {
+				bound := v.CurrentBoundingRectangle
+				if ((x >= bound.l) && (x <= bound.r) && (y >= bound.t) && (y <= bound.b) && ((newSize := (bound.r-bound.l)*(bound.b-bound.t)) < elementSize))
+					element := v, elementSize := newSize
+			}
+			return element
+		}
 	}
 }
 class UIA_Element extends UIA_Base {

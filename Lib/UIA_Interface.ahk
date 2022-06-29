@@ -690,10 +690,10 @@ class UIA_Element extends UIA_Base {
 					pattern.Expand()
 				Else
 					pattern.Collapse()
-			} else if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsSelectionItemPatternAvailablePropertyId)) {
-				this.GetCurrentPatternAs("SelectionItem").Select()
-			} else if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsLegacyIAccessiblePatternAvailablePropertyId))
+			} else if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsLegacyIAccessiblePatternAvailablePropertyId)) {
 				this.GetCurrentPatternAs("LegacyIAccessible").DoDefaultAction()
+			} else if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsSelectionItemPatternAvailablePropertyId))
+				this.GetCurrentPatternAs("SelectionItem").Select()
 		} else {
 			if !(pos := this.GetClickablePoint()).x {
 				pos := this.CurrentPos() ; or should only GetClickablePoint be used instead?

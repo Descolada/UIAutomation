@@ -353,16 +353,40 @@ class UIA_Interface extends UIA_Base {
 		if (propCond && val)
 			return this.CreatePropertyConditionEx(propCond, val,, flags)
 	}
-	; Gets ElementFromPoint and filters out the smallest subelement that is under the specified point.
-	SmallestElementFromPoint(x="", y="", activateChromiumAccessibility=False) { 
-		element := this.ElementFromPoint(x, y, activateChromiumAccessibility)
-		bound := element.CurrentBoundingRectangle, elementSize := (bound.r-bound.l)*(bound.b-bound.t), prevElementSize := 0
-		for k, v in element.FindAll(IUIA.TrueCondition) {
-			bound := v.CurrentBoundingRectangle
-			if ((x >= bound.l) && (x <= bound.r) && (y >= bound.t) && (y <= bound.b) && ((newSize := (bound.r-bound.l)*(bound.b-bound.t)) < elementSize))
-				element := v, elementSize := newSize
+	; Gets ElementFromPoint and filters out the smallest subelement that is under the specified point. If windowEl (window under the point) is provided, then a deep search is performed for the smallest element (this might be very slow in large trees).
+	SmallestElementFromPoint(x="", y="", activateChromiumAccessibility=False, windowEl="") { 
+		;ToolTip, % "starting" IsObject(winEl)
+		if IsObject(windowEl) {
+			element := this.ElementFromPoint(x, y, activateChromiumAccessibility)
+			bound := element.CurrentBoundingRectangle, elementSize := (bound.r-bound.l)*(bound.b-bound.t), prevElementSize := 0, stack := [windowEl]
+			Loop 
+			{
+				bound := stack[1].CurrentBoundingRectangle
+				if ((x >= bound.l) && (x <= bound.r) && (y >= bound.t) && (y <= bound.b)) { ; If parent is not in bounds, then children arent either
+					if ((newSize := (bound.r-bound.l)*(bound.b-bound.t)) < elementSize)
+						element := stack[1], elementSize := newSize
+					for _, childEl in stack[1].GetChildren() {
+						bound := childEl.CurrentBoundingRectangle
+						if ((x >= bound.l) && (x <= bound.r) && (y >= bound.t) && (y <= bound.b)) {
+							stack.Push(childEl)
+							if ((newSize := (bound.r-bound.l)*(bound.b-bound.t)) < elementSize)
+								elementSize := newSize, element := childEl
+						}
+					}
+				}
+				stack.RemoveAt(1)
+			} Until !stack.MaxIndex()
+			return element
+		} else {
+			element := this.ElementFromPoint(x, y, activateChromiumAccessibility)
+			bound := element.CurrentBoundingRectangle, elementSize := (bound.r-bound.l)*(bound.b-bound.t), prevElementSize := 0
+			for k, v in element.FindAll(IUIA.TrueCondition) {
+				bound := v.CurrentBoundingRectangle
+				if ((x >= bound.l) && (x <= bound.r) && (y >= bound.t) && (y <= bound.b) && ((newSize := (bound.r-bound.l)*(bound.b-bound.t)) < elementSize))
+					element := v, elementSize := newSize
+			}
+			return element
 		}
-		return element
 	}
 }
 

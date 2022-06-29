@@ -653,7 +653,7 @@ class UIA_Element extends UIA_Base {
 			this.GetCurrentPatternAs(pattern).SetValue(val)
 		}
 	}
-	; Click using LegacyIAccessible pattern DoDefaultAction(), or the Toggle pattern with Toggle() method or Invoke pattern Invoke() as fall-back, in these cases ClickCount is ignored. If WhichButton is specified (for example "left", "right") then the native mouse Click function will be used to click the center of the element.
+	; Click using one of the available click-like methods (InvokePattern Invoke(), TogglePattern Toggle(), ExpandCollapsePattern Expand() or Collapse() (depending on the state of the element), SelectionItemPattern Select(), or LegacyIAccessible DoDefaultAction()), in which case ClickCount is ignored. If WhichButton is specified (for example "left", "right") then the native mouse Click function will be used to click the center of the element.
 	Click(WhichButton="", ClickCount=1, DownOrUp="", Relative="") { 
 		;StringLower, WhichButton, WhichButton		
 		if (WhichButton == "") {
@@ -678,7 +678,7 @@ class UIA_Element extends UIA_Base {
 				Click, % pos.x " " pos.y " " WhichButton (ClickCount ? " " ClickCount : "") (DownOrUp ? " " DownOrUp : "") (Relative ? " " Relative : "")
 		}
 	}
-	; ControlClicks the element by getting relative coordinates with GetClickablePointRelativeTo("window"). Specifying WinTitle makes the function faster, since it bypasses getting the Hwnd from the element.
+	; ControlClicks the element after getting relative coordinates with GetClickablePointRelativeTo("window"). Specifying WinTitle makes the function faster, since it bypasses getting the Hwnd from the element.
 	ControlClick(WinTitle="", WinText="", WhichButton="", ClickCount="", Options="", ExcludeTitle="", ExcludeText="") { 
 		if (WinTitle == "")
 			WinTitle := "ahk_id " this.GetParentHwnd()
@@ -946,22 +946,25 @@ class UIA_Element extends UIA_Base {
 			Sleep, 100
 		return el
 	}
-	; Calls UIA_Element.FindFirstBy until the element is not found and then returns it, with a timeOut of 10000ms (10 seconds). For explanations of the other arguments, see FindFirstBy
+	; Tries to FindFirstBy the element and if it is found then waits until the element doesn't exist (using WaitNotExist()), with a timeOut of 10000ms (10 seconds). For explanations of the other arguments, see FindFirstBy
 	WaitElementNotExist(expr, scope=0x4, matchMode=3, caseSensitive=True, timeOut=10000) { 
 		return !IsObject(el := this.FindFirstBy(expr, scope, matchMode, caseSensitive)) || el.WaitNotExist(timeOut)
 	}
+	; Calls UIA_Element.FindFirstByName until the element is found and then returns it, with a timeOut of 10000ms (10 seconds)
 	WaitElementExistByName(name, scope=0x4, matchMode=3, caseSensitive=True, timeOut=10000) {
 		startTime := A_TickCount
 		while (!IsObject(el := this.FindFirstByName(name, scope, matchMode, caseSensitive)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
 			Sleep, 100
 		return el
 	}
+	; Calls UIA_Element.FindFirstByType until the element is found and then returns it, with a timeOut of 10000ms (10 seconds)
 	WaitElementExistByType(controlType, scope=0x4, timeOut=10000) { 
 		startTime := A_TickCount
 		while (!IsObject(el := this.FindFirstByType(controlType, scope)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
 			Sleep, 100
 		return el
 	}
+	; Calls UIA_Element.FindFirstByNameAndType until the element is found and then returns it, with a timeOut of 10000ms (10 seconds)
 	WaitElementExistByNameAndType(name, controlType, scope=0x4, matchMode=3, caseSensitive=True, timeOut=10000) {
 		startTime := A_TickCount
 		while (!IsObject(el := this.FindFirstByNameAndType(name, controlType, scope, matchMode, caseSensitive)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut))) {

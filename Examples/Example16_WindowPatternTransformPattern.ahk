@@ -8,7 +8,9 @@ SetTitleMatchMode, 2
 
 Run, explore C:\
 UIA := UIA_Interface()
-WinWaitActive, (C:)
+DriveGet, CDriveName, Label, C:
+CDriveName := CDriveName " (C:)"
+WinWaitActive, %CDriveName%
 explorerEl := UIA.ElementFromHandle(WinActive("A"))
 windowPattern := explorerEl.GetCurrentPatternAs("Window")
 Sleep, 500

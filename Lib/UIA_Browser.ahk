@@ -1,6 +1,6 @@
 ﻿
 class UIA_Browser {
-	; Initiates UIA and hooks to the browser window specified with wTitle. customNames can be an object that defines custom values for locale-specific elements (such as the name of the URL bar): {URLEditName:"My URL Edit name", TabBarName:"Tab bar name", HomeButtonName:"Home button name", NewTabButtonName:"New tab button name"}. maxVersion specifies the highest UIA version that will be used (default is up to version 7).
+	; Initiates UIA and hooks to the browser window specified with wTitle. customNames can be an object that defines custom CurrentName values for locale-specific elements (such as the name of the URL bar): {URLEditName:"My URL Edit name", TabBarName:"Tab bar name", HomeButtonName:"Home button name", NewTabButtonName:"New tab button name"}. maxVersion specifies the highest UIA version that will be used (default is up to version 7).
 	__New(wTitle="A", customNames="", maxVersion="") { 
 		this.UIA := UIA_Interface(maxVersion)
 		this.TWT := this.UIA.TreeWalkerTrue
@@ -140,7 +140,7 @@ class UIA_Browser {
 	}
 	
 	; Uses Javascript's querySelector to get a Javascript element and then its position. useRenderWidgetPos=True uses position of the Chrome_RenderWidgetHostHWND1 control to locate the position element relative to the window, otherwise it uses UIA_Browsers CurrentDocumentElement position.
-    JSGetElementPos(selector, useRenderWidgetPos=False) {
+    JSGetElementPos(selector, useRenderWidgetPos=False) { ; based on code by AHK Forums user william_ahk
         js =
         (
 (() => {
@@ -335,7 +335,7 @@ class UIA_Browser {
 	}
 	
 	; Presses the New tab button. The button name might differ if the browser language is not set to English and can be specified with butName
-	NewTab(butName="New tab", matchMode=2, caseSensitive=False) { 
+	NewTab(butName="New tab", matchMode=2, caseSensitive=True) { 
 		newTabBut := this.TabBarElement.FindFirstByNameAndType(this.CustomNames.NewTabButtonName ? this.CustomNames.NewTabButtonName : butName, UIA_Enum.UIA_ButtonControlTypeId,,matchMode,caseSensitive)
 		newTabBut.Click()
 	}

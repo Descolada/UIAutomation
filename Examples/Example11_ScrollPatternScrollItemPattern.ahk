@@ -8,7 +8,9 @@ SetTitleMatchMode, 2
 
 Run, explore C:\
 UIA := UIA_Interface()
-WinWaitActive, (C:)
+DriveGet, CDriveName, Label, C:
+CDriveName := CDriveName " (C:)"
+WinWaitActive, %CDriveName%
 explorerEl := UIA.ElementFromHandle(WinActive("A"))
 treeEl := explorerEl.FindFirstByType("Tree")
 
@@ -30,7 +32,7 @@ scrollPattern.Scroll(, UIA.ScrollAmount_LargeDecrement) ; LargeDecrement is equi
 
 Sleep, 500
 MsgBox, Press OK to scroll drive C: into view.
-CDriveEl := explorerEl.FindFirstByNameAndType("Windows (C:)", "TreeItem")
+CDriveEl := explorerEl.FindFirstByNameAndType(CDriveName, "TreeItem")
 if !CDriveEl {
 	MsgBox, C: drive element not found! Exiting app...
 	ExitApp

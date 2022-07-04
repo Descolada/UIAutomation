@@ -6,11 +6,14 @@ SetTitleMatchMode, 2
 
 #include <UIA_Interface>
 
+
 Run, explore C:\
 UIA := UIA_Interface()
-WinWaitActive, (C:)
+DriveGet, CDriveName, Label, C:
+CDriveName := CDriveName " (C:)"
+WinWaitActive, %CDriveName%,,1
 explorerEl := UIA.ElementFromHandle(WinActive("A"))
-CDriveEl := explorerEl.FindFirstByNameAndType("Windows (C:)", "TreeItem")
+CDriveEl := explorerEl.FindFirstByNameAndType(CDriveName, "TreeItem")
 if !CDriveEl {
 	MsgBox, Drive C: element not found! Exiting app...
 	ExitApp

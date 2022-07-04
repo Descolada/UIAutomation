@@ -6,7 +6,6 @@ SetTitleMatchMode, 2
 
 #include <UIA_Interface>
 
-
 Run, explore C:\
 UIA := UIA_Interface()
 DriveGet, CDriveName, Label, C:

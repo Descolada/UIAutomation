@@ -163,7 +163,7 @@ class UIA_Browser {
 		}
     }
 	
-	; Uses Javascript's querySelector to get and click a Javascript element
+	; Uses Javascript's querySelector to get and click a Javascript element. Compared with ClickJSElement method, this method has the advantage of skipping the need to wait for a return value from the clipboard, but it might be more unreliable (some elements might not support Javascript's "click()" properly).
 	JSClickElement(selector) {
         this.JSExecute("document.querySelector(""" selector """).click();")
 	}
@@ -315,7 +315,6 @@ class UIA_Browser {
 			; This can be used in Chrome and Edge, but works only if the window is active
 			if !this.IsBrowserVisible()
 				WinActivate, % "ahk_id" this.BrowserId
-
 			return this.GetCurrentDocumentElement().CurrentValue
 		}
 	}
@@ -335,7 +334,7 @@ class UIA_Browser {
 	}
 	
 	; Presses the New tab button. The button name might differ if the browser language is not set to English and can be specified with butName
-	NewTab(butName="New tab", matchMode=2, caseSensitive=True) { 
+	NewTab(butName="New tab", matchMode=2, caseSensitive=False) { 
 		newTabBut := this.TabBarElement.FindFirstByNameAndType(this.CustomNames.NewTabButtonName ? this.CustomNames.NewTabButtonName : butName, UIA_Enum.UIA_ButtonControlTypeId,,matchMode,caseSensitive)
 		newTabBut.Click()
 	}
@@ -370,12 +369,12 @@ class UIA_Browser {
 	CloseTab(tabElementOrName="", matchMode=3, caseSensitive=True) { 
 		if IsObject(tabElementOrName) {
 			if (tabElementOrName.CurrentControlType == this.UIA.TabItemControlType)
-				try tabElementOrName.FindFirst(this.ButtonCondition).Click()
+				try tabElementOrName.FindFirstByName("Close",,1,False).Click()
 		} else {
 			if (tabElementOrName == "") {
-				this.GetTab().FindFirst(this.ButtonCondition).Click()
+				this.GetTab().FindFirstByName("Close",,1,False).Click()
 			} else
-				try this.TabBarElement.FindFirstByNameAndType(searchPhrase, "TabItem",, matchMode, caseSensitive).FindFirst(this.ButtonCondition).Click()
+				try this.TabBarElement.FindFirstByNameAndType(searchPhrase, "TabItem",, matchMode, caseSensitive).FindFirstByName("Close",,1,False).Click()
 		}
 	}
 	

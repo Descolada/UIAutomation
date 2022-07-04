@@ -31,13 +31,13 @@
 	- better way to do __properties for multiple versions of objects? (eg UIA_Element2 being and UIA_Element.__properties + UIA_Element2.__properties)
 	- if method returns a SafeArray, should we return a Wrapped SafeArray, Raw SafeArray, or AHK Array. Currently we return wrapped AHK arrays for SafeArrays. Although SafeArrays are more convenient to loop over, this causes more confusion in users who are not familiar with SafeArrays (questions such as why are they 0-indexed not 1-indexed, why doesnt for k, v in SafeArray work properly etc). 
 	- on UIA Interface conversion methods, how should the data be returned? wrapped/extracted or raw? should raw data be a ByRef param?
-	- do variants need cleared? what about SysAllocString BSTRs?
-	- do RECT struts need destroyed?
+	- do variants need cleared? what about SysAllocString BSTRs? As per Microsoft documentation (https://docs.microsoft.com/en-us/cpp/atl-mfc-shared/allocating-and-releasing-memory-for-a-bstr?view=msvc-170), when we pass a BSTR into IUIAutomation, then IUIAutomation should take care of freeing it. But when we receive a UIA_Variant and use UIA_VariantData, then we should clear the BSTR.
+	- ObjRelease: if IUIA returns an interface then it automatically increases the ref count for the object it inherits from, and when released decreases it. So do all returned objects (UIA_Element, UIA_Pattern, UIA_TextRange) need to be released? Currently we release these objects as well, but jethrow's version didn't. 
+	- do RECT structs need destroyed?
 	- if returning wrapped data & raw is ByRef, will the wrapped data being released destroy the raw data?
-	- returning varaint data other than vt=3|8|9|13|0x2000
+	- returning variant data other than vt=3|8|9|13|0x2000
 	- Cached Members?
-	- UIA Element existance - dependent on window being visible (non minimized)?
-	- function(params, ByRef out="……")
+	- UIA Element existance - dependent on window being visible (non minimized), and also sometimes Elements are lazily generated (eg Microsoft Teams, when a meeting is started then the toolbar buttons (eg Mute, react) aren't visible to UIA, but hovering over them with the cursor or calling ElementFromPoint causes Teams to generate and make them visible to UIA.
 	- better way of supporting differing versions of IUIAutomation (version 2, 3, 4)
 	- Get methods vs property getter: currently we use properties when the item stores data, fetching the data is "cheap" and when it doesn't have side-effects, and in computationally expensive cases use Get...(). 
 */
@@ -63,7 +63,7 @@ class UIA_Base {
 				else if (m2="double")
 					return UIA_Hr(DllCall(this.__Vt(m1), "ptr",this.__Value, "Double*",out))?out:
 				else if UIA_Hr(DllCall(this.__Vt(m1), "ptr",this.__Value, "ptr*",out))
-					return raw?out:m2="BSTR"?StrGet(out):RegExMatch(m2,"i)IUIAutomation\K\w+",n)?(IsFunc(n)?UIA_%n%(out):new UIA_%n%(out)):out ; Bool, int, DWORD, HWND, CONTROLTYPEID, OrientationType? ifIUIAutomation___ is a function, that will be called first, if not then an object is created with the name
+					return raw?out:m2="BSTR"?StrGet(out) (DllCall("oleaut32\SysFreeString", "ptr", out)?"":""):RegExMatch(m2,"i)IUIAutomation\K\w+",n)?(IsFunc(n)?UIA_%n%(out):new UIA_%n%(out)):out ; Bool, int, DWORD, HWND, CONTROLTYPEID, OrientationType? if IUIAutomation___ is a function, that will be called first, if not then an object is created with the name
 			} else if ObjHasKey(UIA_Enum, member) {
 				return UIA_Enum[member]
 			} else if RegexMatch(member, "i)PatternId|EventId|PropertyId|AttributeId|ControlTypeId|AnnotationType|StyleId|LandmarkTypeId|HeadingLevel|ChangeId|MetadataId", match) {
@@ -299,7 +299,7 @@ class UIA_Interface extends UIA_Base {
 	
 	; Retrieves the registered programmatic name of a property. Intended for debugging and diagnostic purposes only. The string is not localized.
 	GetPropertyProgrammaticName(Id) { 
-		return UIA_Hr(DllCall(this.__Vt(49), "ptr",this.__Value, "int",Id, "ptr*",out))? StrGet(out):
+		return UIA_Hr(DllCall(this.__Vt(49), "ptr",this.__Value, "int",Id, "ptr*",out))? StrGet(out) (DllCall("oleaut32\SysFreeString", "ptr", out)?"":""):
 	}
 	; Retrieves the registered programmatic name of a control pattern. Intended for debugging and diagnostic purposes only. The string is not localized.
 	GetPatternProgrammaticName(Id) { 
@@ -307,7 +307,7 @@ class UIA_Interface extends UIA_Base {
 	}
 	; Returns an object where keys are the names and values are the Ids
 	PollForPotentialSupportedPatterns(e, Byref Ids="", Byref Names="") { 
-		return UIA_Hr(DllCall(this.__Vt(51), "ptr",this.__Value, "ptr",e.__Value, "ptr*",Ids, "ptr*",Names))? UIA_SafeArraysToObject(Names:=ComObj(0x2008,Names,1),Ids:=ComObj(0x2003,Ids,1)):
+		return UIA_Hr(DllCall(this.__Vt(51), "ptr",this.__Value, "ptr",e.__Value, "ptr*",Ids, "ptr*",Names))? UIA_SafeArraysToObject(Names:=ComObj(0x2008,Names,1),Ids:=ComObj(0x2003,Ids,1)): ; These SafeArrays are wrapped by ComObj, so they will automatically be released
 	}
 	PollForPotentialSupportedProperties(e, Byref Ids="", Byref Names="") {
 		return UIA_Hr(DllCall(this.__Vt(52), "ptr",this.__Value, "ptr",e.__Value, "ptr*",Ids, "ptr*",Names))? UIA_SafeArraysToObject(Names:=ComObj(0x2008,Names,1),Ids:=ComObj(0x2003,Ids,1)):
@@ -404,17 +404,17 @@ class UIA_Interface2 extends UIA_Interface {
 			return UIA_Hr(DllCall(this.__Vt(59), "ptr",this.__Value, "int", value))
 		}
 	}
-	; Specifies the length of time that UI Automation will wait for a provider to respond to a client request for an automation element.
+	; Specifies the length of time that UI Automation will wait for a provider to respond to a client request for an automation element. Default is 20000ms (20 seconds), minimum seems to be 50ms.
 	ConnectionTimeout[] 
 	{
 		get {
 			return UIA_Hr(DllCall(this.__Vt(60), "ptr",this.__Value, "ptr*", out))?out:
 		}
 		set {
-			return UIA_Hr(DllCall(this.__Vt(61), "ptr",this.__Value, "int", value))
+			return UIA_Hr(DllCall(this.__Vt(61), "ptr",this.__Value, "int", value)) ; Minimum seems to be 50 (ms?)
 		}
 	}
-	; Specifies the length of time that UI Automation will wait for a provider to respond to a client request for information about an automation element.
+	; Specifies the length of time that UI Automation will wait for a provider to respond to a client request for information about an automation element. Default is 2000ms (2 seconds), minimum seems to be 50ms.
 	TransactionTimeout[] 
 	{
 		get {
@@ -558,25 +558,25 @@ class UIA_Element extends UIA_Base {
 	; Retrieves a UIA_Pattern object of the specified control pattern on this element. If a full pattern name is specified then that exact version will be used (eg "TextPattern" will return a UIA_TextPattern object), otherwise the highest version will be used (eg "Text" might return UIA_TextPattern2 if it is available). usedPattern will be set to the actual string used to look for the pattern (used mostly for debugging purposes)
 	GetCurrentPatternAs(pattern="", ByRef usedPattern="") { 
 		if (InStr(usedPattern:=pattern, "Pattern")||(usedPattern := UIA_Pattern(pattern, this)))
-			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "int",UIA_%usedPattern%.__PatternId, "ptr",UIA_GUID(riid,UIA_%usedPattern%.__iid), "ptr*",out)) ? new UIA_%usedPattern%(out):
+			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "int",UIA_%usedPattern%.__PatternId, "ptr",UIA_GUID(riid,UIA_%usedPattern%.__iid), "ptr*",out)) ? new UIA_%usedPattern%(out,1):
 		else throw Exception("Pattern not implemented.",-1, "UIA_" pattern "Pattern")
 	}
 	; Retrieves a UIA_Pattern object of the specified control pattern on this element from the cache of this element. 
 	GetCachedPatternAs(pattern="", ByRef usedPattern="") { 
 		if (InStr(usedPattern:=pattern, "Pattern")||(usedPattern := UIA_Pattern(pattern, this)))
-			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "int",UIA_%usedPattern%.__PatternId, "ptr",UIA_GUID(riid,UIA_%usedPattern%.__iid), "ptr*",out)) ? new UIA_%usedPattern%(out):
+			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "int",UIA_%usedPattern%.__PatternId, "ptr",UIA_GUID(riid,UIA_%usedPattern%.__iid), "ptr*",out)) ? new UIA_%usedPattern%(out,1):
 		else throw Exception("Pattern not implemented.",-1, "UIA_" pattern "Pattern")
 	}
 	GetCurrentPattern(pattern, ByRef usedPattern="") {
 		; I don't know the difference between this and GetCurrentPatternAs
 		if (InStr(usedPattern:=pattern, "Pattern")||(usedPattern := UIA_Pattern(pattern, this)))
-			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "int",UIA_%usedPattern%.__PatternId, "ptr*",out)) ? new UIA_%usedPattern%(out):
+			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "int",UIA_%usedPattern%.__PatternId, "ptr*",out)) ? new UIA_%usedPattern%(out,1):
 		else throw Exception("Pattern not implemented.",-1, "UIA_" pattern "Pattern")
 	}
 	GetCachedPattern(patternId, ByRef usedPattern="") {
 		; I don't know the difference between this and GetCachedPatternAs
 		if (InStr(usedPattern:=pattern, "Pattern")||(usedPattern := UIA_Pattern(pattern, this)))
-			return UIA_Hr(DllCall(this.__Vt(17), "ptr",this.__Value, "int", UIA_%usedPattern%.__PatternId, "ptr*",out)) ? new UIA_%usedPattern%(out):
+			return UIA_Hr(DllCall(this.__Vt(17), "ptr",this.__Value, "int", UIA_%usedPattern%.__PatternId, "ptr*",out)) ? new UIA_%usedPattern%(out,1):
 		else throw Exception("Pattern not implemented.",-1, "UIA_" pattern "Pattern")
 	}
 	; Retrieves from the cache the parent of this UI Automation element
@@ -665,7 +665,7 @@ class UIA_Element extends UIA_Base {
 			return 0
 		}
 	}
-	; Set element value using Value pattern, or as a fall-back using LegacyIAccessible pattern. If a pattern is specified then that is used instead.
+	; Set element value using Value pattern, or as a fall-back using LegacyIAccessible pattern. If a pattern is specified then that is used instead. Alternatively CurrentValue property can be used to set the value.
 	SetValue(val, pattern="") { 
 		if !pattern {
 			try {
@@ -681,22 +681,38 @@ class UIA_Element extends UIA_Base {
 	Click(WhichButton="", ClickCount=1, DownOrUp="", Relative="") { 
 		;StringLower, WhichButton, WhichButton		
 		if (WhichButton == "") {
-			if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsInvokePatternAvailablePropertyId))
+			if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsInvokePatternAvailablePropertyId)) {
 				this.GetCurrentPatternAs("Invoke").Invoke()
-			else if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsTogglePatternAvailablePropertyId))
-				this.GetCurrentPatternAs("Toggle").Toggle()
-			else if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsExpandCollapsePatternAvailablePropertyId)) {
-				if ((pattern := this.GetCurrentPatternAs("ExpandCollapse")).CurrentExpandCollapseState == 0)
+				return 1
+			}
+			if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsTogglePatternAvailablePropertyId)) {
+				togglePattern := this.GetCurrentPatternAs("Toggle"), toggleState := togglePattern.CurrentToggleState
+				togglePattern.Toggle()
+				if (togglePattern.CurrentToggleState != toggleState)
+					return 1
+			}
+			if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsExpandCollapsePatternAvailablePropertyId)) {
+				if ((expandState := (pattern := this.GetCurrentPatternAs("ExpandCollapse")).CurrentExpandCollapseState) == 0)
 					pattern.Expand()
 				Else
 					pattern.Collapse()
-			} else if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsLegacyIAccessiblePatternAvailablePropertyId)) {
+				if (pattern.CurrentExpandCollapseState != expandState)
+					return 1
+			} 
+			if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsSelectionItemPatternAvailablePropertyId)) {
+				selectionPattern := this.GetCurrentPatternAs("SelectionItem"), selectionState := selectionPattern.CurrentIsSelected
+				selectionPattern.Select()
+				if (selectionPattern.CurrentIsSelected != selectionState)
+					return 1
+			}
+			if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsLegacyIAccessiblePatternAvailablePropertyId)) {
 				this.GetCurrentPatternAs("LegacyIAccessible").DoDefaultAction()
-			} else if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsSelectionItemPatternAvailablePropertyId))
-				this.GetCurrentPatternAs("SelectionItem").Select()
+				return 1
+			}
+			return 0
 		} else {
 			if !(pos := this.GetClickablePoint()).x {
-				pos := this.CurrentPos() ; or should only GetClickablePoint be used instead?
+				pos := this.GetCurrentPos() ; or should only GetClickablePoint be used instead?
 				Click, % pos.x+pos.w//2 " " pos.y+pos.h//2 " " WhichButton (ClickCount ? " " ClickCount : "") (DownOrUp ? " " DownOrUp : "") (Relative ? " " Relative : "")
 			} else
 				Click, % pos.x " " pos.y " " WhichButton (ClickCount ? " " ClickCount : "") (DownOrUp ? " " DownOrUp : "") (Relative ? " " Relative : "")
@@ -707,13 +723,13 @@ class UIA_Element extends UIA_Base {
 		if (WinTitle == "")
 			WinTitle := "ahk_id " this.GetParentHwnd()
 		if !(pos := this.GetClickablePointRelativeTo("window")).x {
-			pos := this.CurrentPos("window") ; or should GetClickablePoint be used instead?
+			pos := this.GetCurrentPos("window") ; or should GetClickablePoint be used instead?
 			ControlClick, % "X" pos.x+pos.w//2 " Y" pos.y+pos.h//2, % WinTitle, % WinText, % WhichButton, % ClickCount, % Options, % ExcludeTitle, % ExcludeText
 		} else
 			ControlClick, % "X" pos.x " Y" pos.y, % WinTitle, % WinText, % WhichButton, % ClickCount, % Options, % ExcludeTitle, % ExcludeText
 	}
 	; Returns an object containing the x, y coordinates and width and height: {x:x coordinate, y:y coordinate, w:width, h:height}. relativeTo can be client, window or screen, default is A_CoordModeMouse.
-	CurrentPos(relativeTo="") { 
+	GetCurrentPos(relativeTo="") { 
 		relativeTo := (relativeTo == "") ? A_CoordModeMouse : relativeTo
 		StringLower, relativeTo, relativeTo
 		br := this.CurrentBoundingRectangle
@@ -748,11 +764,11 @@ class UIA_Element extends UIA_Base {
 			arr.Push(nextChild)
 		return arr
 	}
-	TWRecursive(maxDepth=20, layer="") { ; This function might hang if the element has thousands of empty custom elements (e.g. complex webpage)
+	TWRecursive(maxDepth=20, layer="", useTreeWalker := False) { ; This function might hang if the element has thousands of empty custom elements (e.g. complex webpage)
 		StrReplace(layer, ".",, dotcount)
 		if (dotcount > maxDepth)
 			return ""
-		if !(children := this.GetChildren())
+		if !(children := (useTreeWalker ? this.TWGetChildren() : this.GetChildren()))
 			return ""
 		returnStr := ""
 		for k, v in children {
@@ -1157,14 +1173,13 @@ class UIA_OrCondition extends UIA_Condition {
 		ret := UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out)), arr := []
 		if (out && (safeArray := ComObject(0x2003,out,1))) {
 			for k in safeArray {
-				obj := ComObject(9, k, 1), ObjAddRef(k)
+				obj := ComObject(9, k, 1) ; ObjAddRef and ObjRelease probably aren't needed here, since ref count won't fall to 0
 				for _, n in ["Property", "Bool", "And", "Or", "Not"] {
 					if ComObjQuery(obj, UIA_%n%Condition.__IID) {
-						arr.Push(new UIA_%n%Condition(k))
+						arr.Push(new UIA_%n%Condition(k,1))
 						break
 					}
 				}
-				ObjRelease(k)
 			}
 			return arr
 		}
@@ -1313,7 +1328,7 @@ class _UIA_ChangesEventHandler { ; UNTESTED
 		,	__Properties := ""
 	HandleChangesEvent(sender, uiaChanges, changesCount) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version, changes := {}
-		changes.uiaId := NumGet(uiaChanges, 0), changes.payload := UIA_VariantData(uiaChanges, 8), changes.extraInfo := UIA_VariantData(uiaChanges,16+2*A_PtrSize)
+		changes.uiaId := NumGet(uiaChanges,, 0), changes.payload := UIA_VariantData(uiaChanges,, 8), changes.extraInfo := UIA_VariantData(uiaChanges,,16+2*A_PtrSize)
 		
 		%funcName%(UIA_Element(sender), changes, changesCount)
 		return param1
@@ -1329,6 +1344,7 @@ class _UIA_NotificationEventHandler {
 	HandleNotificationEvent(sender, notificationKind, notificationProcessing, displayString, activityId) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
 		%funcName%(UIA_Element(sender), notificationKind, notificationProcessing, StrGet(displayString), StrGet(activityId))
+		DllCall("oleaut32\SysFreeString", "ptr", displayString), DllCall("oleaut32\SysFreeString", "ptr", activityId)
 		return param1
 	}
 }
@@ -1477,7 +1493,7 @@ class UIA_MultipleViewPattern extends UIA_Base {
 		,	__Properties := "CurrentCurrentView,5,int`r`nCachedCurrentView,7,int"
 
 	GetViewName(view) { ; need to release BSTR?
-		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "int",view, "ptr*",name))? StrGet(name):
+		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "int",view, "ptr*",name))? StrGet(name) (DllCall("oleaut32\SysFreeString", "ptr", name)?"":""):
 	}
 	SetCurrentView(view) {
 		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "int",view))
@@ -1809,7 +1825,7 @@ class UIA_TransformPattern2 extends UIA_TransformPattern { ; UNTESTED
 
 /*
 	Provides access to a control that presents a range of values.
-	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationrangevaluepattern
+	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationvaluepattern
 */
 class UIA_ValuePattern extends UIA_Base {
 	static	__IID := "{A94CD8B1-0844-4CD6-9D2D-640537AB39E9}"
@@ -1963,7 +1979,7 @@ class UIA_TextRange extends UIA_Base {
 	}
 	; Returns the plain text of the text range. maxLength is the maximum length of the string to return, or -1 if no limit is required.
 	GetText(maxLength=-1) { 
-		return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value,"int", maxLength,"ptr*",out))?StrGet(out):
+		return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value,"int", maxLength,"ptr*",out))?StrGet(out) (DllCall("oleaut32\SysFreeString", "ptr", out)?"":""):
 	}
 	; Moves the text range forward or backward by the specified number of text units. unit needs to be a TextUnit enum.
 	Move(unit, count) { 
@@ -2096,32 +2112,32 @@ class UIA_TextRangeArray extends UIA_Base {
 		MsgBox, 262192, UIA Message, Class:`t%m1%`nMember:`t%m2%`n`nMethod has not been implemented yet.
 	}
 	; Used by UIA methods to create new UIA_Element objects of the highest available version. The highest version to try can be changed by modifying UIA_Enum.UIA_CurrentVersion_Element value.
-	UIA_Element(e) {
+	UIA_Element(e,flag=1) {
 		static v, previousVersion
 		if (previousVersion != UIA_Enum.UIA_CurrentVersion_Element) ; Check if the user wants an element with a different version
 			v := ""
 		else if v
-			return (v==1)?new UIA_Element(e,,1):new UIA_Element%v%(e,,v)
+			return (v==1)?new UIA_Element(e,flag,1):new UIA_Element%v%(e,flag,v)
 		max := UIA_Enum.UIA_CurrentVersion_Element+1
 		While (--max) {
 			if UIA_GUID(riid, UIA_Element%max%.__IID)
-				return new UIA_Element%max%(e,,v:=max)
+				return new UIA_Element%max%(e,flag,v:=max)
 		}
-		return new UIA_Element(e,,v:=1)
+		return new UIA_Element(e,flag,v:=1)
 	}
 	; Used by UIA methods to create new UIA_TextRange objects of the highest available version. The highest version to try can be changed by modifying UIA_Enum.UIA_CurrentVersion_TextRange value.
-	UIA_TextRange(e) {
+	UIA_TextRange(e,flag=1) {
 		static v, previousVersion
 		if (previousVersion != UIA_Enum.UIA_CurrentVersion_TextRange) ; Check if the user wants an element with a different version
 			v := ""
 		else if v
-			return (v==1)?new UIA_TextRange(e,,1):new UIA_TextRange%v%(e,,v)
+			return (v==1)?new UIA_TextRange(e,flag,1):new UIA_TextRange%v%(e,flag,v)
 		max := UIA_Enum.UIA_MaxVersion_TextRange+1
 		While (--max) {
 			if UIA_GUID(riid, UIA_TextRange%max%.__IID)
-				return new UIA_TextRange%max%(e,,v:=max)
+				return new UIA_TextRange%max%(e,flag,v:=max)
 		}
-		return new UIA_TextRange(e,,v:=1)
+		return new UIA_TextRange(e,flag,v:=1)
 	}
 	; Used by UIA methods to create new Pattern objects of the highest available version for a given pattern.
 	UIA_Pattern(p, el) {
@@ -2144,14 +2160,14 @@ class UIA_TextRangeArray extends UIA_Base {
 		else if ObjHasKey(UIA_Enum, "UIA_" e)
 			return UIA_Enum["UIA_" e]
 	}
-	UIA_ElementArray(p, uia="") { ; Should AHK Object be 0 or 1 based? Currently 1 based.
-		a:=new UIA_ElementArray(p),out:=[]
+	UIA_ElementArray(p, uia="",flag=1) { ; Should AHK Object be 0 or 1 based? Currently 1 based.
+		a:=new UIA_ElementArray(p,flag),out:=[]
 		Loop % a.Length
 			out[A_Index]:=a.GetElement(A_Index-1)
 		return out, out.base:={UIA_ElementArray:a}
 	}
 	UIA_TextRangeArray(p, uia="") { ; Should AHK Object be 0 or 1 based? Currently 1 based.
-		a:=new UIA_TextRangeArray(p),out:=[]
+		a:=new UIA_TextRangeArray(p,flag),out:=[]
 		Loop % a.Length
 			out[A_Index]:=a.GetElement(A_Index-1)
 		return out, out.base:={UIA_TextRangeArray:a}
@@ -2194,8 +2210,12 @@ class UIA_TextRangeArray extends UIA_Base {
 		return DllCall("ole32\CLSIDFromString", "wstr",sGUID, "ptr",&GUID)>=0?&GUID:""
 	}
 	UIA_Variant(ByRef var,type=0,val=0) {
-		; Does a variant need to be cleared? If it uses SysAllocString? 
-		return (VarSetCapacity(var,8+2*A_PtrSize)+NumPut(type,var,0,"short")+NumPut(type=8? DllCall("oleaut32\SysAllocString", "ptr",&val):val,var,8,"ptr"))*0+&var
+		; https://www.autohotkey.com/boards/viewtopic.php?t=6979
+		static SIZEOF_VARIANT := 8 + (2 * A_PtrSize)
+		VarSetCapacity(var, SIZEOF_VARIANT), ComObject(0x400C, &var)[] := type&&(type!=8)?ComObject(type,type=0xB?(!val?0:-1):val):val
+		return &var ; The variant probably doesn't need clearing, because it is passed to UIA and UIA should take care of releasing it.
+		; Old implementation:
+		; return (VarSetCapacity(var,8+2*A_PtrSize)+NumPut(type,var,0,"short")+NumPut(type=8? DllCall("oleaut32\SysAllocString", "ptr",&val):val,var,8,"ptr"))*0+&var
 	}
 	UIA_IsVariant(ByRef vt, ByRef type="", offset=0) {
 		size:=VarSetCapacity(vt),type:=NumGet(vt,offset,"UShort")
@@ -2217,16 +2237,18 @@ class UIA_TextRangeArray extends UIA_Base {
 		return _.haskey(type)?_[type]:[A_PtrSize,"ptr"]
 	}
 	UIA_VariantData(ByRef p, flag=1, offset=0) {
-		; based on Sean's COM_Enumerate function
-		; need to clear varaint? what if you still need it (flag param)?
-		return !UIA_IsVariant(p,vt, offset)?"Invalid Variant"
-				:vt=0?"" ; VT_EMPTY
-				:vt=3?NumGet(p,offset+8,"int")
-				:vt=8?StrGet(NumGet(p,offset+8))
-				:vt=11?-NumGet(p,offset+8,"short")
-				:vt=9||vt=13||vt&0x2000?ComObj(vt,NumGet(p,offset+8),flag)
-				:vt<0x1000&&UIA_VariantChangeType(&p,&p)=0?StrGet(NumGet(p,offset+8)) UIA_VariantClear(&p)
-				:NumGet(p,offset+8)
+		var := !UIA_IsVariant(p,vt, offset)?"Invalid Variant":ComObject(0x400C, &p)[] ; https://www.autohotkey.com/boards/viewtopic.php?t=6979
+		UIA_VariantClear(&p) ; Clears variant, except if it contains a pointer to an object (eg IDispatch). BSTR is automatically freed.
+		return vt=11?-var:var ; Negate value if VT_BOOL (-1=True, 0=False)
+		; Old implementation, based on Sean's COM_Enumerate function
+		; return !UIA_IsVariant(p,vt, offset)?"Invalid Variant"
+		;		:vt=0?"" ; VT_EMPTY
+		;		:vt=3?NumGet(p,offset+8,"int")
+		;		:vt=8?StrGet(NumGet(p,offset+8))
+		;		:vt=11?-NumGet(p,offset+8,"short")
+		;		:vt=9||vt=13||vt&0x2000?ComObj(vt,NumGet(p,offset+8),flag)
+		;		:vt<0x1000&&UIA_VariantChangeType(&p,&p)=0?StrGet(NumGet(p,offset+8)) UIA_VariantClear(&p)
+		;		:NumGet(p,offset+8)
 	/*
 		VT_EMPTY     =      0  		; No value
 		VT_NULL      =      1 		; SQL-style Null
@@ -2283,11 +2305,13 @@ class UIA_TextRangeArray extends UIA_Base {
 	UIA_VariantClear(pvar) { ; Written by Sean
 		DllCall("oleaut32\VariantClear", "ptr",pvar)
 	}
-	UIA_GetSafeArrayValue(p,type){ ; Credit: https://github.com/neptercn/UIAutomation/blob/master/UIA.ahk
+	UIA_GetSafeArrayValue(p,type,flag=1){ ; Credit: https://github.com/neptercn/UIAutomation/blob/master/UIA.ahk
 		t:=UIA_VariantType(type),item:={},pv:=NumGet(p+8+A_PtrSize,"ptr")
 		loop % NumGet(p+8+2*A_PtrSize,"uint") {
 			item.Insert((type=8)?StrGet(NumGet(pv+(A_Index-1)*t.1,t.2),"utf-16"):NumGet(pv+(A_Index-1)*t.1,t.2))
 		}
+		if flag
+			DllCall("oleaut32\SafeArrayDestroy","ptr", p)
 		return item
 	}
 	/*
@@ -2320,7 +2344,7 @@ class UIA_TextRangeArray extends UIA_Base {
 		return handler	
 	}
 	_UIA_QueryInterface(pSelf, pRIID, pObj){ ; Credit: https://github.com/neptercn/UIAutomation/blob/master/UIA.ahk
-		DllCall("ole32\StringFromIID","ptr",pRIID,"ptr*",sz),str:=StrGet(sz)
+		DllCall("ole32\StringFromIID","ptr",pRIID,"ptr*",sz),str:=StrGet(sz) ; sz should not be freed here
 		return (str="{00000000-0000-0000-C000-000000000046}")||(str="{146c3c17-f12e-4e22-8c27-f894b9b79c69}")||(str="{40cd37d4-c756-4b0c-8c6f-bddfeeb13b50}")||(str="{e81d1b4e-11c5-42f8-9754-e7036c79f054}")||(str="{c270f6b5-5c69-4290-9745-7a7f97169468}")?NumPut(pSelf,pObj+0)*0:0x80004002 ; E_NOINTERFACE
 	}
 	_UIA_AddRef(pSelf){

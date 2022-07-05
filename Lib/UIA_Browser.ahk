@@ -1,6 +1,6 @@
 ﻿
 class UIA_Browser {
-	; Initiates UIA and hooks to the browser window specified with wTitle. customNames can be an object that defines custom CurrentName values for locale-specific elements (such as the name of the URL bar): {URLEditName:"My URL Edit name", TabBarName:"Tab bar name", HomeButtonName:"Home button name", NewTabButtonName:"New tab button name"}. maxVersion specifies the highest UIA version that will be used (default is up to version 7).
+	; Initiates UIA and hooks to the browser window specified with wTitle. customNames can be an object that defines custom CurrentName values for locale-specific elements (such as the name of the URL bar): {URLEditName:"My URL Edit name", TabBarName:"Tab bar name", HomeButtonName:"Home button name", StopButtonName:"Stop button", NewTabButtonName:"New tab button name"}. maxVersion specifies the highest UIA version that will be used (default is up to version 7).
 	__New(wTitle="A", customNames="", maxVersion="") { 
 		this.UIA := UIA_Interface(maxVersion)
 		this.TWT := this.UIA.TreeWalkerTrue
@@ -258,17 +258,11 @@ class UIA_Browser {
 	
 	; Waits the browser page to load to targetTitle, default timeOut is 10 seconds, sleepAfter additionally sleeps for 500ms after the page has loaded. In Edge browser this just waits for the title to change, so its better to use the WaitElementExist function.; Waits the browser page to load to targetTitle, default timeOut is 10 seconds, sleepAfter additionally sleeps for 500ms after the page has loaded. In Edge browser this just waits for the title to change, so its better to use the WaitElementExist function.
 	WaitPageLoad(targetTitle="", timeOut=10000, sleepAfter=500, stopButtonText="Stop") { 
-		if (this.BrowserType != "Chrome") {
-			this.WaitTitleChange(targetTitle, timeOut)
-			Sleep, %sleepAfter%
-			return
-		}
 		reloadBut := this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetFirstChildElement(this.NavigationBarElement)))
 		legacyPattern := reloadBut.GetCurrentPatternAs("LegacyIAccessible")
-		startTime := A_TickCount
+		startTime := A_TickCount, stopButtonText := this.CustomNames.StopButtonName ? this.CustomNames.StopButtonName : stopButtonText
 		while ((A_TickCount - startTime) < timeOut) {
-
-			if !InStr(legacyPattern.CurrentDescription, stopButtonText) {
+			if (!InStr(reloadBut.CurrentName, stopButtonText) && !InStr(legacyPattern.CurrentDescription, stopButtonText) && !InStr(reloadBut.CurrentFullDescription, stopButtonText)) {
 				if targetTitle {
 					WinGetTitle, wTitle, % "ahk_id" this.BrowserId
 					if this.__CompareTitles(targetTitle, wTitle)
@@ -276,10 +270,7 @@ class UIA_Browser {
 				} else
 					break
 			}
-
 			Sleep, 200
-			reloadBut := this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetFirstChildElement(this.NavigationBarElement)))
-			legacyPattern := reloadBut.GetCurrentPatternAs("LegacyIAccessible")
 		}
 		if ((A_TickCount - startTime) < timeOut)
 			Sleep, %sleepAfter%
@@ -330,7 +321,7 @@ class UIA_Browser {
 			legacyPattern.Select()
 		}
 		if (navigateToNewUrl&&InStr(this.URLEditElement.CurrentValue, newUrl))
-			ControlSend,, {Enter}, % "ahk_id" this.BrowserId
+			ControlSend,, {LCtrl up}{LAlt up}{LShift up}{RCtrl up}{RAlt up}{RShift up}{Enter}, % "ahk_id" this.BrowserId ; Or would it be better to use BlockInput instead of releasing modifier keys?
 	}
 	
 	; Presses the New tab button. The button name might differ if the browser language is not set to English and can be specified with butName

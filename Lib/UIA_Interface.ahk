@@ -751,8 +751,8 @@ class UIA_Element extends UIA_Base {
 		}			
 	}
 	; By default get only direct children (UIA_TreeScope_Children := 0x2)
-	GetChildren(scope=0x2) { 
-		return this.FindAll(this.TrueCondition, scope)
+	GetChildren(scope=0x2, c="") { 
+		return this.FindAll(c=="" ? this.TrueCondition : c, scope)
 	}
 	; Get all child elements using TreeViewer
 	TWGetChildren() { 
@@ -778,7 +778,7 @@ class UIA_Element extends UIA_Base {
 	}
 	; Returns info about the element: ControlType, Name, Value, LocalizedControlType, AutomationId, AcceleratorKey. 
 	Dump() { 
-		return "Type: " this.CurrentControlType ((name := this.CurrentName) ? " Name: """ name """" : "") ((val := this.CurrentValue) ? " Value: """ val """": "") ((lct := this.CurrentLocalizedControlType) ? " LocalizedControlType: """ lct """" : "") ((aid := this.CurrentAutomationId) ? " AutomationId: """ aid """": "") ((ak := this.CurrentAcceleratorKey) ? " AcceleratorKey: """ ak """": "")
+		return "Type: " this.CurrentControlType ((name := this.CurrentName) == "" ? "" : " Name: """ name """") ((val := this.CurrentValue) == "" ? "" : " Value: """ val """") ((lct := this.CurrentLocalizedControlType) == "" ? "" : " LocalizedControlType: """ lct """") ((aid := this.CurrentAutomationId) == "" ? "" : " AutomationId: """ aid """") ((ak := this.CurrentAcceleratorKey) == "" ? "" : " AcceleratorKey: """ ak """")
 	}
 	; Returns info (ControlType, Name etc) for all descendants of the element. maxDepth is the allowed depth of recursion, by default 20 layers. DO NOT call this on the root element!
 	DumpAll(maxDepth=20) { 
@@ -968,15 +968,60 @@ class UIA_Element extends UIA_Base {
 		}
 		return returnArr
 	}
-	; Gets an element by the "path" that is displayed in the UIA_Element.DumpAll() result. This is like the Acc path, but for UIA (they are not compatible).
-	FindByPath(searchPath="") { 
-		el := this
+	/*
+		FindByPath gets an element by a relative "path" from a starting element. 
+		1) To get the nth child of the starting element, set searchPath to "n". To get a deeper node, separate the numbers with a ".": "2.1" will get the second childs first child. This kind of path can easily be got from the UIA_Element.DumpAll() method, which returns a path in the same style (this is like the Acc path but for UIA, they are not compatible!).
+		2) To get the nth parent of the starting element, use "Pn": "P2" will get the parent of the parent.
+		3) To get sibling elements, put a "+" or "-" in front of "n": +2 will get the next sibling from the next sibling (calling GetNextSiblingElement twice). Using this after "Pn" doesn't require a "." separator ("P2.-1" == "P2-1").
+
+		These conditions can also be combined:
+		searchPath="P1-1.1.1.2" -> gets the parent element, then the previous sibling element of the parent, and then "1.1.2" gets the second child of the first childs first child. 
+
+		c or condition argument can be used to only filter elements specified by the condition: 
+		UIA_Element.FindByPath("+2", UIA_Interface.CreateCondition("ControlType", "Button")) will only consider "Button" controls and gets the second sibling button.
+	*/
+	FindByPath(searchPath="", c="") { 
+		el := this, ErrorLevel := 0, PathTW := (c=="" ? this.TreeWalkerTrue : this.__UIA.CreateTreeWalker(c))
+		searchPath := StrReplace(StrReplace(searchPath, " "), ",", ".")
 		Loop, Parse, searchPath, .
 		{
-			children := el.GetChildren()
-			if !IsObject(el := children[A_LoopField])
-				return
+			if RegexMatch(A_LoopField, "^\d+$") {
+				children := el.GetChildren(0x2,c)
+				if !IsObject(el := children[A_LoopField])
+					return ErrorLevel := "Step " A_index " was out of bounds"
+			} else {
+				if RegexMatch(A_LoopField, "i)p(\d+)?", m) {
+					if !m1
+						m1 := 1
+					Loop, %m1% {
+						if !(el := PathTW.GetParentElement(el))
+							return ErrorLevel := "Step " A_index " with P" m1 " was out of bounds (GetParentElement failed)"
+					}
+				}
+				if RegexMatch(A_LoopField, "([+-])(\d+)?", m) {
+					if !m2
+						m2 := 1
+					if (m1 == "+") {
+						Loop, %m2% {
+							if !(el := PathTW.GetNextSiblingElement(el))
+								return ErrorLevel := "Step " A_index " with """ m1 m2 """ was out of bounds (GetNextSiblingElement failed)"
+						}
+					} else if (m1 == "-") {
+						Loop, %m2% {
+							if !(el := PathTW.GetPreviousSiblingElement(el))
+								return ErrorLevel := "Step " A_index " with """ m1 m2 """ was out of bounds (GetPreviousSiblingElement failed)"
+						}
+					}
+				}
+			}
 		}
+		return el
+	}
+	; Calls UIA_Element.FindByPath until the element is found and then returns it, with a timeOut of 10000ms (10 seconds). 
+	WaitElementExistByPath(searchPath="", c="", timeOut=10000) { 
+		startTime := A_TickCount
+		while (!IsObject(el := this.FindByPath(searchPath, c)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
+			Sleep, 100
 		return el
 	}
 	; Calls UIA_Element.FindFirstBy until the element is found and then returns it, with a timeOut of 10000ms (10 seconds). For explanations of the other arguments, see FindFirstBy
@@ -1699,7 +1744,7 @@ class UIA_TableItemPattern extends UIA_Base {
 class UIA_TablePattern extends UIA_Base {
 	static	__IID := "{620E691C-EA96-4710-A850-754B24CE2417}"
 		,	__PatternID := 10012
-		,	__Properties := "CurrentRowOrColumnMajor,5,int`r`nCachedRowOrColumnMajor,5,int"
+		,	__Properties := "CurrentRowOrColumnMajor,5,int`r`nCachedRowOrColumnMajor,8,int"
 	GetCurrentRowHeaders() {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*", out))&&out?UIA_ElementArray(out):
 	}

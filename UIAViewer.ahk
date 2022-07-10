@@ -16,11 +16,12 @@ _xoffsetfirst := 8
 _xoffset := 5
 _yoffset := 20
 _ysoffset := 2
+_minSplitterPosX := 100, _maxSplitterPosX := 500, _minSplitterPosY := 100, _maxSplitterPosY := 500, SplitterW = 5
 
 Gui Main: New, AlwaysOnTop Resize hwndMainGuiHwnd, UIAViewer
 Gui Main: Default
 
-Gui Add, GroupBox, x8 y10 w302 h130, Window/Control Info
+Gui Add, GroupBox, x8 y10 w302 h130 vGBWindowInfo, Window/Control Info
 Gui Add, Text, xm+%_xoffsetfirst% yp+%_yoffset% w30 Section, WinTitle:
 Gui Add, Edit, ys-%_ysoffset% w235 vEditWinTitle, 
 Gui Add, Text, x18 yp+30 Section, Hwnd:
@@ -29,14 +30,14 @@ Gui Add, Text,, Size:
 Gui Add, Edit, ys-%_ysoffset% w80 vEditWinHwnd, 
 Gui Add, Edit, w80 vEditWinPosition,
 Gui Add, Edit, w80 vEditWinSize,
-Gui Add, Text, ys, ClassNN:
-Gui Add, Text,, Process:
-Gui Add, Text,, Process ID:
+Gui Add, Text, ys vTextClassNN, ClassNN:
+Gui Add, Text, vTextProcess, Process:
+Gui Add, Text, vTextProcessID, Process ID:
 Gui Add, Edit, ys-%_ysoffset% w80 vEditWinClass,
 Gui Add, Edit, w80 vEditWinProcess,
 Gui Add, Edit, w80 vEditWinProcessID,
 
-Gui Add, GroupBox, x%_xoffsetfirst% y150 w302 h240, UIAutomation Element Properties
+Gui Add, GroupBox, x%_xoffsetfirst% y150 w302 h240 vGBProperties, UIAutomation Element Properties
 Gui Add, ListView, xm+%_xoffsetfirst% yp+%_yoffset% h210 w285 vLVPropertyIds gLVPropertyIds AltSubmit, PropertyId|Value
 ClearLVPropertyIds()
 
@@ -53,6 +54,12 @@ Gui, Font
 SB_SetParts(380)
 SB_SetText("`tCurrent UIA Interface version: " UIA.__Version,2)
 
+Gui, add, Text, x310 y0 w%SplitterW% h500 vSplitter1 gMoveSplitter1
+Gui, add, Text, x%_xoffsetfirst% y390 w300 h%SplitterW% vSplitter2 gMoveSplitter2
+; Change the cursor when mouse is over splitter control
+OnMessage(WM_SETCURSOR := 0x20, "HandleMessage")
+OnMessage(WM_MOUSEMOVE := 0x200, "HandleMessage") 
+
 Gui Show,, UIAViewer
 Return
 
@@ -62,11 +69,14 @@ MainGuiClose:
     ExitApp
 
 MainGuiSize(GuiHwnd, EventInfo, Width, Height){
+	global splitterW, _minSplitterPosX := 200, _maxSplitterPosX := (Width - SplitterW), _minSplitterPosY := 220, _maxSplitterPosY := (Height - SplitterW - 100)
+
 	GuiControl, -Redraw, MainTreeView
 	GuiControlGet, Pos, Pos , MainTreeView
 	GuiControl, Move, MainTreeView, % "w" Width -Posx-10 " h" Height -Posy-60
+	GuiControl, Move, Splitter1, % "h" Height-60
 	GuiControl, +Redraw, MainTreeView
-	GuiControl, Move, ButRefreshTreeView, % "y" Height -50
+	GuiControl, Move, ButRefreshTreeView, % "y" Height -50 " w" Width -Posx-100
 	GuiControl, -Redraw, TVPatterns
 	GuiControlGet, Pos, Pos , TVPatterns
 	GuiControl, Move, TVPatterns, % " h" Height -Posy-60
@@ -164,7 +174,7 @@ ButCapture:
 			MouseGetPos, mX, mY, mHwnd, mCtrl
 					
 			try {
-				mEl := UIA.SmallestElementFromPoint(mX, mY,, DeepSearchFromPoint ? UIA.ElementFromHandle(mHwnd) : "")
+				mEl := UIA.SmallestElementFromPoint(mX, mY, True, DeepSearchFromPoint ? UIA.ElementFromHandle(mHwnd) : "")
 			} catch e {
 				UpdateElementFields()
 				GuiControl, Main:, EditName, % "ERROR: " e.Message
@@ -172,26 +182,20 @@ ButCapture:
 					GuiControl, Main:, EditValue, Try running UIAViewer with Admin privileges
 			}
 
-			if (mHwnd != Stored.Hwnd) {
-				; In some setups Chromium-based renderers don't react to UIA calls by enabling accessibility, so we need to send the WM_GETOBJECT message to the first renderer control for the application to enable accessibility. Thanks to users malcev and rommmcek for this tip. Explanation why this works: https://www.chromium.org/developers/design-documents/accessibility/#TOC-How-Chrome-detects-the-presence-of-Assistive-Technology 
-				WinGet, cList, ControlList, ahk_id %mHwnd%
-				if InStr(cList, "Chrome_RenderWidgetHostHWND1")
-					SendMessage, WM_GETOBJECT := 0x003D, 0, 1, Chrome_RenderWidgetHostHWND1, ahk_id %mHwnd%
-				WinGetTitle, wTitle, ahk_id %mHwnd%
-				WinGetPos, wX, wY, wW, wH, ahk_id %mHwnd%
-				WinGetClass, wClass, ahk_id %mHwnd%
-				WinGetText, wText, ahk_id %mHwnd%
-				WinGet, wProc, ProcessName, ahk_id %mHwnd%
-				WinGet, wProcID, PID, ahk_id %mHwnd%
-			
-				GuiControl, Main:, EditWinTitle, %wTitle%
-				GuiControl, Main:, EditWinHwnd, ahk_id %mHwnd%
-				GuiControl, Main:, EditWinPosition, X: %wX% Y: %wY%
-				GuiControl, Main:, EditWinSize, W: %wW% H: %wH%
-				GuiControl, Main:, EditWinClass, %wClass%
-				GuiControl, Main:, EditWinProcess, %wProc%
-				GuiControl, Main:, EditWinProcessID, %wProcID%
-			}
+			WinGetTitle, wTitle, ahk_id %mHwnd%
+			WinGetPos, wX, wY, wW, wH, ahk_id %mHwnd%
+			WinGetClass, wClass, ahk_id %mHwnd%
+			WinGetText, wText, ahk_id %mHwnd%
+			WinGet, wProc, ProcessName, ahk_id %mHwnd%
+			WinGet, wProcID, PID, ahk_id %mHwnd%
+		
+			GuiControl, Main:, EditWinTitle, %wTitle%
+			GuiControl, Main:, EditWinHwnd, ahk_id %mHwnd%
+			GuiControl, Main:, EditWinPosition, X: %wX% Y: %wY%
+			GuiControl, Main:, EditWinSize, W: %wW% H: %wH%
+			GuiControl, Main:, EditWinClass, %wClass%
+			GuiControl, Main:, EditWinProcess, %wProc%
+			GuiControl, Main:, EditWinProcessID, %wProcID%
 
 			if IsObject(Stored.Element) {
 				try {
@@ -248,6 +252,135 @@ RemoveToolTip:
 	ToolTip
 	return
 
+MoveSplitter1:
+   DragSplitter1("Splitter1")
+
+MoveSplitter2:
+   DragSplitter2("Splitter2")
+Return
+
+;----- The real stuff...
+
+GetMouseOffsets(ByRef offsetX, ByRef offsetY, _controlName) {
+	CoordMode Mouse, Screen
+	MouseGetPos initScrX, initScrY, hWnd
+	CoordMode Mouse, Relative   ; Restore default
+	MouseGetPos initWinX, initWinY
+	; Compute client area relative coordinates of the mouse
+	VarSetCapacity(point, 8), NumPut(initScrX, point, 0, "int"), NumPut(initScrY, point, 4, "int")
+	DllCall("user32\ScreenToClient", "ptr", hWnd, "ptr", &point, "int")
+	initCliX := NumGet(point,0,"Int"), initCliY := NumGet(point,4,"Int")
+	; Coordinates of the control, relative to the client area
+	GuiControlGet controlPos, Pos, %_controlName%
+	mouseX := controlPosX, 	mouseY := controlPosY
+	; Compute offset between click inside control and top-left corner of control
+	offsetX := initCliX - controlPosX, offsetY :=  initCliY - controlPosY
+	; Add offset between window and client area
+	offsetX += initWinX - initCliX, offsetY += initWinY - initCliY
+}
+
+DragSplitter1(_controlName) { ; Based on a script by user PhiLho (https://www.autohotkey.com/board/topic/8001-splitter-bar-window-control-with-ahk/)
+	global _minSplitterPosX, _maxSplitterPosX
+	if !GetKeyState("LButton")
+		return
+	GetMouseOffsets(offsetX, offsetY, _controlName)
+
+	originalSizes := GetControlSizes(_controlName, "LVPropertyIds", "GBWindowInfo", "EditWinTitle", "GBProperties", "GBPatterns", "TVPatterns", "ButCapture", "EditWinHwnd", "EditWinPosition", "EditWinSize", "TextClassNN", "TextProcess", "TextProcessID", "EditWinClass", "EditWinProcess", "EditWinProcessID", "MainTreeView", "ButRefreshTreeview", "Splitter2")
+	oldControlPos := originalSizes[_controlName]
+	Loop {
+		if !GetKeyState("LButton")
+			Break 
+		MouseGetPos, mouseX, mouseY
+		mouseX -= offsetX
+
+		if (mouseX < _minSplitterPosX) {
+			mouseX := _minSplitterPosX
+		}
+		if (mouseX > _maxSplitterPosX) {
+			mouseX := _maxSplitterPosX
+		}		
+		mouseY := oldControlPos.y
+		GuiControl MoveDraw, %_controlName%, x%mouseX% y%mouseY%
+		moveX := mouseX-oldControlPos.x
+		OffsetControls(originalSizes,,, moveX,, "LVPropertyIds", "GBWindowInfo", "EditWinTitle", "GBProperties", "GBPatterns", "TVPatterns", "ButCapture", "Splitter2")
+		OffsetControls(originalSizes,,, moveX//2,, "EditWinHwnd", "EditWinPosition", "EditWinSize")
+		OffsetControls(originalSizes,moveX//2,, moveX//2,, "TextClassNN", "TextProcess", "TextProcessID", "EditWinClass", "EditWinProcess", "EditWinProcessID")
+		OffsetControls(originalSizes,moveX,, -moveX,, "MainTreeView", "ButRefreshTreeview")
+		Sleep 100
+	}
+	WinSet, Redraw,, ahk_id %MainGuiHwnd%
+}
+DragSplitter2(_controlName) {
+	global _minSplitterPosY, _maxSplitterPosY
+	if !GetKeyState("LButton")
+		return
+	GetMouseOffsets(offsetX, offsetY, _controlName)
+
+	originalSizes := GetControlSizes(_controlName, "LVPropertyIds", "GBWindowInfo", "EditWinTitle", "GBProperties", "GBPatterns", "TVPatterns", "ButCapture", "EditWinHwnd", "EditWinPosition", "EditWinSize", "TextClassNN", "TextProcess", "TextProcessID", "EditWinClass", "EditWinProcess", "EditWinProcessID", "MainTreeView", "ButRefreshTreeview")
+	oldControlPos := originalSizes[_controlName]
+	Loop {
+		if !GetKeyState("LButton")
+			Break 
+		MouseGetPos, mouseX, mouseY
+		mouseY -= offsetY
+
+		if (mouseY < _minSplitterPosY) {
+			mouseY := _minSplitterPosY
+		}
+		if (mouseY > _maxSplitterPosY) {
+			mouseY := _maxSplitterPosY
+		}		
+		mouseX := oldControlPos.x
+		GuiControl MoveDraw, %_controlName%, x%mouseX% y%mouseY%
+		moveY := mouseY-oldControlPos.y
+		OffsetControls(originalSizes, ,, ,moveY, "LVPropertyIds", "GBProperties")
+		OffsetControls(originalSizes,,moveY, ,-moveY, "GBPatterns", "TVPatterns")
+		Sleep 100
+	}
+	WinSet, Redraw,, ahk_id %MainGuiHwnd%
+}
+
+GetControlSizes(ctrls*) {
+	sizes := {}
+	for _, ctrl in ctrls {
+		GuiControlGet ctrlSize, Pos, %ctrl%
+		sizes[ctrl] := {x:ctrlSizeX, y:ctrlSizeY, w:ctrlSizeW, h:ctrlSizeH}
+	}
+	return sizes
+}
+
+OffsetControls(sizes=0, offsetX=0, offsetY=0, offsetW=0, offsetH=0, ctrls*) {
+	for _, ctrl in ctrls {
+		ctrlSize := sizes[ctrl]
+		GuiControl Move, %ctrl%, % "x" (ctrlSize.x+offsetX) " y" (ctrlSize.y+offsetY) " w" (ctrlSize.w+offsetW) " h" (ctrlSize.h+offsetH)
+	}
+}
+
+HandleMessage(p_w, p_l, p_m, p_hw)
+{
+	global WM_SETCURSOR, WM_MOUSEMOVE
+	static hover, IDC_SIZEWE, h_old_cursor
+ 
+	if (p_m = WM_SETCURSOR) {
+		if hover
+			return, true
+	}
+	else if (p_m = WM_MOUSEMOVE) {
+			; cursor hovers splitter control
+			if InStr(A_GuiControl, "Splitter") {
+				if hover =
+				{
+					IDC_SIZEWE := DllCall("LoadCursor", "uint", 0, "uint", A_GuiControl == "Splitter1" ? 32644 : 32645) ; IDC_SIZEWE = 32644
+					hover = true
+				}                 
+				h_old_cursor := DllCall("SetCursor", "uint", IDC_SIZEWE)
+			} else if hover {
+				DllCall("SetCursor", "uint", h_old_cursor)
+				hover=
+			}
+	}
+}
+
 ClearLVPropertyIds() {
 	Gui, ListView, LVPropertyIds
 	LV_Delete()
@@ -258,6 +391,7 @@ ClearLVPropertyIds() {
 	LV_Add("", "AutomationId", "")
 	LV_Add("", "BoundingRectangle", "")
 	LV_Add("", "ClassName", "")
+	LV_Add("", "FullDescription", "")
 	LV_Add("", "HelpText", "")
 	LV_Add("", "AccessKey", "")
 	LV_Add("", "AcceleratorKey", "")
@@ -313,6 +447,7 @@ UpdateElementFields(mEl="") {
 	try LV_Add("", "AutomationId", mEl.CurrentAutomationId)
 	try LV_Add("", "BoundingRectangle", "l: " mElPos.l " t: " mElPos.t " r: " mElPos.r " b: " mElPos.b)
 	try LV_Add("", "ClassName", mEl.CurrentClassName)
+	try LV_Add("", "FullDescription", mEl.CurrentFullDescription)
 	try LV_Add("", "HelpText", mEl.CurrentHelpText)
 	try LV_Add("", "AccessKey", mEl.CurrentAccessKey)
 	try LV_Add("", "AcceleratorKey", mEl.CurrentAcceleratorKey)
@@ -326,7 +461,7 @@ UpdateElementFields(mEl="") {
 	try LV_Add("", "FrameworkId", mEl.CurrentFrameworkId)
 	try LV_Add("", "IsRequiredForForm", mEl.CurrentIsRequiredForForm)
 	try LV_Add("", "ItemStatus", mEl.CurrentItemStatus)
-	try LV_ModifyCol(1)
+	LV_ModifyCol(1, "AutoHdr")
 	return
 }
 
@@ -363,6 +498,7 @@ RedrawTreeView(el, noAncestors=True) {
 				Stored.TreeView[parent := TV_Add(elDesc, parent)] := ancestors[maxInd]
 			}
 		}
+
 		; Add sibling elements
 		allChildren := ancestors[maxInd].FindAll(UIA.TrueCondition, 0x2)
 		for _, sibling in allChildren {
@@ -528,7 +664,12 @@ RangeTip(x:="", y:="", w:="", h:="", color:="Red", d:=2) ; from the FindText lib
   }
 }
 
-; UIA CLASSES
+#If !IsCapturing
+~F1::ControlClick, Start capturing (F1), ahk_id %MainGuiHwnd%,,,NA
+~F2::ControlClick, Construct tree for whole Window (F2), ahk_id %MainGuiHwnd%,,,NA
+
+#If IsCapturing
+Esc::gosub ButCapture
 
 ; Base class for all UIA objects (UIA_Interface, UIA_Element etc), that is used to fetch properties from __Properties, and get constants and enumerations from UIA_Enum.
 class UIA_Base {
@@ -600,21 +741,35 @@ class UIA_Interface extends UIA_Base {
 	}
 	; Retrieves a UI Automation element for the specified window. Additionally activateChromiumAccessibility flag can be set to True to send the WM_GETOBJECT message to Chromium-based apps to activate accessibility if it isn't activated.
 	ElementFromHandle(hwnd, activateChromiumAccessibility=False) { 
-		if activateChromiumAccessibility {
+		static activatedHwnds := {}
+		try retEl := UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",hwnd, "ptr*",out))? UIA_Element(out):
+		if (retEl && activateChromiumAccessibility && !activatedHwnds[hwnd]) { ; In some setups Chromium-based renderers don't react to UIA calls by enabling accessibility, so we need to send the WM_GETOBJECT message to the first renderer control for the application to enable accessibility. Thanks to users malcev and rommmcek for this tip. Explanation why this works: https://www.chromium.org/developers/design-documents/accessibility/#TOC-How-Chrome-detects-the-presence-of-Assistive-Technology 
 			WinGet, cList, ControlList, ahk_id %hwnd%
-			if InStr(cList, "Chrome_RenderWidgetHostHWND1")
+			if InStr(cList, "Chrome_RenderWidgetHostHWND1") {
 				SendMessage, WM_GETOBJECT := 0x003D, 0, 1, Chrome_RenderWidgetHostHWND1, ahk_id %hwnd%
+				try rendererEl := retEl.FindFirstBy("ClassName=Chrome_RenderWidgetHostHWND"), startTime := A_TickCount
+				rendererEl := rendererEl ? rendererEl : retEl
+				if rendererEl {
+					rendererEl.CurrentName ; it doesn't work without calling CurrentName (at least in Skype)
+					while (!rendererEl.CurrentValue && (A_TickCount-startTime < 500))
+						Sleep, 40
+				}
+			}
+			activatedHwnds[hwnd] := 1
 		}
 		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",hwnd, "ptr*",out))? UIA_Element(out):
 	}
 	; Retrieves the UI Automation element at the specified point on the desktop. Additionally activateChromiumAccessibility flag can be set to True to send the WM_GETOBJECT message to Chromium-based apps to activate accessibility if it isn't activated.
 	ElementFromPoint(x="", y="", activateChromiumAccessibility=False) { 
-		if (x==""||y=="")
-			DllCall("GetCursorPos","Int64*",pt)
-		if (activateChromiumAccessibility && (hwnd := DllCall("GetAncestor", "UInt", DllCall("WindowFromPoint", pt), "UInt", GA_ROOT := 2))) { ; hwnd from point by SKAN
+		static activatedHwnds := {}
+		if (x==""||y=="") {
+			VarSetCapacity(pt, 8, 0), NumPut(8, pt, "Int"), DllCall("user32.dll\GetCursorPos","UInt",&pt), x :=  NumGet(pt,0,"Int"), y := NumGet(pt,4,"Int")
+		}
+		if (activateChromiumAccessibility && (hwnd := DllCall("GetAncestor", "UInt", DllCall("user32.dll\WindowFromPoint", "int64",  y << 32 | x), "UInt", GA_ROOT := 2)) && !activatedHwnds[hwnd]) { ; hwnd from point by SKAN
 			WinGet, cList, ControlList, ahk_id %hwnd%
-			if InStr(cList, "Chrome_RenderWidgetHostHWND1")
-				SendMessage, WM_GETOBJECT := 0x003D, 0, 1, Chrome_RenderWidgetHostHWND1, ahk_id %hwnd%
+			if InStr(cList, "Chrome_RenderWidgetHostHWND1") 
+				try this.ElementFromHandle(hwnd, False)
+			activatedHwnds[hwnd] := 1
 		}
 		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "UInt64",x==""||y==""?pt:x&0xFFFFFFFF|(y&0xFFFFFFFF)<<32, "ptr*",out))? UIA_Element(out):
 	}	
@@ -1077,7 +1232,7 @@ class UIA_Element extends UIA_Base {
 	}
 	; Retrieves the physical screen coordinates of a point on the element that can be clicked
 	GetClickablePoint() { 
-		UIA_Hr(DllCall(this.__Vt(84), "ptr",this.__Value, "ptr", &(point,VarSetCapacity(point,8)), "ptr*", out))&&out? {x:NumGet(point,0,"int"), y:NumGet(point,4,"int")}:
+		return UIA_Hr(DllCall(this.__Vt(84), "ptr",this.__Value, "ptr", &(point,VarSetCapacity(point,8)), "ptr*", out))&&out? {x:NumGet(point,0,"int"), y:NumGet(point,4,"int")}:
 	}
 	
 	; ------- ONLY CUSTOM FUNCTIONS FROM HERE ON ----------------
@@ -1239,8 +1394,8 @@ class UIA_Element extends UIA_Base {
 		}			
 	}
 	; By default get only direct children (UIA_TreeScope_Children := 0x2)
-	GetChildren(scope=0x2) { 
-		return this.FindAll(this.TrueCondition, scope)
+	GetChildren(scope=0x2, c="") { 
+		return this.FindAll(c=="" ? this.TrueCondition : c, scope)
 	}
 	; Get all child elements using TreeViewer
 	TWGetChildren() { 
@@ -1266,7 +1421,7 @@ class UIA_Element extends UIA_Base {
 	}
 	; Returns info about the element: ControlType, Name, Value, LocalizedControlType, AutomationId, AcceleratorKey. 
 	Dump() { 
-		return "Type: " this.CurrentControlType ((name := this.CurrentName) ? " Name: """ name """" : "") ((val := this.CurrentValue) ? " Value: """ val """": "") ((lct := this.CurrentLocalizedControlType) ? " LocalizedControlType: """ lct """" : "") ((aid := this.CurrentAutomationId) ? " AutomationId: """ aid """": "") ((ak := this.CurrentAcceleratorKey) ? " AcceleratorKey: """ ak """": "")
+		return "Type: " (ctrlType := this.CurrentControlType) " (" UIA_Enum.UIA_ControlTypeId(ctrlType) ")" ((name := this.CurrentName) == "" ? "" : " Name: """ name """") ((val := this.CurrentValue) == "" ? "" : " Value: """ val """") ((lct := this.CurrentLocalizedControlType) == "" ? "" : " LocalizedControlType: """ lct """") ((aid := this.CurrentAutomationId) == "" ? "" : " AutomationId: """ aid """") ((ak := this.CurrentAcceleratorKey) == "" ? "" : " AcceleratorKey: """ ak """")
 	}
 	; Returns info (ControlType, Name etc) for all descendants of the element. maxDepth is the allowed depth of recursion, by default 20 layers. DO NOT call this on the root element!
 	DumpAll(maxDepth=20) { 
@@ -1456,15 +1611,60 @@ class UIA_Element extends UIA_Base {
 		}
 		return returnArr
 	}
-	; Gets an element by the "path" that is displayed in the UIA_Element.DumpAll() result. This is like the Acc path, but for UIA (they are not compatible).
-	FindByPath(searchPath="") { 
-		el := this
+	/*
+		FindByPath gets an element by a relative "path" from a starting element. 
+		1) To get the nth child of the starting element, set searchPath to "n". To get a deeper node, separate the numbers with a ".": "2.1" will get the second childs first child. This kind of path can easily be got from the UIA_Element.DumpAll() method, which returns a path in the same style (this is like the Acc path but for UIA, they are not compatible!).
+		2) To get the nth parent of the starting element, use "Pn": "P2" will get the parent of the parent.
+		3) To get sibling elements, put a "+" or "-" in front of "n": +2 will get the next sibling from the next sibling (calling GetNextSiblingElement twice). Using this after "Pn" doesn't require a "." separator ("P2.-1" == "P2-1").
+
+		These conditions can also be combined:
+		searchPath="P1-1.1.1.2" -> gets the parent element, then the previous sibling element of the parent, and then "1.1.2" gets the second child of the first childs first child. 
+
+		c or condition argument can be used to only filter elements specified by the condition: 
+		UIA_Element.FindByPath("+2", UIA_Interface.CreateCondition("ControlType", "Button")) will only consider "Button" controls and gets the second sibling button.
+	*/
+	FindByPath(searchPath="", c="") { 
+		el := this, ErrorLevel := 0, PathTW := (c=="" ? this.TreeWalkerTrue : this.__UIA.CreateTreeWalker(c))
+		searchPath := StrReplace(StrReplace(searchPath, " "), ",", ".")
 		Loop, Parse, searchPath, .
 		{
-			children := el.GetChildren()
-			if !IsObject(el := children[A_LoopField])
-				return
+			if RegexMatch(A_LoopField, "^\d+$") {
+				children := el.GetChildren(0x2,c)
+				if !IsObject(el := children[A_LoopField])
+					return ErrorLevel := "Step " A_index " was out of bounds"
+			} else {
+				if RegexMatch(A_LoopField, "i)p(\d+)?", m) {
+					if !m1
+						m1 := 1
+					Loop, %m1% {
+						if !(el := PathTW.GetParentElement(el))
+							return ErrorLevel := "Step " A_index " with P" m1 " was out of bounds (GetParentElement failed)"
+					}
+				}
+				if RegexMatch(A_LoopField, "([+-])(\d+)?", m) {
+					if !m2
+						m2 := 1
+					if (m1 == "+") {
+						Loop, %m2% {
+							if !(el := PathTW.GetNextSiblingElement(el))
+								return ErrorLevel := "Step " A_index " with """ m1 m2 """ was out of bounds (GetNextSiblingElement failed)"
+						}
+					} else if (m1 == "-") {
+						Loop, %m2% {
+							if !(el := PathTW.GetPreviousSiblingElement(el))
+								return ErrorLevel := "Step " A_index " with """ m1 m2 """ was out of bounds (GetPreviousSiblingElement failed)"
+						}
+					}
+				}
+			}
 		}
+		return el
+	}
+	; Calls UIA_Element.FindByPath until the element is found and then returns it, with a timeOut of 10000ms (10 seconds). 
+	WaitElementExistByPath(searchPath="", c="", timeOut=10000) { 
+		startTime := A_TickCount
+		while (!IsObject(el := this.FindByPath(searchPath, c)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
+			Sleep, 100
 		return el
 	}
 	; Calls UIA_Element.FindFirstBy until the element is found and then returns it, with a timeOut of 10000ms (10 seconds). For explanations of the other arguments, see FindFirstBy
@@ -2187,7 +2387,7 @@ class UIA_TableItemPattern extends UIA_Base {
 class UIA_TablePattern extends UIA_Base {
 	static	__IID := "{620E691C-EA96-4710-A850-754B24CE2417}"
 		,	__PatternID := 10012
-		,	__Properties := "CurrentRowOrColumnMajor,5,int`r`nCachedRowOrColumnMajor,5,int"
+		,	__Properties := "CurrentRowOrColumnMajor,5,int`r`nCachedRowOrColumnMajor,8,int"
 	GetCurrentRowHeaders() {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*", out))&&out?UIA_ElementArray(out):
 	}
@@ -2545,6 +2745,17 @@ class UIA_TextRangeArray extends UIA_Base {
 }
 
 {  ;~ UIA Functions
+	/*
+		UIAInterface function initializes the UIAutomation interface and returns a UIA_Interface object. After calling this function, all UIA_Interface class properties and methods can be accessed through the returned object. 
+			maxVersion can be used to limit the UIA_Interface version being created. By default the highest version available is used (usually IUIAutomation7 interface). 
+			Specifiying maxVersion:=2 would try to initialize IUIAutomation2 interface, and if that fails then IUIAutomation interface.
+		In addition some extra variables are initialized: 
+			CurrentVersion contains the version number of IUIAutomation interface
+			TrueCondition contains a UIA_TrueCondition
+			TreeWalkerTrue contains an UIA_TreeWalker that was created with UIA_TrueCondition
+		On subsequent calls of UIA_Interface(), the previously created UIA interface object is returned to avoid multiple connections being made. To bypass this, specify a maxVersion
+		Note that a new UIA_Interface object can't be created with the "new" keyword. 
+	*/
 	UIA_Interface(maxVersion="") {
 		static uia
 		if (IsObject(uia) && (maxVersion == ""))
@@ -2691,6 +2902,8 @@ class UIA_TextRangeArray extends UIA_Base {
 		static SIZEOF_VARIANT := 8 + (2 * A_PtrSize)
 		VarSetCapacity(var, SIZEOF_VARIANT), ComObject(0x400C, &var)[] := type&&(type!=8)?ComObject(type,type=0xB?(!val?0:-1):val):val
 		return &var ; The variant probably doesn't need clearing, because it is passed to UIA and UIA should take care of releasing it.
+		; Old implementation:
+		; return (VarSetCapacity(var,8+2*A_PtrSize)+NumPut(type,var,0,"short")+NumPut(type=8? DllCall("oleaut32\SysAllocString", "ptr",&val):val,var,8,"ptr"))*0+&var
 	}
 	UIA_IsVariant(ByRef vt, ByRef type="", offset=0) {
 		size:=VarSetCapacity(vt),type:=NumGet(vt,offset,"UShort")
@@ -2715,6 +2928,64 @@ class UIA_TextRangeArray extends UIA_Base {
 		var := !UIA_IsVariant(p,vt, offset)?"Invalid Variant":ComObject(0x400C, &p)[] ; https://www.autohotkey.com/boards/viewtopic.php?t=6979
 		UIA_VariantClear(&p) ; Clears variant, except if it contains a pointer to an object (eg IDispatch). BSTR is automatically freed.
 		return vt=11?-var:var ; Negate value if VT_BOOL (-1=True, 0=False)
+		; Old implementation, based on Sean's COM_Enumerate function
+		; return !UIA_IsVariant(p,vt, offset)?"Invalid Variant"
+		;		:vt=0?"" ; VT_EMPTY
+		;		:vt=3?NumGet(p,offset+8,"int")
+		;		:vt=8?StrGet(NumGet(p,offset+8))
+		;		:vt=11?-NumGet(p,offset+8,"short")
+		;		:vt=9||vt=13||vt&0x2000?ComObj(vt,NumGet(p,offset+8),flag)
+		;		:vt<0x1000&&UIA_VariantChangeType(&p,&p)=0?StrGet(NumGet(p,offset+8)) UIA_VariantClear(&p)
+		;		:NumGet(p,offset+8)
+	/*
+		VT_EMPTY     =      0  		; No value
+		VT_NULL      =      1 		; SQL-style Null
+		VT_I2        =      2 		; 16-bit signed int
+		VT_I4        =      3 		; 32-bit signed int
+		VT_R4        =      4 		; 32-bit floating-point number
+		VT_R8        =      5 		; 64-bit floating-point number
+		VT_CY        =      6 		; Currency
+		VT_DATE      =      7  		; Date
+		VT_BSTR      =      8 		; COM string (Unicode string with length prefix)
+		VT_DISPATCH  =      9 		; COM object 
+		VT_ERROR     =    0xA  10	; Error code (32-bit integer)
+		VT_BOOL      =    0xB  11	; Boolean True (-1) or False (0)
+		VT_VARIANT   =    0xC  12	; VARIANT (must be combined with VT_ARRAY or VT_BYREF)
+		VT_UNKNOWN   =    0xD  13	; IUnknown interface pointer
+		VT_DECIMAL   =    0xE  14	; (not supported)
+		VT_I1        =   0x10  16	; 8-bit signed int
+		VT_UI1       =   0x11  17	; 8-bit unsigned int
+		VT_UI2       =   0x12  18	; 16-bit unsigned int
+		VT_UI4       =   0x13  19	; 32-bit unsigned int
+		VT_I8        =   0x14  20	; 64-bit signed int
+		VT_UI8       =   0x15  21	; 64-bit unsigned int
+		VT_INT       =   0x16  22	; Signed machine int
+		VT_UINT      =   0x17  23	; Unsigned machine int
+		VT_RECORD    =   0x24  36	; User-defined type
+		VT_ARRAY     = 0x2000  		; SAFEARRAY
+		VT_BYREF     = 0x4000  		; Pointer to another type of value
+					 = 0x1000  4096
+
+		COM_SysAllocString(str) {
+			Return	DllCall("oleaut32\SysAllocString", "Uint", &str)
+		}
+		COM_SysFreeString(pstr) {
+				DllCall("oleaut32\SysFreeString", "Uint", pstr)
+		}
+		COM_SysString(ByRef wString, sString) {
+			VarSetCapacity(wString,4+nLen:=2*StrLen(sString))
+			Return	DllCall("kernel32\lstrcpyW","Uint",NumPut(nLen,wString),"Uint",&sString)
+		}
+		DllCall("oleaut32\SafeArrayGetVartype", "ptr*",ComObjValue(SafeArray), "uint*",pvt)
+		HRESULT SafeArrayGetVartype(
+		  _In_   SAFEARRAY *psa,
+		  _Out_  VARTYPE *pvt
+		);
+		DllCall("oleaut32\SafeArrayDestroy", "ptr",ComObjValue(SafeArray))
+		HRESULT SafeArrayDestroy(
+		  _In_  SAFEARRAY *psa
+		);
+	*/
 	}
 	UIA_VariantChangeType(pvarDst, pvarSrc, vt=8) { ; written by Sean
 		return DllCall("oleaut32\VariantChangeTypeEx", "ptr",pvarDst, "ptr",pvarSrc, "Uint",1024, "Ushort",0, "Ushort",vt)
@@ -2730,6 +3001,43 @@ class UIA_TextRangeArray extends UIA_Base {
 		if flag
 			DllCall("oleaut32\SafeArrayDestroy","ptr", p)
 		return item
+	}
+	/*
+		UIA_CreateEventHandler(funcName, handlerType) returns a new handler object that can be used with methods that create EventHandlers (eg AddAutomationEventHandler)
+			funcName: name of the function that will receive the calls when an event happens
+			handlerType: needed by some of the newer Add...EventHandler functions. In the case of AddAutomationEventHandler, this should be left empty. For other Add...EventHandler cases, specify the ... part: FocusChanged, StructureChanged, TextEditTextChanged, Changes, Notification. So for AddFocusChangedEventHandler, set this value to "FocusChanged"
+		
+		The function funcName needs to be able to receive a certain number of arguments that depends on the type on handler being created:
+			HandleAutomationEvent(sender, eventId)  <--- this is the most common handler type created with AddAutomationEventHandler, and the handler function needs to have exactly two arguments: sender (the element which sent the event), and eventId.
+			HandleFocusChangedEvent(sender)
+			HandlePropertyChangedEvent(sender, propertyId, newValue)
+			HandleStructureChangedEvent(sender, changeType, runtimeId)
+			HandleTextEditTextChangedEvent(sender, changeType, eventStrings)
+			HandleChangesEvent(sender, uiaChanges, changesCount)
+			HandleNotificationEvent(sender, notificationKind, notificationProcessing, displayString, activityId)
+	*/
+	UIA_CreateEventHandler(funcName, handlerType="") { ; Possible handlerType values: empty, FocusChanged, StructureChanged, TextEditTextChanged, Changes, Notification.
+		if !IsFunc(funcName){
+			msgbox %funcName% is not a function.
+			return
+		}
+		static ptr
+		VarSetCapacity(ptr,A_PtrSize*5)
+		handler := new _UIA_%handlerType%EventHandler(&ptr,1,funcName), ObjAddRef(ptr) ; deref will be done on destruction of EventHandler. Function name piggybacks on the __Version property
+		,NumPut(&ptr+A_PtrSize,ptr)
+		,NumPut(RegisterCallback("_UIA_QueryInterface","F"),ptr,A_PtrSize*1)
+		,NumPut(RegisterCallback("_UIA_AddRef","F"),ptr,A_PtrSize*2)
+		,NumPut(RegisterCallback("_UIA_Release","F"),ptr,A_PtrSize*3)
+		,NumPut(RegisterCallback("_UIA_" handlerType "EventHandler.Handle" (handlerType == "" ? "Automation" : handlerType) "Event","F",,&handler),ptr,A_PtrSize*4)
+		return handler	
+	}
+	_UIA_QueryInterface(pSelf, pRIID, pObj){ ; Credit: https://github.com/neptercn/UIAutomation/blob/master/UIA.ahk
+		DllCall("ole32\StringFromIID","ptr",pRIID,"ptr*",sz),str:=StrGet(sz) ; sz should not be freed here
+		return (str="{00000000-0000-0000-C000-000000000046}")||(str="{146c3c17-f12e-4e22-8c27-f894b9b79c69}")||(str="{40cd37d4-c756-4b0c-8c6f-bddfeeb13b50}")||(str="{e81d1b4e-11c5-42f8-9754-e7036c79f054}")||(str="{c270f6b5-5c69-4290-9745-7a7f97169468}")?NumPut(pSelf,pObj+0)*0:0x80004002 ; E_NOINTERFACE
+	}
+	_UIA_AddRef(pSelf){
+	}
+	_UIA_Release(pSelf){
 	}
 }
 
@@ -3935,10 +4243,3 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 		return (Value=="")?v1:v1[Value]
 	}
 }
-
-#If !IsCapturing
-~F1::ControlClick, Start capturing (F1), ahk_id %MainGuiHwnd%,,,NA
-~F2::ControlClick, Construct tree for whole Window (F2), ahk_id %MainGuiHwnd%,,,NA
-
-#If IsCapturing
-Esc::gosub ButCapture

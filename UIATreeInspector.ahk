@@ -124,7 +124,7 @@ LVWindowList:
 		WinActivate, ahk_id %wId%
 		
 	try {
-		mEl := UIA.ElementFromHandle(wId)
+		mEl := UIA.ElementFromHandle(wId, True)
 	} catch e {
 		UpdateElementFields()
 		GuiControl, Main:, EditName, % "ERROR: " e.Message
@@ -133,10 +133,6 @@ LVWindowList:
 	}
 	Stored.Hwnd := wId
 
-	; In some setups Chromium-based renderers don't react to UIA calls by enabling accessibility, so we need to send the WM_GETOBJECT message to the first renderer control for the application to enable accessibility. Thanks to users malcev and rommmcek for this tip. Explanation why this works: https://www.chromium.org/developers/design-documents/accessibility/#TOC-How-Chrome-detects-the-presence-of-Assistive-Technology 
-	WinGet, cList, ControlList, ahk_id %wId%
-	if InStr(cList, "Chrome_RenderWidgetHostHWND1")
-		SendMessage, WM_GETOBJECT := 0x003D, 0, 1, Chrome_RenderWidgetHostHWND1, ahk_id %wId%
 	WinGetTitle, wTitle, ahk_id %wId%
 	WinGetPos, wX, wY, wW, wH, ahk_id %wId%
 	WinGetClass, wClass, ahk_id %wId%
@@ -251,10 +247,10 @@ UpdateElementFields(mEl="") {
 		mElPos := mEl.CurrentBoundingRectangle
 		RangeTip(mElPos.l, mElPos.t, mElPos.r-mElPos.l, mElPos.b-mElPos.t, "Blue", 4)
 	}
-		Gui, ListView, LVPropertyIds
-		LV_Delete()
-		Gui, TreeView, TVPatterns
-		TV_Delete()
+	Gui, ListView, LVPropertyIds
+	LV_Delete()
+	Gui, TreeView, TVPatterns
+	TV_Delete()
 	try {
 		for k, v in UIA.PollForPotentialSupportedPatterns(mEl) {
 			parent := TV_Add(RegexReplace(k, "Pattern$"))
@@ -266,6 +262,7 @@ UpdateElementFields(mEl="") {
 			}
 		}
 	}
+	Gui, ListView, LVPropertyIds
 	try LV_Add("", "ControlType", (ctrlType := mEl.CurrentControlType) " (" UIA_Enum.UIA_ControlTypeId(ctrlType) ")")
 	try LV_Add("", "LocalizedControlType", mEl.CurrentLocalizedControlType)
 	try LV_Add("", "Name", mEl.CurrentName)

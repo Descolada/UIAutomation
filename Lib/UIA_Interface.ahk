@@ -112,21 +112,35 @@ class UIA_Interface extends UIA_Base {
 	}
 	; Retrieves a UI Automation element for the specified window. Additionally activateChromiumAccessibility flag can be set to True to send the WM_GETOBJECT message to Chromium-based apps to activate accessibility if it isn't activated.
 	ElementFromHandle(hwnd, activateChromiumAccessibility=False) { 
-		if activateChromiumAccessibility {
+		static activatedHwnds := {}
+		try retEl := UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",hwnd, "ptr*",out))? UIA_Element(out):
+		if (retEl && activateChromiumAccessibility && !activatedHwnds[hwnd]) { ; In some setups Chromium-based renderers don't react to UIA calls by enabling accessibility, so we need to send the WM_GETOBJECT message to the first renderer control for the application to enable accessibility. Thanks to users malcev and rommmcek for this tip. Explanation why this works: https://www.chromium.org/developers/design-documents/accessibility/#TOC-How-Chrome-detects-the-presence-of-Assistive-Technology 
 			WinGet, cList, ControlList, ahk_id %hwnd%
-			if InStr(cList, "Chrome_RenderWidgetHostHWND1")
+			if InStr(cList, "Chrome_RenderWidgetHostHWND1") {
 				SendMessage, WM_GETOBJECT := 0x003D, 0, 1, Chrome_RenderWidgetHostHWND1, ahk_id %hwnd%
+				try rendererEl := retEl.FindFirstBy("ClassName=Chrome_RenderWidgetHostHWND"), startTime := A_TickCount
+				rendererEl := rendererEl ? rendererEl : retEl
+				if rendererEl {
+					rendererEl.CurrentName ; it doesn't work without calling CurrentName (at least in Skype)
+					while (!rendererEl.CurrentValue && (A_TickCount-startTime < 500))
+						Sleep, 40
+				}
+			}
+			activatedHwnds[hwnd] := 1
 		}
 		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",hwnd, "ptr*",out))? UIA_Element(out):
 	}
 	; Retrieves the UI Automation element at the specified point on the desktop. Additionally activateChromiumAccessibility flag can be set to True to send the WM_GETOBJECT message to Chromium-based apps to activate accessibility if it isn't activated.
 	ElementFromPoint(x="", y="", activateChromiumAccessibility=False) { 
-		if (x==""||y=="")
-			DllCall("GetCursorPos","Int64*",pt)
-		if (activateChromiumAccessibility && (hwnd := DllCall("GetAncestor", "UInt", DllCall("WindowFromPoint", pt), "UInt", GA_ROOT := 2))) { ; hwnd from point by SKAN
+		static activatedHwnds := {}
+		if (x==""||y=="") {
+			VarSetCapacity(pt, 8, 0), NumPut(8, pt, "Int"), DllCall("user32.dll\GetCursorPos","UInt",&pt), x :=  NumGet(pt,0,"Int"), y := NumGet(pt,4,"Int")
+		}
+		if (activateChromiumAccessibility && (hwnd := DllCall("GetAncestor", "UInt", DllCall("user32.dll\WindowFromPoint", "int64",  y << 32 | x), "UInt", GA_ROOT := 2)) && !activatedHwnds[hwnd]) { ; hwnd from point by SKAN
 			WinGet, cList, ControlList, ahk_id %hwnd%
-			if InStr(cList, "Chrome_RenderWidgetHostHWND1")
-				SendMessage, WM_GETOBJECT := 0x003D, 0, 1, Chrome_RenderWidgetHostHWND1, ahk_id %hwnd%
+			if InStr(cList, "Chrome_RenderWidgetHostHWND1") 
+				try this.ElementFromHandle(hwnd, False)
+			activatedHwnds[hwnd] := 1
 		}
 		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "UInt64",x==""||y==""?pt:x&0xFFFFFFFF|(y&0xFFFFFFFF)<<32, "ptr*",out))? UIA_Element(out):
 	}	
@@ -355,10 +369,9 @@ class UIA_Interface extends UIA_Base {
 	}
 	; Gets ElementFromPoint and filters out the smallest subelement that is under the specified point. If windowEl (window under the point) is provided, then a deep search is performed for the smallest element (this might be very slow in large trees).
 	SmallestElementFromPoint(x="", y="", activateChromiumAccessibility=False, windowEl="") { 
-		;ToolTip, % "starting" IsObject(winEl)
 		if IsObject(windowEl) {
 			element := this.ElementFromPoint(x, y, activateChromiumAccessibility)
-			bound := element.CurrentBoundingRectangle, elementSize := (bound.r-bound.l)*(bound.b-bound.t), prevElementSize := 0, stack := [windowEl]
+			bound := element.CurrentBoundingRectangle, elementSize := (bound.r-bound.l)*(bound.b-bound.t), prevElementSize := 0, stack := [windowEl, element], x := x==""?0:x, y := y==""?0:y
 			Loop 
 			{
 				bound := stack[1].CurrentBoundingRectangle
@@ -367,7 +380,7 @@ class UIA_Interface extends UIA_Base {
 						element := stack[1], elementSize := newSize
 					for _, childEl in stack[1].GetChildren() {
 						bound := childEl.CurrentBoundingRectangle
-						if ((x >= bound.l) && (x <= bound.r) && (y >= bound.t) && (y <= bound.b)) {
+						if ((x >= bound.l) && (x <= bound.r) && (y >= bound.t) && (y <= bound.b)) { ; Select only children that are under the mouse
 							stack.Push(childEl)
 							if ((newSize := (bound.r-bound.l)*(bound.b-bound.t)) < elementSize)
 								elementSize := newSize, element := childEl
@@ -457,37 +470,48 @@ class UIA_Interface5 extends UIA_Interface4 { ; UNTESTED
 		return UIA_Hr(DllCall(this.__Vt(69), "ptr",this.__Value, "ptr", element.__Value, "ptr", handler.__Value))
 	}
 }
-class UIA_Interface6 extends UIA_Interface5 { ; NOT IMPLEMENTED
+class UIA_Interface6 extends UIA_Interface5 { ; UNTESTED
 	static __IID := "{aae072da-29e3-413d-87a7-192dbf81ed10}"
 		, __Properties := UIA_Interface5.__Properties
-	/*
-	#define IUIAutomation6_CreateEventHandlerGroup(This,handlerGroup)	\
-		( (This)->lpVtbl -> CreateEventHandlerGroup(This,handlerGroup) ) 
-
-	#define IUIAutomation6_AddEventHandlerGroup(This,element,handlerGroup)	\
-		( (This)->lpVtbl -> AddEventHandlerGroup(This,element,handlerGroup) ) 
-
-	#define IUIAutomation6_RemoveEventHandlerGroup(This,element,handlerGroup)	\
-		( (This)->lpVtbl -> RemoveEventHandlerGroup(This,element,handlerGroup) ) 
-
-	#define IUIAutomation6_get_ConnectionRecoveryBehavior(This,connectionRecoveryBehaviorOptions)	\
-		( (This)->lpVtbl -> get_ConnectionRecoveryBehavior(This,connectionRecoveryBehaviorOptions) ) 
-
-	#define IUIAutomation6_put_ConnectionRecoveryBehavior(This,connectionRecoveryBehaviorOptions)	\
-		( (This)->lpVtbl -> put_ConnectionRecoveryBehavior(This,connectionRecoveryBehaviorOptions) ) 
-
-	#define IUIAutomation6_get_CoalesceEvents(This,coalesceEventsOptions)	\
-		( (This)->lpVtbl -> get_CoalesceEvents(This,coalesceEventsOptions) ) 
-
-	#define IUIAutomation6_put_CoalesceEvents(This,coalesceEventsOptions)	\
-		( (This)->lpVtbl -> put_CoalesceEvents(This,coalesceEventsOptions) ) 
-
-	#define IUIAutomation6_AddActiveTextPositionChangedEventHandler(This,element,scope,cacheRequest,handler)	\
-		( (This)->lpVtbl -> AddActiveTextPositionChangedEventHandler(This,element,scope,cacheRequest,handler) ) 
-
-	#define IUIAutomation6_RemoveActiveTextPositionChangedEventHandler(This,element,handler)	\
-		( (This)->lpVtbl -> RemoveActiveTextPositionChangedEventHandler(This,element,handler) ) 
-	*/
+	
+	; Indicates whether an accessible technology client adjusts provider request timeouts when the provider is non-responsive.
+	ConnectionRecoveryBehavior[] 
+	{
+		get {
+			return UIA_Hr(DllCall(this.__Vt(73), "ptr",this.__Value, "ptr*", out))?out:
+		}
+		set {
+			return UIA_Hr(DllCall(this.__Vt(74), "ptr",this.__Value, "int", value)) 
+		}
+	}
+	; Gets or sets whether an accessible technology client receives all events, or a subset where duplicate events are detected and filtered.
+	CoalesceEvents[] 
+	{
+		get {
+			return UIA_Hr(DllCall(this.__Vt(75), "ptr",this.__Value, "ptr*", out))?out:
+		}
+		set {
+			return UIA_Hr(DllCall(this.__Vt(76), "ptr",this.__Value, "int", value))
+		}
+	}
+	; Registers one or more event listeners in a single method call.
+	CreateEventHandlerGroup() {
+		return UIA_Hr(DllCall(this.__Vt(70), "ptr",this.__Value, "ptr*", out)) ? new UIA_AutomationEventHandlerGroup(out):
+	}
+	; Registers a collection of event handler methods specified with the UIA_Interface6 CreateEventHandlerGroup.
+	AddEventHandlerGroup(element, handlerGroup) {
+		return UIA_Hr(DllCall(this.__Vt(71), "ptr",this.__Value, "ptr", element.__Value, "ptr", handlerGroup.__Value)) 
+	}
+	RemoveEventHandlerGroup(element, handlerGroup) {
+		return UIA_Hr(DllCall(this.__Vt(72), "ptr",this.__Value, "ptr", element.__Value, "ptr", handlerGroup.__Value)) 
+	}
+	; Registers a method that handles when the active text position changes.
+	AddActiveTextPositionChangedEventHandler(element,scope=0x4,cacheRequest=0,handler="") {
+		return UIA_Hr(DllCall(this.__Vt(77), "ptr",this.__Value, "ptr", element.__Value, "int", scope, "ptr", cacheRequest.__Value, "ptr", handler.__Value)) 
+	}
+	RemoveActiveTextPositionChangedEventHandler(element,handler) {
+		return UIA_Hr(DllCall(this.__Vt(78), "ptr",this.__Value, "ptr", element.__Value, "ptr", handler.__Value)) 
+	}
 }
 class UIA_Interface7 extends UIA_Interface6 {
 	static __IID := "{29de312e-83c6-4309-8808-e8dfcb46c3c2}"
@@ -589,7 +613,7 @@ class UIA_Element extends UIA_Base {
 	}
 	; Retrieves the physical screen coordinates of a point on the element that can be clicked
 	GetClickablePoint() { 
-		UIA_Hr(DllCall(this.__Vt(84), "ptr",this.__Value, "ptr", &(point,VarSetCapacity(point,8)), "ptr*", out))&&out? {x:NumGet(point,0,"int"), y:NumGet(point,4,"int")}:
+		return UIA_Hr(DllCall(this.__Vt(84), "ptr",this.__Value, "ptr", &(point,VarSetCapacity(point,8)), "ptr*", out))&&out? {x:NumGet(point,0,"int"), y:NumGet(point,4,"int")}:
 	}
 	
 	; ------- ONLY CUSTOM FUNCTIONS FROM HERE ON ----------------
@@ -751,8 +775,8 @@ class UIA_Element extends UIA_Base {
 		}			
 	}
 	; By default get only direct children (UIA_TreeScope_Children := 0x2)
-	GetChildren(scope=0x2) { 
-		return this.FindAll(this.TrueCondition, scope)
+	GetChildren(scope=0x2, c="") { 
+		return this.FindAll(c=="" ? this.TrueCondition : c, scope)
 	}
 	; Get all child elements using TreeViewer
 	TWGetChildren() { 
@@ -778,7 +802,7 @@ class UIA_Element extends UIA_Base {
 	}
 	; Returns info about the element: ControlType, Name, Value, LocalizedControlType, AutomationId, AcceleratorKey. 
 	Dump() { 
-		return "Type: " this.CurrentControlType ((name := this.CurrentName) ? " Name: """ name """" : "") ((val := this.CurrentValue) ? " Value: """ val """": "") ((lct := this.CurrentLocalizedControlType) ? " LocalizedControlType: """ lct """" : "") ((aid := this.CurrentAutomationId) ? " AutomationId: """ aid """": "") ((ak := this.CurrentAcceleratorKey) ? " AcceleratorKey: """ ak """": "")
+		return "Type: " (ctrlType := this.CurrentControlType) " (" UIA_Enum.UIA_ControlTypeId(ctrlType) ")" ((name := this.CurrentName) == "" ? "" : " Name: """ name """") ((val := this.CurrentValue) == "" ? "" : " Value: """ val """") ((lct := this.CurrentLocalizedControlType) == "" ? "" : " LocalizedControlType: """ lct """") ((aid := this.CurrentAutomationId) == "" ? "" : " AutomationId: """ aid """") ((ak := this.CurrentAcceleratorKey) == "" ? "" : " AcceleratorKey: """ ak """")
 	}
 	; Returns info (ControlType, Name etc) for all descendants of the element. maxDepth is the allowed depth of recursion, by default 20 layers. DO NOT call this on the root element!
 	DumpAll(maxDepth=20) { 
@@ -968,15 +992,60 @@ class UIA_Element extends UIA_Base {
 		}
 		return returnArr
 	}
-	; Gets an element by the "path" that is displayed in the UIA_Element.DumpAll() result. This is like the Acc path, but for UIA (they are not compatible).
-	FindByPath(searchPath="") { 
-		el := this
+	/*
+		FindByPath gets an element by a relative "path" from a starting element. 
+		1) To get the nth child of the starting element, set searchPath to "n". To get a deeper node, separate the numbers with a ".": "2.1" will get the second childs first child. This kind of path can easily be got from the UIA_Element.DumpAll() method, which returns a path in the same style (this is like the Acc path but for UIA, they are not compatible!).
+		2) To get the nth parent of the starting element, use "Pn": "P2" will get the parent of the parent.
+		3) To get sibling elements, put a "+" or "-" in front of "n": +2 will get the next sibling from the next sibling (calling GetNextSiblingElement twice). Using this after "Pn" doesn't require a "." separator ("P2.-1" == "P2-1").
+
+		These conditions can also be combined:
+		searchPath="P1-1.1.1.2" -> gets the parent element, then the previous sibling element of the parent, and then "1.1.2" gets the second child of the first childs first child. 
+
+		c or condition argument can be used to only filter elements specified by the condition: 
+		UIA_Element.FindByPath("+2", UIA_Interface.CreateCondition("ControlType", "Button")) will only consider "Button" controls and gets the second sibling button.
+	*/
+	FindByPath(searchPath="", c="") { 
+		el := this, ErrorLevel := 0, PathTW := (c=="" ? this.TreeWalkerTrue : this.__UIA.CreateTreeWalker(c))
+		searchPath := StrReplace(StrReplace(searchPath, " "), ",", ".")
 		Loop, Parse, searchPath, .
 		{
-			children := el.GetChildren()
-			if !IsObject(el := children[A_LoopField])
-				return
+			if RegexMatch(A_LoopField, "^\d+$") {
+				children := el.GetChildren(0x2,c)
+				if !IsObject(el := children[A_LoopField])
+					return ErrorLevel := "Step " A_index " was out of bounds"
+			} else {
+				if RegexMatch(A_LoopField, "i)p(\d+)?", m) {
+					if !m1
+						m1 := 1
+					Loop, %m1% {
+						if !(el := PathTW.GetParentElement(el))
+							return ErrorLevel := "Step " A_index " with P" m1 " was out of bounds (GetParentElement failed)"
+					}
+				}
+				if RegexMatch(A_LoopField, "([+-])(\d+)?", m) {
+					if !m2
+						m2 := 1
+					if (m1 == "+") {
+						Loop, %m2% {
+							if !(el := PathTW.GetNextSiblingElement(el))
+								return ErrorLevel := "Step " A_index " with """ m1 m2 """ was out of bounds (GetNextSiblingElement failed)"
+						}
+					} else if (m1 == "-") {
+						Loop, %m2% {
+							if !(el := PathTW.GetPreviousSiblingElement(el))
+								return ErrorLevel := "Step " A_index " with """ m1 m2 """ was out of bounds (GetPreviousSiblingElement failed)"
+						}
+					}
+				}
+			}
 		}
+		return el
+	}
+	; Calls UIA_Element.FindByPath until the element is found and then returns it, with a timeOut of 10000ms (10 seconds). 
+	WaitElementExistByPath(searchPath="", c="", timeOut=10000) { 
+		startTime := A_TickCount
+		while (!IsObject(el := this.FindByPath(searchPath, c)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
+			Sleep, 100
 		return el
 	}
 	; Calls UIA_Element.FindFirstBy until the element is found and then returns it, with a timeOut of 10000ms (10 seconds). For explanations of the other arguments, see FindFirstBy
@@ -1308,7 +1377,7 @@ class _UIA_StructureChangedEventHandler extends UIA_Base { ; UNTESTED
 	Exposes a method to handle events that occur when Microsoft UI Automation reports a text-changed event from text edit controls
 	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtextedittextchangedeventhandler
 */
-class _UIA_TextEditTextChangedEventHandler { ; UNTESTED
+class _UIA_TextEditTextChangedEventHandler extends UIA_Base { ; UNTESTED
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/dn302202(v=vs.85).aspx
 	static __IID := "{92FAA680-E704-4156-931A-E32D5BB38F3F}"
 		,	__Properties := ""
@@ -1323,7 +1392,7 @@ class _UIA_TextEditTextChangedEventHandler { ; UNTESTED
 	Exposes a method to handle one or more Microsoft UI Automation change events
 	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationchangeseventhandler
 */
-class _UIA_ChangesEventHandler { ; UNTESTED
+class _UIA_ChangesEventHandler extends UIA_Base { ; UNTESTED
 	static __IID := "{58EDCA55-2C3E-4980-B1B9-56C17F27A2A0}"
 		,	__Properties := ""
 	HandleChangesEvent(sender, uiaChanges, changesCount) {
@@ -1338,7 +1407,7 @@ class _UIA_ChangesEventHandler { ; UNTESTED
 	Exposes a method to handle Microsoft UI Automation notification events
 	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationnotificationeventhandler
 */
-class _UIA_NotificationEventHandler {
+class _UIA_NotificationEventHandler extends UIA_Base {
 	static __IID := "{C7CB2637-E6C2-4D0C-85DE-4948C02175C7}"
 		,	__Properties := ""
 	HandleNotificationEvent(sender, notificationKind, notificationProcessing, displayString, activityId) {
@@ -1346,6 +1415,35 @@ class _UIA_NotificationEventHandler {
 		%funcName%(UIA_Element(sender), notificationKind, notificationProcessing, StrGet(displayString), StrGet(activityId))
 		DllCall("oleaut32\SysFreeString", "ptr", displayString), DllCall("oleaut32\SysFreeString", "ptr", activityId)
 		return param1
+	}
+}
+
+class UIA_AutomationEventHandlerGroup extends UIA_Base {
+	static __IID := "{C9EE12F2-C13B-4408-997C-639914377F4E}"
+		,	__Properties := ""
+	AddActiveTextPositionChangedEventHandler(scope=0x4, cacheRequest=0, handler="") {
+		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "int", scope, "int", cacheRequest.__Value, "ptr",out))
+	}
+	AddAutomationEventHandler(eventId, scope=0x4, cacheRequest=0, handler="") {
+		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "int", eventId, "uint", scope, "ptr",cacheRequest.__Value,"ptr", handler.__Value))
+	}
+	AddChangesEventHandler(scope, changeTypes, changesCount, cacheRequest=0, handler="") {
+		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "int", scope, "int", changeTypes, "int", changesCount, "ptr", cacheRequest.__Value, "ptr", handler.__Value))
+	}
+	AddNotificationEventHandler(scope=0x4, cacheRequest=0, handler="") {
+		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "int", scope, "int", cacheRequest.__Value, "ptr",out))
+	}
+	AddPropertyChangedEventHandler(scope=0x1,cacheRequest=0,handler="",propertyArray="") { 
+		SafeArray:=ComObjArray(0x3,propertyArray.MaxIndex())
+		for i,propertyId in propertyArray
+			SafeArray[i-1]:=propertyId
+		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "int",scope, "ptr",cacheRequest.__Value,"ptr",handler.__Value,"ptr",ComObjValue(SafeArray)))
+	}
+	AddStructureChangedEventHandler(scope=0x4, cacheRequest=0, handler="") { ; UNTESTED. 
+		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "int", scope, "ptr",cacheRequest.__Value, "ptr", handler.__Value))
+	}
+	AddTextEditTextChangedEventHandler(scope, textEditChangeType, cacheRequest=0, handler="") {
+		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "int", scope, "int", textEditChangeType, "ptr", cacheRequest.__Value, "ptr", handler.__Value))
 	}
 }
 
@@ -1699,7 +1797,7 @@ class UIA_TableItemPattern extends UIA_Base {
 class UIA_TablePattern extends UIA_Base {
 	static	__IID := "{620E691C-EA96-4710-A850-754B24CE2417}"
 		,	__PatternID := 10012
-		,	__Properties := "CurrentRowOrColumnMajor,5,int`r`nCachedRowOrColumnMajor,5,int"
+		,	__Properties := "CurrentRowOrColumnMajor,5,int`r`nCachedRowOrColumnMajor,8,int"
 	GetCurrentRowHeaders() {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*", out))&&out?UIA_ElementArray(out):
 	}

@@ -15,29 +15,30 @@ _xoffsetfirst := 328
 _xoffset := 5
 _yoffset := 20
 _ysoffset := 2
+_minSplitterPosX := 100, _maxSplitterPosX := 500, _maxSplitter3PosX, _minSplitterPosY := 100, _maxSplitterPosY := 500, SplitterW = 5
 
 Gui Main: New, AlwaysOnTop Resize hwndMainGuiHwnd, UIA Tree Inspector
 Gui Main: Default
 
 Gui Add, ListView, x8 y15 h460 w305 vLVWindowList gLVWindowList AltSubmit, Title|Process|ID
 
-Gui Add, GroupBox, x328 y10 w302 h130, Window/Control Info
-Gui Add, Text, xm+%_xoffsetfirst% yp+%_yoffset% w30 Section, WinTitle:
-Gui Add, Edit, ys-%_ysoffset% w235 vEditWinTitle, 
-Gui Add, Text, x338 yp+30 Section, Hwnd:
-Gui Add, Text,, Position:
-Gui Add, Text,, Size:
-Gui Add, Edit, ys-%_ysoffset% w80 vEditWinHwnd, 
-Gui Add, Edit, w80 vEditWinPosition,
-Gui Add, Edit, w80 vEditWinSize,
-Gui Add, Text, ys, ClassNN:
-Gui Add, Text,, Process:
-Gui Add, Text,, Process ID:
-Gui Add, Edit, ys-%_ysoffset% w80 vEditWinClass,
-Gui Add, Edit, w80 vEditWinProcess,
-Gui Add, Edit, w80 vEditWinProcessID,
+Gui Add, GroupBox, x328 y10 w302 h130 vGBWindowInfo, Window/Control Info
+Gui Add, Text, x338 y28 w30 vTextWinTitle, WinTitle:
+Gui Add, Edit, x385 yp-%_ysoffset% w235 vEditWinTitle, 
+Gui Add, Text, x338 y56 vTextHwnd, Hwnd:
+Gui Add, Edit, x385 yp-%_ysoffset% w90 vEditWinHwnd, 
+Gui Add, Text, x338 y86 vTextPosition, Position:
+Gui Add, Edit, x385 yp-%_ysoffset% w90 vEditWinPosition,
+Gui Add, Text, x338 y116 vTextSize, Size:
+Gui Add, Edit, x385 yp-%_ysoffset% w90 vEditWinSize,
+Gui Add, Text, x480 y56 vTextClassNN, ClassNN:
+Gui Add, Edit, x530 yp-%_ysoffset% w90 vEditWinClass,
+Gui Add, Text, x480 y86 vTextProcess, Process:
+Gui Add, Edit, x530 yp-%_ysoffset% w90 vEditWinProcess,
+Gui Add, Text, x480 y116 vTextProcessID, PID:
+Gui Add, Edit, x530 yp-%_ysoffset% w90 vEditWinProcessID,
 
-Gui Add, GroupBox, x%_xoffsetfirst% y150 w302 h240, UIAutomation Element Properties
+Gui Add, GroupBox, x%_xoffsetfirst% y150 w302 h240 vGBProperties, UIAutomation Element Properties
 Gui Add, ListView, xm+%_xoffsetfirst% yp+%_yoffset% h210 w285 vLVPropertyIds gLVPropertyIds AltSubmit, PropertyId|Value
 ClearLVPropertyIds()
 
@@ -57,6 +58,13 @@ Gui, Font
 SB_SetParts(380)
 SB_SetText("`tCurrent UIA Interface version: " UIA.__Version,2)
 
+Gui, Add, Text, x630 y0 w%SplitterW% h500 vSplitter1 gMoveSplitter1
+Gui, Add, Text, x%_xoffsetfirst% y390 w300 h%SplitterW% vSplitter2 gMoveSplitter2
+Gui, Add, Text, x320 y0 w%SplitterW% h500 vSplitter3 gMoveSplitter3
+; Change the cursor when mouse is over splitter control
+OnMessage(WM_SETCURSOR := 0x20, "HandleMessage")
+OnMessage(WM_MOUSEMOVE := 0x200, "HandleMessage") 
+
 Gui Show,, UIA Tree Inspector
 Return
 
@@ -66,12 +74,17 @@ MainGuiClose:
     ExitApp
 
 MainGuiSize(GuiHwnd, EventInfo, Width, Height){
+	global splitterW, _minSplitterPosX := 200, _maxSplitterPosX := (Width - SplitterW), _minSplitterPosY := 220, _maxSplitterPosY := (Height - SplitterW - 100), _maxSplitter3PosX
+
 	GuiControl, -Redraw, MainTreeView
 	GuiControlGet, Pos, Pos , MainTreeView
 	GuiControl, Move, MainTreeView, % "w" Width -Posx-10 " h" Height -Posy-35
+	GuiControl, Move, Splitter1, % "h" Height-60
+	GuiControl, Move, Splitter3, % "h" Height-60
 	GuiControl, +Redraw, MainTreeView
 	GuiControl, -Redraw, TVPatterns
 	GuiControlGet, Pos, Pos , TVPatterns
+	_maxSplitter3PosX := PosX+PosW-100
 	GuiControl, Move, TVPatterns, % " h" Height -Posy-35
 	GuiControl, +Redraw, TVPatterns
 	GuiControlGet, Pos, Pos , LVWindowList
@@ -207,9 +220,171 @@ MainTreeView:
 	}
 	return
 
+MoveSplitter1:
+	DragSplitter1("Splitter1")
+	return
+MoveSplitter2:
+	DragSplitter2("Splitter2")
+	return
+MoveSplitter3:
+	DragSplitter3("Splitter3")
+	return
+
 RemoveToolTip:
 	ToolTip
 	return
+
+; Handle splitters to adjust the size of controls
+GetMouseOffsets(ByRef offsetX, ByRef offsetY, _controlName) {
+	CoordMode Mouse, Screen
+	MouseGetPos initScrX, initScrY, hWnd
+	CoordMode Mouse, Relative   ; Restore default
+	MouseGetPos initWinX, initWinY
+	; Compute client area relative coordinates of the mouse
+	VarSetCapacity(point, 8), NumPut(initScrX, point, 0, "int"), NumPut(initScrY, point, 4, "int")
+	DllCall("user32\ScreenToClient", "ptr", hWnd, "ptr", &point, "int")
+	initCliX := NumGet(point,0,"Int"), initCliY := NumGet(point,4,"Int")
+	; Coordinates of the control, relative to the client area
+	GuiControlGet controlPos, Pos, %_controlName%
+	mouseX := controlPosX, 	mouseY := controlPosY
+	; Compute offset between click inside control and top-left corner of control
+	offsetX := initCliX - controlPosX, offsetY :=  initCliY - controlPosY
+	; Add offset between window and client area
+	offsetX += initWinX - initCliX, offsetY += initWinY - initCliY
+}
+
+DragSplitter1(_controlName) { ; Based on a script by user PhiLho (https://www.autohotkey.com/board/topic/8001-splitter-bar-window-control-with-ahk/)
+	global _minSplitterPosX, _maxSplitterPosX
+	if !GetKeyState("LButton")
+		return
+	GetMouseOffsets(offsetX, offsetY, _controlName)
+	originalSizes := GetControlSizes(_controlName, "LVPropertyIds", "GBWindowInfo", "EditWinTitle", "GBProperties", "GBPatterns", "TVPatterns", "ButCapture", "EditWinHwnd", "EditWinPosition", "EditWinSize", "TextClassNN", "TextProcess", "TextProcessID", "EditWinClass", "EditWinProcess", "EditWinProcessID", "MainTreeView", "ButRefreshTreeview", "Splitter2")
+	oldControlPos := originalSizes[_controlName]
+	Loop {
+		if !GetKeyState("LButton")
+			Break 
+		MouseGetPos, mouseX, mouseY
+		mouseX -= offsetX
+
+		if (mouseX < _minSplitterPosX) {
+			mouseX := _minSplitterPosX
+		}
+		if (mouseX > _maxSplitterPosX) {
+			mouseX := _maxSplitterPosX
+		}
+		moveX := Floor((mouseX-oldControlPos.x)*(96/A_ScreenDPI))
+		OffsetControls(originalSizes,moveX,,,, _controlName)
+		OffsetControls(originalSizes,,, moveX,, "LVPropertyIds", "GBWindowInfo", "EditWinTitle", "GBProperties", "GBPatterns", "TVPatterns", "ButCapture", "Splitter2")
+		OffsetControls(originalSizes,,, moveX//2,, "EditWinHwnd", "EditWinPosition", "EditWinSize")
+		OffsetControls(originalSizes,moveX//2,, moveX//2,,"EditWinClass", "EditWinProcess", "EditWinProcessID")
+		OffsetControls(originalSizes,moveX//2,,,, "TextClassNN", "TextProcess", "TextProcessID")
+		OffsetControls(originalSizes,moveX,, -moveX,, "MainTreeView", "ButRefreshTreeview")
+		Sleep 100
+	}
+	WinSet, Redraw,, ahk_id %MainGuiHwnd%
+}
+DragSplitter2(_controlName) {
+	global _minSplitterPosY, _maxSplitterPosY
+	if !GetKeyState("LButton")
+		return
+	GetMouseOffsets(offsetX, offsetY, _controlName)
+
+	originalSizes := GetControlSizes(_controlName, "LVPropertyIds", "GBWindowInfo", "EditWinTitle", "GBProperties", "GBPatterns", "TVPatterns", "ButCapture", "EditWinHwnd", "EditWinPosition", "EditWinSize", "TextClassNN", "TextProcess", "TextProcessID", "EditWinClass", "EditWinProcess", "EditWinProcessID", "MainTreeView", "ButRefreshTreeview")
+	oldControlPos := originalSizes[_controlName]
+	Loop {
+		if !GetKeyState("LButton")
+			Break 
+		MouseGetPos, mouseX, mouseY
+		mouseY -= offsetY
+
+		if (mouseY < _minSplitterPosY) {
+			mouseY := _minSplitterPosY
+		}
+		if (mouseY > _maxSplitterPosY) {
+			mouseY := _maxSplitterPosY
+		}
+		moveY := Floor((mouseY-oldControlPos.y)*(96/A_ScreenDPI))
+		OffsetControls(originalSizes,,moveY,,, _controlName)
+		OffsetControls(originalSizes, ,, ,moveY, "LVPropertyIds", "GBProperties")
+		OffsetControls(originalSizes,,moveY, ,-moveY, "GBPatterns", "TVPatterns")
+		Sleep 100
+	}
+	WinSet, Redraw,, ahk_id %MainGuiHwnd%
+}
+DragSplitter3(_controlName) { ; Based on a script by user PhiLho (https://www.autohotkey.com/board/topic/8001-splitter-bar-window-control-with-ahk/)
+	global _minSplitterPosX, _maxSplitter3PosX
+	if !GetKeyState("LButton")
+		return
+	GetMouseOffsets(offsetX, offsetY, _controlName)
+	originalSizes := GetControlSizes(_controlName, "LVWindowList", "LVPropertyIds", "GBWindowInfo", "EditWinTitle", "GBProperties", "GBPatterns", "TVPatterns", "TextWinTitle", "TextHwnd", "TextPosition", "TextSize", "EditWinHwnd", "EditWinPosition", "EditWinSize", "TextClassNN", "TextProcess", "TextProcessID", "EditWinClass", "EditWinProcess", "EditWinProcessID", "ButRefreshTreeview", "ButRefreshWindowList", "CBVisible", "CBTitle", "CBActivate", "MainTreeView", "Splitter3")
+	oldControlPos := originalSizes[_controlName]
+	Loop {
+		if !GetKeyState("LButton")
+			Break 
+		MouseGetPos, mouseX, mouseY
+		mouseX -= offsetX
+
+		if (mouseX < _minSplitterPosX) {
+			mouseX := _minSplitterPosX
+		}
+		if (mouseX > _maxSplitter3PosX) {
+			mouseX := _maxSplitter3PosX
+		}
+		moveX := Floor((mouseX-oldControlPos.x)*(96/A_ScreenDPI))
+		OffsetControls(originalSizes,moveX,,,, _controlName)
+		OffsetControls(originalSizes,,, moveX,, "LVWindowList", "ButRefreshWindowList", "MainTreeView")
+		OffsetControls(originalSizes,moveX,, -moveX,, "LVPropertyIds", "GBWindowInfo", "EditWinTitle", "GBProperties", "GBPatterns", "TVPatterns", "Splitter2")
+		OffsetControls(originalSizes,moveX,, -moveX//2,, "EditWinHwnd", "EditWinPosition", "EditWinSize")
+		OffsetControls(originalSizes,moveX//2,, -moveX//2,, "EditWinClass", "EditWinProcess", "EditWinProcessID")
+		OffsetControls(originalSizes,moveX,,,, "CBVisible", "CBTitle", "CBActivate", "TextWinTitle", "TextHwnd", "TextPosition", "TextSize")
+		OffsetControls(originalSizes,moveX//2,,,, "TextClassNN", "TextProcess", "TextProcessID")
+		
+		;OffsetControls(originalSizes,moveX,, -moveX,, "MainTreeView", "ButRefreshTreeview")
+		Sleep 100
+	}
+	WinSet, Redraw,, ahk_id %MainGuiHwnd%
+}
+
+GetControlSizes(ctrls*) {
+	sizes := {}
+	for _, ctrl in ctrls {
+		GuiControlGet ctrlSize, Pos, %ctrl%
+		sizes[ctrl] := {x:ctrlSizeX, y:ctrlSizeY, w:ctrlSizeW, h:ctrlSizeH}
+	}
+	return sizes
+}
+
+OffsetControls(sizes=0, offsetX=0, offsetY=0, offsetW=0, offsetH=0, ctrls*) {
+	for _, ctrl in ctrls {
+		ctrlSize := sizes[ctrl]
+		GuiControl Move, %ctrl%, % "x" (ctrlSize.x+offsetX) " y" (ctrlSize.y+offsetY) " w" (ctrlSize.w+offsetW) " h" (ctrlSize.h+offsetH)
+	}
+}
+
+HandleMessage(p_w, p_l, p_m, p_hw)
+{
+	global WM_SETCURSOR, WM_MOUSEMOVE
+	static hover, IDC_SIZEWE, h_old_cursor
+ 
+	if (p_m = WM_SETCURSOR) {
+		if hover
+			return, true
+	}
+	else if (p_m = WM_MOUSEMOVE) {
+			; cursor hovers splitter control
+			if InStr(A_GuiControl, "Splitter") {
+				if hover =
+				{
+					IDC_SIZEWE := DllCall("LoadCursor", "uint", 0, "uint", A_GuiControl == "Splitter2" ? 32645 : 32644) ; IDC_SIZEWE = 32644
+					hover = true
+				}                 
+				h_old_cursor := DllCall("SetCursor", "uint", IDC_SIZEWE)
+			} else if hover {
+				DllCall("SetCursor", "uint", h_old_cursor)
+				hover=
+			}
+	}
+}
 
 ClearLVPropertyIds() {
 	Gui, ListView, LVPropertyIds

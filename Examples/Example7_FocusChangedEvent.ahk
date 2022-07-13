@@ -3,8 +3,10 @@
 SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 SetTitleMatchMode, 2
 
-#include <UIA_Interface>
-#include <UIA_Browser>
+;#include <UIA_Interface> ; Uncomment if you have moved UIA_Interface.ahk to your main Lib folder
+#include ..\Lib\UIA_Interface.ahk
+;#include <UIA_Browser> ; Uncomment if you have moved UIA_Browser.ahk to your main Lib folder
+#include ..\Lib\UIA_Browser.ahk
 
 EventHandler(el) {
 	global cUIA

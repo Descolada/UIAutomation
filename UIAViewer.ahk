@@ -5,7 +5,7 @@ SetBatchLines -1
 CoordMode, Mouse, Screen
 DetectHiddenWindows, On
 
-global DeepSearchFromPoint := False ; When set to True, UIAViewer iterates through the whole UIA tree to find the smallest element from mouse point. This might be very slow with large trees.
+DeepSearchFromPoint := False ; Sets the default value for the deep search checkbox. When set to True (or checked), UIAViewer iterates through the whole UIA tree to find the smallest element from mouse point. This might be very slow with large trees.
 
 global UIA := UIA_Interface(), IsCapturing := False, Stored := {}, Acc, EnableAccTree := False, MainGuiHwnd
 Stored.TreeView := {}
@@ -15,27 +15,27 @@ Acc_Error(1)
 _xoffsetfirst := 8
 _xoffset := 5
 _yoffset := 20
-_ysoffset := 2
+_ysoffset := 3
 _minSplitterPosX := 100, _maxSplitterPosX := 500, _minSplitterPosY := 100, _maxSplitterPosY := 500, SplitterW = 5
 
 Gui Main: New, AlwaysOnTop Resize hwndMainGuiHwnd, UIAViewer
 Gui Main: Default
 
 Gui Add, GroupBox, x8 y10 w302 h130 vGBWindowInfo, Window/Control Info
-Gui Add, Text, xm+%_xoffsetfirst% yp+%_yoffset% w30 Section, WinTitle:
-Gui Add, Edit, ys-%_ysoffset% w235 vEditWinTitle, 
-Gui Add, Text, x18 yp+30 Section, Hwnd:
-Gui Add, Text,, Position:
-Gui Add, Text,, Size:
-Gui Add, Edit, ys-%_ysoffset% w80 vEditWinHwnd, 
-Gui Add, Edit, w80 vEditWinPosition,
-Gui Add, Edit, w80 vEditWinSize,
-Gui Add, Text, ys vTextClassNN, ClassNN:
-Gui Add, Text, vTextProcess, Process:
-Gui Add, Text, vTextProcessID, Process ID:
-Gui Add, Edit, ys-%_ysoffset% w80 vEditWinClass,
-Gui Add, Edit, w80 vEditWinProcess,
-Gui Add, Edit, w80 vEditWinProcessID,
+Gui Add, Text, x18 y28 w30 vTextWinTitle, WinTitle:
+Gui Add, Edit, x65 yp-%_ysoffset% w235 vEditWinTitle, 
+Gui Add, Text, x18 y56 vTextHwnd, Hwnd:
+Gui Add, Edit, x65 yp-%_ysoffset% w90 vEditWinHwnd, 
+Gui Add, Text, x18 y86 vTextPosition, Position:
+Gui Add, Edit, x65 yp-%_ysoffset% w90 vEditWinPosition,
+Gui Add, Text, x18 y116 vTextSize, Size:
+Gui Add, Edit, x65 yp-%_ysoffset% w90 vEditWinSize,
+Gui Add, Text, x160 y56 vTextClassNN, ClassNN:
+Gui Add, Edit, x210 yp-%_ysoffset% w90 vEditWinClass,
+Gui Add, Text, x160 y86 vTextProcess, Process:
+Gui Add, Edit, x210 yp-%_ysoffset% w90 vEditWinProcess,
+Gui Add, Text, x160 y116 vTextProcessID, PID:
+Gui Add, Edit, x210 yp-%_ysoffset% w90 vEditWinProcessID,
 
 Gui Add, GroupBox, x%_xoffsetfirst% y150 w302 h240 vGBProperties, UIAutomation Element Properties
 Gui Add, ListView, xm+%_xoffsetfirst% yp+%_yoffset% h210 w285 vLVPropertyIds gLVPropertyIds AltSubmit, PropertyId|Value
@@ -43,8 +43,11 @@ ClearLVPropertyIds()
 
 Gui Add, GroupBox, x%_xoffsetfirst% y395 w302 h90 vGBPatterns, UIAutomation Element Patterns
 Gui Add, TreeView, xm+%_xoffsetfirst% yp+%_yoffset% r4 w285 vTVPatterns gTVPatterns AltSubmit
-Gui Add, Button, xm+60 yp+75 w150 gButCapture vButCapture, Start capturing (F1)
-Gui Add, Button, xp+300 yp w192 vButRefreshTreeView gButRefreshTreeView +Disabled, Start capturing to show tree
+Gui Add, Button, xm+10 yp+75 w150 gButCapture vButCapture, Start capturing (F1)
+Gui Add, CheckBox, xp+160 yp-2 w170 vCBDeepSearch, Deep search (slower)
+if DeepSearchFromPoint
+	GuiControl,, CBDeepSearch, 1
+Gui Add, Button, xp+200 yp w192 vButRefreshTreeView gButRefreshTreeView +Disabled, Start capturing to show tree
 
 Gui Add, TreeView, x320 y8 w300 h435 hwndhMainTreeView vMainTreeView gMainTreeView
 Gui, Font, Bold
@@ -54,8 +57,8 @@ Gui, Font
 SB_SetParts(380)
 SB_SetText("`tCurrent UIA Interface version: " UIA.__Version,2)
 
-Gui, add, Text, x310 y0 w%SplitterW% h500 vSplitter1 gMoveSplitter1
-Gui, add, Text, x%_xoffsetfirst% y390 w300 h%SplitterW% vSplitter2 gMoveSplitter2
+Gui, Add, Text, x310 y0 w%SplitterW% h500 vSplitter1 gMoveSplitter1
+Gui, Add, Text, x%_xoffsetfirst% y390 w300 h%SplitterW% vSplitter2 gMoveSplitter2
 ; Change the cursor when mouse is over splitter control
 OnMessage(WM_SETCURSOR := 0x20, "HandleMessage")
 OnMessage(WM_MOUSEMOVE := 0x200, "HandleMessage") 
@@ -81,6 +84,7 @@ MainGuiSize(GuiHwnd, EventInfo, Width, Height){
 	GuiControlGet, Pos, Pos , TVPatterns
 	GuiControl, Move, TVPatterns, % " h" Height -Posy-60
 	GuiControl, Move, ButCapture, % "y" Height -50
+	GuiControl, Move, CBDeepSearch, % "y" Height -47
 	GuiControl, +Redraw, TVPatterns
 	GuiControlGet, Pos, Pos , GBPatterns
 	GuiControl, Move, GBPatterns, % " h" Height -Posy-55
@@ -174,6 +178,7 @@ ButCapture:
 			MouseGetPos, mX, mY, mHwnd, mCtrl
 					
 			try {
+				GuiControlGet, DeepSearchFromPoint,, CBDeepSearch
 				mEl := UIA.SmallestElementFromPoint(mX, mY, True, DeepSearchFromPoint ? UIA.ElementFromHandle(mHwnd) : "")
 			} catch e {
 				UpdateElementFields()
@@ -253,14 +258,14 @@ RemoveToolTip:
 	return
 
 MoveSplitter1:
-   DragSplitter1("Splitter1")
+	DragSplitter1("Splitter1")
+	return
 
 MoveSplitter2:
-   DragSplitter2("Splitter2")
-Return
+	DragSplitter2("Splitter2")
+	return
 
-;----- The real stuff...
-
+; Handle splitters to adjust the size of controls
 GetMouseOffsets(ByRef offsetX, ByRef offsetY, _controlName) {
 	CoordMode Mouse, Screen
 	MouseGetPos initScrX, initScrY, hWnd
@@ -284,8 +289,7 @@ DragSplitter1(_controlName) { ; Based on a script by user PhiLho (https://www.au
 	if !GetKeyState("LButton")
 		return
 	GetMouseOffsets(offsetX, offsetY, _controlName)
-
-	originalSizes := GetControlSizes(_controlName, "LVPropertyIds", "GBWindowInfo", "EditWinTitle", "GBProperties", "GBPatterns", "TVPatterns", "ButCapture", "EditWinHwnd", "EditWinPosition", "EditWinSize", "TextClassNN", "TextProcess", "TextProcessID", "EditWinClass", "EditWinProcess", "EditWinProcessID", "MainTreeView", "ButRefreshTreeview", "Splitter2")
+	originalSizes := GetControlSizes(_controlName, "LVPropertyIds", "GBWindowInfo", "EditWinTitle", "GBProperties", "GBPatterns", "TVPatterns", "ButCapture", "CBDeepSearch", "EditWinHwnd", "EditWinPosition", "EditWinSize", "TextClassNN", "TextProcess", "TextProcessID", "EditWinClass", "EditWinProcess", "EditWinProcessID", "MainTreeView", "ButRefreshTreeview", "Splitter2")
 	oldControlPos := originalSizes[_controlName]
 	Loop {
 		if !GetKeyState("LButton")
@@ -298,13 +302,13 @@ DragSplitter1(_controlName) { ; Based on a script by user PhiLho (https://www.au
 		}
 		if (mouseX > _maxSplitterPosX) {
 			mouseX := _maxSplitterPosX
-		}		
-		mouseY := oldControlPos.y
-		GuiControl MoveDraw, %_controlName%, x%mouseX% y%mouseY%
-		moveX := mouseX-oldControlPos.x
+		}
+		moveX := Floor((mouseX-oldControlPos.x)*(96/A_ScreenDPI))
+		OffsetControls(originalSizes,moveX,,,, _controlName, "CBDeepSearch")
 		OffsetControls(originalSizes,,, moveX,, "LVPropertyIds", "GBWindowInfo", "EditWinTitle", "GBProperties", "GBPatterns", "TVPatterns", "ButCapture", "Splitter2")
 		OffsetControls(originalSizes,,, moveX//2,, "EditWinHwnd", "EditWinPosition", "EditWinSize")
-		OffsetControls(originalSizes,moveX//2,, moveX//2,, "TextClassNN", "TextProcess", "TextProcessID", "EditWinClass", "EditWinProcess", "EditWinProcessID")
+		OffsetControls(originalSizes,moveX//2,, moveX//2,,"EditWinClass", "EditWinProcess", "EditWinProcessID")
+		OffsetControls(originalSizes,moveX//2,,,, "TextClassNN", "TextProcess", "TextProcessID")
 		OffsetControls(originalSizes,moveX,, -moveX,, "MainTreeView", "ButRefreshTreeview")
 		Sleep 100
 	}
@@ -329,10 +333,9 @@ DragSplitter2(_controlName) {
 		}
 		if (mouseY > _maxSplitterPosY) {
 			mouseY := _maxSplitterPosY
-		}		
-		mouseX := oldControlPos.x
-		GuiControl MoveDraw, %_controlName%, x%mouseX% y%mouseY%
-		moveY := mouseY-oldControlPos.y
+		}
+		moveY := Floor((mouseY-oldControlPos.y)*(96/A_ScreenDPI))
+		OffsetControls(originalSizes,,moveY,,, _controlName)
 		OffsetControls(originalSizes, ,, ,moveY, "LVPropertyIds", "GBProperties")
 		OffsetControls(originalSizes,,moveY, ,-moveY, "GBPatterns", "TVPatterns")
 		Sleep 100

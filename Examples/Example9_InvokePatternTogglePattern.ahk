@@ -4,7 +4,8 @@
 SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 SetTitleMatchMode, 2
 
-#include <UIA_Interface>
+;#include <UIA_Interface> ; Uncomment if you have moved UIA_Interface.ahk to your main Lib folder
+#include ..\Lib\UIA_Interface.ahk
 
 Run, explore C:\
 UIA := UIA_Interface()

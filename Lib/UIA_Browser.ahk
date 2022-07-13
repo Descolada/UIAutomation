@@ -323,6 +323,10 @@ class UIA_Browser {
 		if (navigateToNewUrl&&InStr(this.URLEditElement.CurrentValue, newUrl))
 			ControlSend,, {LCtrl up}{LAlt up}{LShift up}{RCtrl up}{RAlt up}{RShift up}{Enter}, % "ahk_id" this.BrowserId ; Or would it be better to use BlockInput instead of releasing modifier keys?
 	}
+
+	Navigate(url) {
+		this.SetURL(url, True)
+	}
 	
 	; Presses the New tab button. The button name might differ if the browser language is not set to English and can be specified with butName
 	NewTab(butName="New tab", matchMode=2, caseSensitive=False) { 

@@ -1,6 +1,8 @@
 ﻿#NoEnv
 #SingleInstance force
-#include <UIA_Interface>
+
+;#include <UIA_Interface> ; Uncomment if you have moved UIA_Interface.ahk to your main Lib folder
+#include ..\Lib\UIA_Interface.ahk
 
 Run, calc.exe
 UIA := UIA_Interface() ; Initialize UIA interface

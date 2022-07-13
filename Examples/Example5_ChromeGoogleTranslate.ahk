@@ -17,18 +17,15 @@ cUIA.Navigate("https://www.google.com/preferences#languages") ; Set the URL and 
 cUIA.WaitPageLoad() ; Wait the page to load
 cUIA.FindFirstByName("Show more").Click() ; Display all languages to ensure English is visible
 cUIA.WaitElementExistByName("English").Click() ; Select English
-cUIA.FindFirstByName("Save").Click()
-Sleep, 2000
+cUIA.FindFirstByName("Save").Click(2000) ; Click Save and Sleep for 2000ms
 cUIA.CloseAlert() ; Sometimes a dialog pops up that confirms the save, in that case press "OK"
 cUIA.WaitPageLoad("Google") ; Wait for Google main page to load, default timeout of 10 seconds
 
 cUIA.Navigate("https://translate.google.com/") ; Navigate to Google Translate
 cUIA.WaitPageLoad()
 cUIA.FindFirstByName("More source languages").Click() ; Click source languages selection
-cUIA.WaitElementExistByName("Spanish").Click() ; Select Spanish
-Sleep, 500
-cUIA.FindFirstByName("More target languages").Click() ; Open target languages selection
-Sleep, 500
+cUIA.WaitElementExistByName("Spanish").Click(500) ; Select Spanish, Sleep for 500ms
+cUIA.FindFirstByName("More target languages").Click(500) ; Open target languages selection, Sleep for 500ms
 allEnglishEls := cUIA.FindAllByName("English") ; Find all elements with name "English"
 allEnglishEls[allEnglishEls.MaxIndex()].Click() ; Select the last element with the name English (because English might also be an option in source languages, in which case it would be found first)
 

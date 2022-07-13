@@ -118,8 +118,7 @@ class UIA_Interface extends UIA_Base {
 			WinGet, cList, ControlList, ahk_id %hwnd%
 			if InStr(cList, "Chrome_RenderWidgetHostHWND1") {
 				SendMessage, WM_GETOBJECT := 0x003D, 0, 1, Chrome_RenderWidgetHostHWND1, ahk_id %hwnd%
-				try rendererEl := retEl.FindFirstBy("ClassName=Chrome_RenderWidgetHostHWND"), startTime := A_TickCount
-				rendererEl := rendererEl ? rendererEl : retEl
+				try rendererEl := retEl.FindFirstBy("ClassName=Chrome_RenderWidgetHostHWND", 0x5), startTime := A_TickCount
 				if rendererEl {
 					rendererEl.CurrentName ; it doesn't work without calling CurrentName (at least in Skype)
 					while (!rendererEl.CurrentValue && (A_TickCount-startTime < 500))
@@ -139,7 +138,7 @@ class UIA_Interface extends UIA_Base {
 		if (activateChromiumAccessibility && (hwnd := DllCall("GetAncestor", "UInt", DllCall("user32.dll\WindowFromPoint", "int64",  y << 32 | x), "UInt", GA_ROOT := 2)) && !activatedHwnds[hwnd]) { ; hwnd from point by SKAN
 			WinGet, cList, ControlList, ahk_id %hwnd%
 			if InStr(cList, "Chrome_RenderWidgetHostHWND1") 
-				try this.ElementFromHandle(hwnd, False)
+				try this.ElementFromHandle(hwnd, True)
 			activatedHwnds[hwnd] := 1
 		}
 		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "UInt64",x==""||y==""?pt:x&0xFFFFFFFF|(y&0xFFFFFFFF)<<32, "ptr*",out))? UIA_Element(out):
@@ -702,35 +701,44 @@ class UIA_Element extends UIA_Base {
 		}
 	}
 	; Click using one of the available click-like methods (InvokePattern Invoke(), TogglePattern Toggle(), ExpandCollapsePattern Expand() or Collapse() (depending on the state of the element), SelectionItemPattern Select(), or LegacyIAccessible DoDefaultAction()), in which case ClickCount is ignored. If WhichButton is specified (for example "left", "right") then the native mouse Click function will be used to click the center of the element.
-	Click(WhichButton="", ClickCount=1, DownOrUp="", Relative="") { 
-		;StringLower, WhichButton, WhichButton		
-		if (WhichButton == "") {
+	; If WhichButton is a number, then Sleep will be called with that number. Otherwise a Sleep can be specified with SleepTime
+	Click(WhichButton="", ClickCount=1, DownOrUp="", Relative="", SleepTime=-1) { 		
+		if ((WhichButton == "") or RegexMatch(WhichButton, "^\d+$")) {
+			SleepTime := WhichButton ? WhichButton : sleepTime
 			if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsInvokePatternAvailablePropertyId)) {
 				this.GetCurrentPatternAs("Invoke").Invoke()
+				Sleep, %SleepTime%
 				return 1
 			}
 			if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsTogglePatternAvailablePropertyId)) {
 				togglePattern := this.GetCurrentPatternAs("Toggle"), toggleState := togglePattern.CurrentToggleState
 				togglePattern.Toggle()
-				if (togglePattern.CurrentToggleState != toggleState)
+				if (togglePattern.CurrentToggleState != toggleState) {
+					Sleep, %SleepTime%
 					return 1
+				}
 			}
 			if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsExpandCollapsePatternAvailablePropertyId)) {
 				if ((expandState := (pattern := this.GetCurrentPatternAs("ExpandCollapse")).CurrentExpandCollapseState) == 0)
 					pattern.Expand()
 				Else
 					pattern.Collapse()
-				if (pattern.CurrentExpandCollapseState != expandState)
+				if (pattern.CurrentExpandCollapseState != expandState) {
+					Sleep, %SleepTime%
 					return 1
+				}
 			} 
 			if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsSelectionItemPatternAvailablePropertyId)) {
 				selectionPattern := this.GetCurrentPatternAs("SelectionItem"), selectionState := selectionPattern.CurrentIsSelected
 				selectionPattern.Select()
-				if (selectionPattern.CurrentIsSelected != selectionState)
+				if (selectionPattern.CurrentIsSelected != selectionState) {
+					Sleep, %sleepTime%
 					return 1
+				}
 			}
 			if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsLegacyIAccessiblePatternAvailablePropertyId)) {
 				this.GetCurrentPatternAs("LegacyIAccessible").DoDefaultAction()
+				Sleep, %sleepTime%
 				return 1
 			}
 			return 0
@@ -740,6 +748,7 @@ class UIA_Element extends UIA_Base {
 				Click, % pos.x+pos.w//2 " " pos.y+pos.h//2 " " WhichButton (ClickCount ? " " ClickCount : "") (DownOrUp ? " " DownOrUp : "") (Relative ? " " Relative : "")
 			} else
 				Click, % pos.x " " pos.y " " WhichButton (ClickCount ? " " ClickCount : "") (DownOrUp ? " " DownOrUp : "") (Relative ? " " Relative : "")
+			Sleep, %sleepTime%
 		}
 	}
 	; ControlClicks the element after getting relative coordinates with GetClickablePointRelativeTo("window"). Specifying WinTitle makes the function faster, since it bypasses getting the Hwnd from the element.
@@ -761,8 +770,6 @@ class UIA_Element extends UIA_Base {
 			return {x:br.l, y:br.t, w:(br.r-br.l), h:(br.b-br.t)}
 		else {
 			hwnd := this.GetParentHwnd()
-			;WinGetTitle, wTitle, ahk_id %hwnd% ; for debugging purposes
-			;ToolTip, %wTitle%
 			if ((relativeTo == "window") || (relativeTo == "relative")) {
 				VarSetCapacity(RECT, 16)
 				DllCall("user32\GetWindowRect", "Ptr", hwnd, "Ptr", &RECT)
@@ -838,31 +845,32 @@ class UIA_Element extends UIA_Base {
 
 	*/
 	FindFirstBy(expr, scope=0x4, matchMode=3, caseSensitive=True) { 
+		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
 		pos := 1, match := "", createCondition := "", operator := "", bufName := []
 		while (pos := RegexMatch(expr, "(.*?)=(.*?)( AND | OR | && | \|\| |$)", match, pos+StrLen(match))) {
 			if !match
 				break
-			if (InStr(match1, "Name") && (matchMode != 2) && (matchMode != 3)) {
+			if (InStr(match1, "Name") && ((matchMode != 2) || ((matchMode == 2) && !MatchSubstringSupported)) && (matchMode != 3)) {
 				bufName[1] := match1, bufName[2] := match2
 				Continue
 			} else {
-				;MsgBox, % "Creating condition with: m1: """ match1 """ m2: """ match2 """ m3: """ match3 """ flags: " ((matchMode==2)?2:0)|!caseSensitive
-				newCondition := (SubStr(match1, 1, 4) == "NOT ") ? this.__UIA.CreateNotCondition(this.__UIA.CreateCondition(SubStr(match1, 5), match2, ((matchMode==2 && match1=="Name")?2:0)|!caseSensitive)) : this.__UIA.CreateCondition(match1, match2, ((matchMode==2 && match1=="Name")?2:0)|!caseSensitive)
+				;OutputDebug, % "Creating condition with: m1: """ match1 """ m2: """ match2 """ m3: """ match3 """ flags: " (((matchMode==2) && (match1="Name"))?2:0)|!caseSensitive
+				newCondition := (SubStr(match1, 1, 4) = "NOT ") ? this.__UIA.CreateNotCondition(this.__UIA.CreateCondition(SubStr(match1, 5), match2, ((matchMode==2 && match1=="Name")?2:0)|!caseSensitive)) : this.__UIA.CreateCondition(match1, match2, (((matchMode==2) && (match1="Name"))?2:0)|!caseSensitive)
 			}
 			fullCondition := (operator == " AND " || operator == " && ") ? this.__UIA.CreateAndCondition(fullCondition, newCondition) : (operator == " OR " || operator == " || ") ? this.__UIA.CreateOrCondition(fullCondition, newCondition) : newCondition
 			operator := match3
 		}
 		if (bufName[1]) {
-			notProp := !InStr(bufName[1], "NOT "), name := bufName[2]
+			notProp := InStr(bufName[1], "NOT "), name := bufName[2]
 			nameCondition := (matchMode==1)?this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, 2|!caseSensitive):this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_NamePropertyId, ""))
 			fullCondition := IsObject(fullCondition) ? this.__UIA.CreateAndCondition(nameCondition, fullCondition) : nameCondition
 			for k, v in this.FindAll(fullCondition, scope) {
 				curName := v.CurrentName
 				if notProp {
-					if (((matchMode == 1) && (SubStr(curName, 1, StrLen(name)) = name)) || (InStr(matchMode, "RegEx") && RegExMatch(curName, name)))
+					if (((matchMode == 1) && !InStr(SubStr(curName, 1, StrLen(name)), name, caseSensitive)) || ((matchMode == 2) && !InStr(curName, name, caseSensitive)) || (InStr(matchMode, "RegEx") && !RegExMatch(curName, name)))
 						return v
 				} else {
-					if (((matchMode == 1) && !(SubStr(curName, 1, StrLen(name)) = name)) || (InStr(matchMode, "RegEx") && !RegExMatch(curName, name)))
+					if (((matchMode == 1) && InStr(SubStr(curName, 1, StrLen(name)), name, caseSensitive)) || ((matchMode == 2) && InStr(curName, name, caseSensitive)) || (InStr(matchMode, "RegEx") && RegExMatch(curName, name)))
 						return v
 				}
 			}
@@ -871,15 +879,16 @@ class UIA_Element extends UIA_Base {
 		}
 	}
 	; FindFirst using UIA_NamePropertyId. "scope" is search scope, which can be any of UIA_Enum TreeScope values. "MatchMode" has same convention as window TitleMatchMode: 1=needs to start with the specified name, 2=can contain anywhere, 3=exact match, RegEx=regex match. 
-	FindFirstByName(name, scope=0x4, matchMode=3, caseSensitive=True) { 
-		if (matchMode == 3 || matchMode == 2) {
+	FindFirstByName(name, scope=0x4, matchMode=3, caseSensitive=True) {
+		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
+		if (matchMode == 3 || (MatchSubstringSupported && (matchMode == 2))) {
 			nameCondition := this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, ((matchMode==3)?0:2)|!caseSensitive)
 			return this.FindFirst(nameCondition, scope)
 		}
-		nameCondition := (matchMode==1)?this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, 2|!caseSensitive):this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_NamePropertyId, ""))
+		nameCondition := ((matchMode==1)&&MatchSubstringSupported)?this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, 2|!caseSensitive):this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_NamePropertyId, ""))
 		for k, v in this.FindAll(nameCondition, scope) {
 			curName := v.CurrentName
-			if (((matchMode == 1) && (SubStr(curName, 1, StrLen(name)) = name)) || ((matchMode == "RegEx") && RegExMatch(curName, name)))
+			if (((matchMode == 1) && InStr(SubStr(curName, 1, StrLen(name)), name, caseSensitive))|| ((matchMode == 2) && InStr(curName, name, caseSensitive)) || ((matchMode = "RegEx") && RegExMatch(curName, name)))
 				return v		
 		}
 	}
@@ -894,50 +903,52 @@ class UIA_Element extends UIA_Base {
 	}
 	; FindFirst using UIA_NamePropertyId and UIA_ControlTypeId. controlType can be the ControlTypeId numeric value, or in string form (eg "Button"). scope is search scope, which can be any of UIA_Enum TreeScope values. matchMode has same convention as window TitleMatchMode: 1=needs to start with the specified name, 2=can contain anywhere, 3=exact match, RegEx=regex match
 	FindFirstByNameAndType(name, controlType, scope=0x4, matchMode=3, caseSensitive=True) { 
+		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
 		if controlType is not integer
 			controlType := UIA_Enum.UIA_ControlTypeId(controlType)
 		if !controlType
 			throw Exception("Invalid control type specified", -1)
 		controlCondition := this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_ControlTypePropertyId, controlType, 3)
-		if (matchMode == 3 || matchMode == 2) {
+		if (matchMode == 3 || (MatchSubstringSupported && (matchMode == 2))) {
 			nameCondition := this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, ((matchMode==3)?0:2)|!caseSensitive)
 			AndCondition := this.__UIA.CreateAndCondition(nameCondition, controlCondition)
 			return this.FindFirst(AndCondition, scope)
 		}
-		nameCondition := (matchMode==1)?this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, 2|(!caseSensitive)):this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_NamePropertyId, ""))
+		nameCondition := ((matchMode==1) && MatchSubstringSupported)?this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, 2|(!caseSensitive)):this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_NamePropertyId, ""))
 		AndCondition := this.__UIA.CreateAndCondition(nameCondition, controlCondition)
 		for k, v in this.FindAll(AndCondition, scope) {
 			curName := v.CurrentName
-			if (((matchMode == 1) && InStr(SubStr(curName, 1, StrLen(name)), name)) || ((matchMode == "RegEx") && RegExMatch(curName, name)))
+			if (((matchMode == 1) && InStr(SubStr(curName, 1, StrLen(name)), name, caseSensitive)) || ((matchMode == 2) && InStr(curName, name, caseSensitive)) || ((matchMode = "RegEx") && RegExMatch(curName, name)))
 				return v		
 		}
 	}
 	; FindAll using an expression containing the desired conditions. For more information about expr, see FindFirstBy explanation
-	FindAllBy(expr, scope=0x4, matchMode=3, caseSensitive=True) { 
+	FindAllBy(expr, scope=0x4, matchMode=3, caseSensitive=True) {
+		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
 		pos := 1, match := "", createCondition := "", operator := "", bufName := []
 		while (pos := RegexMatch(expr, "(.*?)=(.*?)( AND | OR | && | \|\| |$)", match, pos+StrLen(match))) {
 			if !match
 				break
-			if (InStr(match1, "Name") && (matchMode != 2) && (matchMode != 3)) {
+			if (InStr(match1, "Name") && ((matchMode != 2) || ((matchMode == 2) && !MatchSubstringSupported)) && (matchMode != 3)) {
 				bufName[1] := match1, bufName[2] := match2
 				Continue
 			} else {
-				newCondition := (SubStr(match1, 1, 4) == "NOT ") ? this.__UIA.CreateNotCondition(this.__UIA.CreateCondition(SubStr(match1, 5), match2)) : this.__UIA.CreateCondition(match1, match2, ((matchMode==2 && match1=="Name")?2:0)|!caseSensitive)
+				newCondition := (SubStr(match1, 1, 4) = "NOT ") ? this.__UIA.CreateNotCondition(this.__UIA.CreateCondition(SubStr(match1, 5), match2)) : this.__UIA.CreateCondition(match1, match2, ((matchMode==2 && match1="Name")?2:0)|!caseSensitive)
 			}
 			fullCondition := (operator == " AND " || operator == " && ") ? this.__UIA.CreateAndCondition(fullCondition, newCondition) : (operator == " OR " || operator == " || ") ? this.__UIA.CreateOrCondition(fullCondition, newCondition) : newCondition
 			operator := match3
 		}
 		if (bufName[1]) {
-			notProp := !InStr(bufName[1], "NOT "), name := bufName[2], returnArr := []
+			notProp := InStr(bufName[1], "NOT "), name := bufName[2], returnArr := []
 			nameCondition := (matchMode==1)?this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, 2|!caseSensitive):this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_NamePropertyId, ""))
 			fullCondition := IsObject(fullCondition) ? this.__UIA.CreateAndCondition(nameCondition, fullCondition) : nameCondition
 			for k, v in this.FindAll(fullCondition, scope) {
 				curName := v.CurrentName
 				if notProp {
-					if (((matchMode == 1) && (SubStr(curName, 1, StrLen(name)) = name)) || ((matchMode == "RegEx") && RegExMatch(curName, name)))
+					if (((matchMode == 1) && !InStr(SubStr(curName, 1, StrLen(name)), name, caseSensitive)) || ((matchMode == 2) && !InStr(curName, name, caseSensitive)) || ((matchMode = "RegEx") && !RegExMatch(curName, name)))
 						returnArr.Push(v)
 				} else {
-					if (((matchMode == 1) && !(SubStr(curName, 1, StrLen(name)) = name)) || ((matchMode == "RegEx") && !RegExMatch(curName, name)))
+					if (((matchMode == 1) && InStr(SubStr(curName, 1, StrLen(name)), name, caseSensitive)) || ((matchMode == 2) && InStr(curName, name, caseSensitive)) || ((matchMode = "RegEx") && RegExMatch(curName, name)))
 						returnArr.Push(v)
 				}
 			}
@@ -948,15 +959,16 @@ class UIA_Element extends UIA_Base {
 	}
 	; FindAll using UIA_NamePropertyId. scope is search scope, which can be any of UIA_Enum TreeScope values. matchMode has same convention as window TitleMatchMode: 1=needs to start with the specified name, 2=can contain anywhere, 3=exact match, RegEx=regex match
 	FindAllByName(name, scope=0x4, matchMode=3, caseSensitive=True) { 
-		if (matchMode == 3 || matchMode == 2) {
+		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
+		if (matchMode == 3 || ((matchMode == 2) && MatchSubstringSupported)) {
 			nameCondition := this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, ((matchMode==3)?0:2)|!caseSensitive)
 			return this.FindAll(nameCondition, scope)
 		}
-		nameCondition := (matchMode==1)?this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, 2|!caseSensitive):this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_NamePropertyId, ""))
+		nameCondition := ((matchMode==1) && MatchSubstringSupported)?this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, 2|!caseSensitive):this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_NamePropertyId, ""))
 		retList := []
 		for k, v in this.FindAll(nameCondition, scope) {
 			curName := v.CurrentName
-			if (((matchMode == 1) && (SubStr(curName, 1, StrLen(name)) = name)) || ((matchMode == "RegEx") && RegExMatch(curName, name)))
+			if (((matchMode == 1) && InStr(SubStr(curName, 1, StrLen(name)), name, caseSensitive)) || ((matchMode == 2) && InStr(curName, name, caseSensitive)) || ((matchMode = "RegEx") && RegExMatch(curName, name)))
 				retList.Push(v)		
 		}
 		return retList
@@ -972,22 +984,23 @@ class UIA_Element extends UIA_Base {
 	}
 	; FindAll using UIA_NamePropertyId and UIA_ControlTypeId. controlType can be the ControlTypeId numeric value, or in string form (eg "Button"). scope is search scope, which can be any of UIA_Enum TreeScope values. matchMode has same convention as window TitleMatchMode: 1=needs to start with the specified name, 2=can contain anywhere, 3=exact match, RegEx=regex match
 	FindAllByNameAndType(name, controlType, scope=0x4, matchMode=3) { 
+		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
 		if controlType is not integer
 			controlType := UIA_Enum.UIA_ControlTypeId(controlType)
 		if !controlType
 			throw Exception("Invalid control type specified", -1)
 		controlCondition := this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_ControlTypePropertyId, controlType)
-		if (matchMode == 3 || matchMode == 2) {
+		if (matchMode == 3 || (MatchSubstringSupported && (matchMode == 2))) {
 			nameCondition := this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name, ((matchMode==3)?0:2)|!caseSensitive)
 			AndCondition := this.__UIA.CreateAndCondition(nameCondition, controlCondition)
 			return this.FindAll(AndCondition, scope)
 		}
-		nameCondition := (matchMode==1)?this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name, , 2|!caseSensitive):this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_NamePropertyId, ""))
+		nameCondition := ((matchMode==1) && MatchSubstringSupported)?this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name, , 2|!caseSensitive):this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_NamePropertyId, ""))
 		AndCondition := this.__UIA.CreateAndCondition(nameCondition, controlCondition)
 		returnArr := []
 		for k, v in this.FindAll(AndCondition, scope) {
 			curName := v.CurrentName
-			if (((matchMode == 1) && (SubStr(curName, 1, StrLen(name)) = name)) || ((matchMode == "RegEx") && RegExMatch(curName, name)))
+			if (((matchMode == 1) && InStr(SubStr(curName, 1, StrLen(name)), name, caseSensitive)) || ((matchMode == 2) && InStr(curName, name, caseSensitive)) || ((matchMode = "RegEx") && RegExMatch(curName, name)))
 				returnArr.Push(v)	
 		}
 		return returnArr
@@ -1080,6 +1093,24 @@ class UIA_Element extends UIA_Base {
 			Sleep, 100
 		}
 		return el
+	}
+
+	Highlight(displayTime:=2000, color:="Red", d:=4) { ; Based on FindText().RangeTip from the FindText library, credit goes to feiyue
+		br := this.CurrentBoundingRectangle, x := br.l, y := br.t, w := br.r-br.l, h := br.b-br.t, d:=Floor(d)
+		Loop 4 {
+			Gui, Range_%A_Index%: +Hwndid +AlwaysOnTop -Caption +ToolWindow -DPIScale +E0x08000000
+			i:=A_Index
+			, x1:=(i=2 ? x+w : x-d)
+			, y1:=(i=3 ? y+h : y-d)
+			, w1:=(i=1 or i=3 ? w+2*d : d)
+			, h1:=(i=2 or i=4 ? h+2*d : d)
+			Gui, Range_%i%: Color, %color%
+			Gui, Range_%i%: Show, NA x%x1% y%y1% w%w1% h%h1%
+		}
+		Sleep, %displayTime%
+		Loop 4
+			Gui, Range_%A_Index%: Destroy
+		return
 	}
 }
 
@@ -2793,7 +2824,9 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 		}
 		
 		n := StrReplace(StrReplace(n, "UIA_"), "PropertyId")
-		RegexMatch(ids, "(?:^|,)" n "(?:" n ")?(?:Id)?:(\d+)", m)
+		RegexMatch(ids, "i)(?:^|,)" n "(?:" n ")?(?:Id)?:(\d+)", m)
+		if !m1 && (n = "type")
+			return 30003
 		return m1
 	}
 

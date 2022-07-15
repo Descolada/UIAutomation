@@ -11,7 +11,8 @@ class UIA_Browser {
 		this.BrowserElement := this.UIA.ElementFromHandle(this.BrowserId := WinExist(wTitle), True)
 		if this.BrowserId {
 			WinGet, wExe, ProcessName, % "ahk_id" this.BrowserId
-			this.BrowserType := (wExe == "chrome.exe") ? "Chrome" : (wExe == "msedge.exe") ? "Edge" : "Unknown"
+			WinGetClass, wClass, % "ahk_id" this.BrowserId
+			this.BrowserType := (wExe == "chrome.exe") ? "Chrome" : (wExe == "msedge.exe") ? "Edge" : InStr(wClass, "Mozilla") ? "Mozilla" : "Unknown"
 			this.GetCurrentMainPaneElement(this.CustomNames.URLEditName)
 		}
 	}
@@ -64,7 +65,7 @@ class UIA_Browser {
 		Loop, 2 
 		{
 			try {
-				if !(this.URLEditElement := this.BrowserElement.FindFirst(EditAndCondition)) {	
+				if !(this.URLEditElement := this.BrowserElement.FindFirst(EditAndCondition)) {
 					this.ToolbarElements := this.BrowserElement.FindAll(ToolbarControlCondition), topCoord := 10000000
 					for k, v in this.ToolbarElements {
 						if ((bT := v.CurrentBoundingRectangle.t) && (bt < topCoord))
@@ -98,12 +99,14 @@ class UIA_Browser {
 		static docType
 		if !docType
 			docType := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.DocumentControlTypeId)
+		if (this.BrowserType == "Mozilla")
+			return (this.CurrentDocumentElement := this.BrowserElement.FindFirstByNameAndType(this.GetTab().CurrentName, "Document"))
 		return (this.CurrentDocumentElement := this.BrowserElement.FindFirst(docType))
 	}
 	
 	; Uses Javascript to set the title of the browser.
 	JSSetTitle(newTitle) {
-		this.SetURL("javascriptdocument.title=""" js """; void(0);", True)
+		this.SetURL("javascript:document.title=""" js """; void(0);", True)
 	}
 	
 	JSExecute(js) {
@@ -142,15 +145,15 @@ class UIA_Browser {
 	; Uses Javascript's querySelector to get a Javascript element and then its position. useRenderWidgetPos=True uses position of the Chrome_RenderWidgetHostHWND1 control to locate the position element relative to the window, otherwise it uses UIA_Browsers CurrentDocumentElement position.
     JSGetElementPos(selector, useRenderWidgetPos=False) { ; based on code by AHK Forums user william_ahk
         js =
-        (
-(() => {
-    let bounds = document.querySelector("%selector%").getBoundingClientRect().toJSON();
-    let zoom = window.devicePixelRatio.toFixed(2);
-    for (const key in bounds) {
-        bounds[key] = bounds[key] * zoom;
-    }
-    return JSON.stringify(bounds);
-})()
+        (LTrim
+			(() => {
+				let bounds = document.querySelector("%selector%").getBoundingClientRect().toJSON();
+				let zoom = window.devicePixelRatio.toFixed(2);
+				for (const key in bounds) {
+					bounds[key] = bounds[key] * zoom;
+				}
+				return JSON.stringify(bounds);
+			})()
         )
         bounds_str := this.JSReturnThroughClipboard(js)
         RegexMatch(bounds_str, """x"":(\d+).?\d*?,""y"":(\d+).?\d*?,""width"":(\d+).?\d*?,""height"":(\d+).?\d*?", size)
@@ -304,7 +307,7 @@ class UIA_Browser {
 			return URL ? (RegexMatch(URL, "^https?:\/\/") ? URL : "https://" URL) : ""
 		} else {
 			; This can be used in Chrome and Edge, but works only if the window is active
-			if !this.IsBrowserVisible()
+			if (!this.IsBrowserVisible() && (this.BrowserType != "Mozilla"))
 				WinActivate, % "ahk_id" this.BrowserId
 			return this.GetCurrentDocumentElement().CurrentValue
 		}

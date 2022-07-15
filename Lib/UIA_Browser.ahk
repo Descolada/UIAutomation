@@ -259,7 +259,7 @@ class UIA_Browser {
 		}
 	}
 	
-	; Waits the browser page to load to targetTitle, default timeOut is 10 seconds, sleepAfter additionally sleeps for 500ms after the page has loaded. In Edge browser this just waits for the title to change, so its better to use the WaitElementExist function.; Waits the browser page to load to targetTitle, default timeOut is 10 seconds, sleepAfter additionally sleeps for 500ms after the page has loaded. In Edge browser this just waits for the title to change, so its better to use the WaitElementExist function.
+	; Waits the browser page to load to targetTitle, default timeOut is 10 seconds, sleepAfter additionally sleeps for 200ms after the page has loaded. 
 	WaitPageLoad(targetTitle="", timeOut=10000, sleepAfter=500, stopButtonText="Stop") { 
 		reloadBut := this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetFirstChildElement(this.NavigationBarElement)))
 		legacyPattern := reloadBut.GetCurrentPatternAs("LegacyIAccessible")
@@ -327,8 +327,10 @@ class UIA_Browser {
 			ControlSend,, {LCtrl up}{LAlt up}{LShift up}{RCtrl up}{RAlt up}{RShift up}{Enter}, % "ahk_id" this.BrowserId ; Or would it be better to use BlockInput instead of releasing modifier keys?
 	}
 
-	Navigate(url) {
+	; Navigates to URL and waits page to load
+	Navigate(url, targetTitle="", waitLoadTimeOut=10000, sleepAfter=500, stopButtonText="Stop") {
 		this.SetURL(url, True)
+		this.WaitPageLoad(targetTitle,waitLoadTimeOut,sleepAfter, stopButtonText="Stop")
 	}
 	
 	; Presses the New tab button. The button name might differ if the browser language is not set to English and can be specified with butName

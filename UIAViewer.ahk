@@ -427,10 +427,12 @@ UpdateElementFields(mEl="") {
 	try {
 		for k, v in UIA.PollForPotentialSupportedPatterns(mEl) {
 			parent := TV_Add(RegexReplace(k, "Pattern$"))
-			if (IsObject(UIA_%k%) && UIA_%k%.__properties) {
+			if IsObject(UIA_%k%) {
 				pos := 1, m := "", pattern := mEl.GetCurrentPatternAs(k)
-				while (pos := RegExMatch(UIA_%k%.__properties, "im)^(Current.+?),(\d+),(int|bstr|bool)", m, pos+StrLen(m))) {
-					TV_Add(SubStr(m1,8) ": " pattern[m1], parent)
+				for key, value in UIA_%k% {
+					if (InStr(key, "Current") && !IsObject(val := pattern[key])) {
+						TV_Add(SubStr(key,8) ": " val, parent)
+					}
 				}
 			}
 			if InStr(k, "Invoke")

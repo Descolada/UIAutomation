@@ -19,7 +19,8 @@ if !CDriveEl {
 	ExitApp
 }
 
-expColPattern := CDriveEl.GetCurrentPatternAs("ExpandCollapse")
+expColPattern := CDriveEl.GetCurrentPatternAs("ExpandCollapse") 
+; expColPattern := CDriveEl.ExpandCollapsePattern
 Sleep, 500
 MsgBox, % "ExpandCollapsePattern properties: "
 	. "`nCurrentExpandCollapseState: " (state := expColPattern.CurrentExpandCollapseState) " (" UIA_Enum.ExpandCollapseState(state) ")"

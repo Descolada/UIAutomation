@@ -25,6 +25,7 @@ searchBox := cUIA.WaitElementExist("Name=Searc AND ControlType=ComboBox",,2) ; L
 searchBox.SetValue("autohotkey forums") ; Set the search box text to "autohotkey forums"
 cUIA.FindFirstByName("Google Search").Click() ; Click the search button to search
 cUIA.WaitPageLoad()
+
 ; Now that the Google search results have loaded, lets scroll the page to the end.
 docEl := cUIA.GetCurrentDocumentElement() ; Get the document element
 sbPat := docEl.GetCurrentPatternAs("Scroll") ; Get the Scroll pattern to access scrolling methods and properties

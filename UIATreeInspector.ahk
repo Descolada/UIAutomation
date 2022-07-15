@@ -187,6 +187,37 @@ LVPropertyIds:
 	return
 
 TVPatterns:
+	if (A_GuiEvent == "RightClick") {
+		Gui, TreeView, TVPatterns 
+		TV_GetText(info, A_EventInfo)
+		if info {
+			Clipboard := info
+			ToolTip, % "Copied """ info """ to Clipboard!"
+			SetTimer, RemoveToolTip, -2000
+		}
+	}
+	if (A_GuiEvent == "DoubleClick") {
+		Gui, TreeView, TVPatterns 
+		TV_GetText(info, A_EventInfo)
+		if (SubStr(info,-1) == "()") {
+			info := SubStr(info,1, StrLen(info)-2)
+			if (info == "DoDefaultAction") {
+				WinActivate, % "ahk_id " Stored.Hwnd
+				WinWaitActive, % "ahk_id " Stored.Hwnd,,1
+				Stored.Element.GetCurrentPatternAs("LegacyIAccessible").DoDefaultAction()
+			} else if (info == "Invoke") {
+				Stored.Element.GetCurrentPatternAs("Invoke").Invoke()
+			} else if (info == "Select") {
+				Stored.Element.GetCurrentPatternAs("SelectionItem").Select()
+			} else if (info == "SetValue") {
+				Gui +LastFound +OwnDialogs +AlwaysOnTop
+				InputBox, val, SetValue, Insert value to set
+				Gui +LastFound +OwnDialogs -AlwaysOnTop
+				if (val && !ErrorLevel)
+					Stored.Element.GetCurrentPatternAs("Value").SetValue(val)
+			}
+		}
+	}
 	return
 
 ButRefreshWindowList:
@@ -212,6 +243,7 @@ ButRefreshWindowList:
 
 MainTreeView:
 	if (A_GuiEvent == "S") {
+		Stored.Element := Stored.Treeview[A_EventInfo]
 		UpdateElementFields(Stored.Treeview[A_EventInfo])
 		if EnableAccTree {
 			br := Stored.Treeview[A_EventInfo].CurrentBoundingRectangle
@@ -429,12 +461,22 @@ UpdateElementFields(mEl="") {
 	try {
 		for k, v in UIA.PollForPotentialSupportedPatterns(mEl) {
 			parent := TV_Add(RegexReplace(k, "Pattern$"))
-			if (IsObject(UIA_%k%) && UIA_%k%.__properties) {
+			if IsObject(UIA_%k%) {
 				pos := 1, m := "", pattern := mEl.GetCurrentPatternAs(k)
-				while (pos := RegExMatch(UIA_%k%.__properties, "im)^(Current.+?),(\d+),(int|bstr|bool)", m, pos+StrLen(m))) {
-					TV_Add(SubStr(m1,8) ": " pattern[m1], parent)
+				for key, value in UIA_%k% {
+					if (InStr(key, "Current") && !IsObject(val := pattern[key])) {
+						TV_Add(SubStr(key,8) ": " val, parent)
+					}
 				}
 			}
+			if InStr(k, "Invoke")
+				TV_Add("Invoke()", parent)
+			if InStr(k, "LegacyIAccessible")
+				TV_Add("DoDefaultAction()", parent)
+			if InStr(k, "SelectionItem")
+				TV_Add("Select()", parent)
+			if InStr(k, "Value")
+				TV_Add("SetValue()", parent)
 		}
 	}
 	Gui, ListView, LVPropertyIds

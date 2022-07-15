@@ -15,7 +15,7 @@ WinWaitActive, %CDriveName%
 explorerEl := UIA.ElementFromHandle(WinActive("A"))
 listEl := explorerEl.FindFirstByType("List")
 
-selectionPattern := listEl.GetCurrentPatternAs("SelectionPattern") ; If we called this method with just "Selection" instead of "SelectionPattern", we would get "SelectionPattern2" which doesn't extend SelectionPattern methods and properties
+selectionPattern := listEl.SelectionPattern ; Getting a pattern this way will get exactly that pattern. By default, GetCurrentPattern() will get the highest pattern available (for example SelectionPattern2 might also be available).
 MsgBox, % "SelectionPattern properties: "
 	. "`nCurrentCanSelectMultiple: " selectionPattern.CurrentCanSelectMultiple
 	. "`nCurrentIsSelectionRequired: " selectionPattern.CurrentIsSelectionRequired
@@ -34,7 +34,7 @@ MsgBox, % "ListItemPattern properties for Windows folder list item:"
 MsgBox, % "Press OK to select ""Windows"" folder list item."
 selectionItemPattern.Select()
 MsgBox, % "Press OK to add to selection ""Program Files"" folder list item."
-explorerEl.FindFirstByNameAndType("Program Files", "ListItem").GetCurrentPatternAs("SelectionItem").AddToSelection()
+explorerEl.FindFirstByNameAndType("Program Files", "ListItem").SelectionItemPattern.AddToSelection()
 MsgBox, % "Press OK to remove selection from ""Windows"" folder list item."
 selectionItemPattern.RemoveFromSelection()
 

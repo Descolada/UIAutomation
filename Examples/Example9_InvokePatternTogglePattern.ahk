@@ -32,4 +32,6 @@ Sleep, 500
 MsgBox, % "Press OK to toggle again"
 togglePattern.Toggle()
 
+; togglePattern.CurrentToggleState := 1 ; CurrentToggleState can also be used to set the state
+
 ExitApp

@@ -27,8 +27,6 @@
 
 /* 	
 	Questions:
-	- better way to do __properties?
-	- better way to do __properties for multiple versions of objects? (eg UIA_Element2 being and UIA_Element.__properties + UIA_Element2.__properties)
 	- if method returns a SafeArray, should we return a Wrapped SafeArray, Raw SafeArray, or AHK Array. Currently we return wrapped AHK arrays for SafeArrays. Although SafeArrays are more convenient to loop over, this causes more confusion in users who are not familiar with SafeArrays (questions such as why are they 0-indexed not 1-indexed, why doesnt for k, v in SafeArray work properly etc). 
 	- on UIA Interface conversion methods, how should the data be returned? wrapped/extracted or raw? should raw data be a ByRef param?
 	- do variants need cleared? what about SysAllocString BSTRs? As per Microsoft documentation (https://docs.microsoft.com/en-us/cpp/atl-mfc-shared/allocating-and-releasing-memory-for-a-bstr?view=msvc-170), when we pass a BSTR into IUIAutomation, then IUIAutomation should take care of freeing it. But when we receive a UIA_Variant and use UIA_VariantData, then we should clear the BSTR.
@@ -42,7 +40,7 @@
 	- Get methods vs property getter: currently we use properties when the item stores data, fetching the data is "cheap" and when it doesn't have side-effects, and in computationally expensive cases use Get...(). 
 */
 
-; Base class for all UIA objects (UIA_Interface, UIA_Element etc), that is used to fetch properties from __Properties, and get constants and enumerations from UIA_Enum.
+; Base class for all UIA objects (UIA_Interface, UIA_Element etc), that is also used to get constants and enumerations from UIA_Enum.
 class UIA_Base {
 	__New(p="", flag=0, version="") {
 		ObjInsert(this,"__Type","IUIAutomation" SubStr(this.__Class,5))
@@ -51,29 +49,29 @@ class UIA_Base {
 		,ObjInsert(this,"__Version",version)
 	}
 	__Get(member) {
-		if member not in base,__UIA,TreeWalkerTrue,TrueCondition ; base & __UIA should act as normal
+		if member not in base,__UIA,TreeWalkerTrue,TrueCondition ; These should act as normal
 		{
-			if raw:=SubStr(member,0)="*" ; return raw data - user should know what they are doing
-				member:=SubStr(member,1,-1)
-			if RegExMatch(this.__properties, "im)^" member ",(\d+),(\w+)", m) { ; if the member is in the properties. if not - give error message
-				if (m2="VARIANT")	; return VARIANT data - DllCall output param different
-					return UIA_Hr(DllCall(this.__Vt(m1), "ptr",this.__Value, "ptr",UIA_Variant(out)))? (raw?out:UIA_VariantData(out)):
-				else if (m2="RECT") ; return RECT struct - DllCall output param different
-					return UIA_Hr(DllCall(this.__Vt(m1), "ptr",this.__Value, "ptr",&(rect,VarSetCapacity(rect,16))))? (raw?out:UIA_RectToObject(rect)):
-				else if (m2="double")
-					return UIA_Hr(DllCall(this.__Vt(m1), "ptr",this.__Value, "Double*",out))?out:
-				else if UIA_Hr(DllCall(this.__Vt(m1), "ptr",this.__Value, "ptr*",out))
-					return raw?out:m2="BSTR"?StrGet(out) (DllCall("oleaut32\SysFreeString", "ptr", out)?"":""):RegExMatch(m2,"i)IUIAutomation\K\w+",n)?(IsFunc(n)?UIA_%n%(out):new UIA_%n%(out)):out ; Bool, int, DWORD, HWND, CONTROLTYPEID, OrientationType? if IUIAutomation___ is a function, that will be called first, if not then an object is created with the name
-			} else if ObjHasKey(UIA_Enum, member) {
+			if ObjHasKey(UIA_Enum, member) {
 				return UIA_Enum[member]
 			} else if RegexMatch(member, "i)PatternId|EventId|PropertyId|AttributeId|ControlTypeId|AnnotationType|StyleId|LandmarkTypeId|HeadingLevel|ChangeId|MetadataId", match) {
 				return UIA_Enum["UIA_" match](member)
-			} else throw Exception("Property not supported by the " this.__Class " Class.",-1,member)
+			} else if !InStr(member, "Current")
+				try return this["Current" member]
+			if InStr(this.__Class, "UIA_Element") {
+				if (prop := UIA_Enum.UIA_PropertyId(member))
+					return this.GetCurrentPropertyValue(prop)
+				if ((SubStr(member, -6) = "Pattern") && (UIA_Enum.UIA_PatternId(member)))
+					return this.GetCurrentPatternAs(member)
+			}
+			throw Exception("Property not supported by the " this.__Class " Class.",-1,member)
 		}
 	}
-	__Set(member) {
-		if !(member == "base")
+	__Set(member, value) {
+		if (member != "base") {
+			if !InStr(member, "Current")
+				try return this["Current" member] := value
 			throw Exception("Assigning values not supported by the " this.__Class " Class.",-1,member)
+		}
 	}
 	__Call(member, params*) {
 		
@@ -96,7 +94,56 @@ class UIA_Base {
 */
 class UIA_Interface extends UIA_Base {
 	static __IID := "{30cbe57d-d9d0-452a-ab13-7ac5ac4825ee}"
-		,  __properties := "ControlViewWalker,14,IUIAutomationTreeWalker`r`nContentViewWalker,15,IUIAutomationTreeWalker`r`nRawViewWalker,16,IUIAutomationTreeWalker`r`nRawViewCondition,17,IUIAutomationCondition`r`nControlViewCondition,18,IUIAutomationCondition`r`nContentViewCondition,19,IUIAutomationCondition`r`nProxyFactoryMapping,48,IUIAutomationProxyFactoryMapping`r`nReservedNotSupportedValue,54,IUnknown`r`nReservedMixedAttributeValue,55,IUnknown"
+
+	; ---------- UIA_Interface properties ----------
+
+	ControlViewWalker[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "ptr*",out))?new UIA_TreeWalker(out):
+		}
+	}
+	ContentViewWalker[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out))?new UIA_TreeWalker(out):
+		}
+	}
+	RawViewWalker[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "ptr*",out))?new UIA_TreeWalker(out):
+		}
+	}
+	RawViewCondition[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(17), "ptr",this.__Value, "ptr*",out))?new UIA_Condition(out):
+		}
+	}
+	ControlViewCondition[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(18), "ptr",this.__Value, "ptr*",out))?new UIA_Condition(out):
+		}
+	}
+	ContentViewCondition[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(19), "ptr",this.__Value, "ptr*",out))?new UIA_Condition(out):
+		}
+	}
+	ProxyFactoryMapping[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(48), "ptr",this.__Value, "ptr*",out))?new UIA_ProxyFactoryMapping(out):
+		}
+	}
+	ReservedNotSupportedValue[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(54), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	ReservedMixedAttributeValue[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(55), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+
+	; ---------- UIA_Interface methods ----------
 		
 	; Compares two UI Automation elements to determine whether they represent the same underlying UI element.
 	CompareElements(e1,e2) { 
@@ -113,8 +160,9 @@ class UIA_Interface extends UIA_Base {
 	; Retrieves a UI Automation element for the specified window. Additionally activateChromiumAccessibility flag can be set to True to send the WM_GETOBJECT message to Chromium-based apps to activate accessibility if it isn't activated.
 	ElementFromHandle(hwnd, activateChromiumAccessibility=False) { 
 		static activatedHwnds := {}
-		try retEl := UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",hwnd, "ptr*",out))? UIA_Element(out):
-		if (retEl && activateChromiumAccessibility && !activatedHwnds[hwnd]) { ; In some setups Chromium-based renderers don't react to UIA calls by enabling accessibility, so we need to send the WM_GETOBJECT message to the first renderer control for the application to enable accessibility. Thanks to users malcev and rommmcek for this tip. Explanation why this works: https://www.chromium.org/developers/design-documents/accessibility/#TOC-How-Chrome-detects-the-presence-of-Assistive-Technology 
+		if (activateChromiumAccessibility && !activatedHwnds[hwnd])
+			try retEl := UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",hwnd, "ptr*",out))? UIA_Element(out):
+		if retEl { ; In some setups Chromium-based renderers don't react to UIA calls by enabling accessibility, so we need to send the WM_GETOBJECT message to the first renderer control for the application to enable accessibility. Thanks to users malcev and rommmcek for this tip. Explanation why this works: https://www.chromium.org/developers/design-documents/accessibility/#TOC-How-Chrome-detects-the-presence-of-Assistive-Technology 
 			WinGet, cList, ControlList, ahk_id %hwnd%
 			if InStr(cList, "Chrome_RenderWidgetHostHWND1") {
 				SendMessage, WM_GETOBJECT := 0x003D, 0, 1, Chrome_RenderWidgetHostHWND1, ahk_id %hwnd%
@@ -190,11 +238,14 @@ class UIA_Interface extends UIA_Base {
 	}
 	; Creates a condition that selects elements that have a property with the specified value (var), using optional flags. If type is specified then a new variant is created with the specified variant type, otherwise the type is fetched from UIA_PropertyVariantType enums (so usually this can be left unchanged). flags can be one of PropertyConditionFlags, default is PropertyConditionFlags_IgnoreCase = 0x1.
 	CreatePropertyConditionEx(propertyId, var, type="Variant", flags=0x1) { 
+		maybeVar := UIA_Enum.UIA_PropertyVariantType(propertyId)
 		if (type!="Variant")
 			UIA_Variant(var,type,var)
-		else if (maybeVar := UIA_Enum.UIA_PropertyVariantType(propertyId)) {
+		else if maybeVar {
 			UIA_Variant(var,maybeVar,var)
 		}
+		if (maybeVar != 8) ; Check if the type is not BSTR to remove flags
+			flags := 0
 		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(24), "ptr",this.__Value, "int",propertyId, "int64", NumGet(var, 0, "int64"), "int64", NumGet(var, 8, "int64"), "uint",flags, "ptr*",out) : DllCall(this.__Vt(24), "ptr",this.__Value, "int",propertyId, "ptr",&var, "uint",flags, "ptr*",out))? new UIA_PropertyCondition(out):
 	}
 	; Creates a condition that selects elements that match both of two conditions.
@@ -348,24 +399,107 @@ class UIA_Interface extends UIA_Base {
 	}
 
 	; ------- ONLY CUSTOM FUNCTIONS FROM HERE ON ----------------
-	
+
 	/*
-		CreateCondition is a wrapper for CreatePropertyConditionEx. 
-		Property can be the PropertyId, or (partial) name (eg 30000 == "ControlType" == "ControlTypePropertyId"). 
-		Similarly the value can be the id or (partial) name. 
-		Flags: 0=no flags; 1=ignore case; 2=match substring; 3=ignore case and match substring
+		CreateCondition can create a condition from an expression, or a PropertyId and property value pair.
+
+		1) If creating a single condition from a PropertyId and value pair:
+				propertyOrExpr: Property can be the PropertyId, or (partial) name (eg 30000 == "ControlType" == "ControlTypePropertyId").  
+				valueOrFlags: the value corresponding to the PropertyId
+				flags: 0=no flags; 1=ignore case (case insensitive matching); 2=match substring; 3=ignore case and match substring
+			Example: CreateCondition("Name", "Username", 1) would create a condition with NameProperty and value of "Username", with case sensitivity turned off.
+			
+		2) If creating a condition from an expression, propertyOrExpr takes the expression and valueOrFlags the default flags, and flags argument is ignored.
+
+			Similarly to FindFirstBy, the expression takes a value in the form of "PropertyId=propertyValue" to create a property condition for PropertyId with the value propertyValue. PropertyId can be most properties from UIA_Enum.UIA_PropertyId method (for example Name, ControlType, AutomationId etc). 
+			If propertyValue contains any parentheses, then the value needs to be surrounded by single quotes. Escape ' with \, scape \ with \.
+				"Name=Username:" would create a property condition with UIA_Enum.UIA_NamePropertyId and the value "Username:"
+				"Name='MyTest\''" creates a NameProperty condition for value "MyTest'"
+			
+			Criteria can be combined with AND, OR, &&, || (not case sensitive):
+				"Name=Username: AND ControlType=Button" would create a condition with the name property of "Username:" and control type of button.
+			Parentheses are supported.
+			
+			Negation can be specified with NOT or !:
+				"NOT ControlType=Edit" would create a condition that selects everything but ControlType Edit
+
+			Different flags can be specified for each condition by specifying "FLAGS=n" after the condition value.
+				"Name=Username: FLAGS=1" would create a case-insensitive condition only for that condition. By default the flags argument is used.
+			
+			Flags: 0=no flags; 1=ignore case (case insensitive); 2=match substring; 3=ignore case and match substring
 	*/
-	CreateCondition(property, val, flags=0) { 
-		if !RegexMatch(property, "^\d+$")
-			RegexMatch(property, "(?:UIA_)?\K.+?(?=(Id)?PropertyId|$)", property), propCond := UIA_Enum.UIA_PropertyId(property), property := StrReplace(StrReplace(property, "AnnotationAnnotation", "Annotation"), "StylesStyle", "Style")
-		else
-			propCond := property
-		if RegexMatch(val, "^\w+$") {
-			val := IsFunc("UIA_Enum.UIA_" property "Id") ? UIA_Enum["UIA_" property "Id"](val) : IsFunc("UIA_Enum.UIA_" property) ? UIA_Enum["UIA_" property](val) : val
+	CreateCondition(propertyOrExpr, valueOrFlags="", flags=0) {
+		if InStr(propertyOrExpr, "=") { ; Expression
+			match := "", match3 := "", match5 := "", currentCondition := "", fullCondition := "", operator := "",valueOrFlags := (valueOrFlags == "") ? 0 : valueOrFlags, counter := 1, conditions := [], currentExpr := "(" propertyOrExpr ")"
+			; First create all single conditions (not applying AND, OR, NOT)
+			while RegexMatch(currentExpr, "i) *(NOT|!)? *(\w+?(?<!UIA_CONDITION)) *=(?: *(\d+|'.*?(?<=[^\\]|[^\\]\\\\)')|([^()]*?)) *(?: FLAGS=(\d))? *?( AND | OR |&&|\|\||[()]|$) *", match) {
+				/*
+					matchRegex:
+						group1 : NOT
+						group2 : propertyId
+						group3 : propertyValue
+						group4 : propertyValueOld
+						group5 : "FLAGS" value
+						group6 : next and/or operator
+					
+					Escape ' with \ : 'Test\'' -> Test'
+					Escape \ with \ : 'Test\\\'' -> Test\'
+				*/
+				if !match
+					break
+				match3 := (match3 == "") ? match4 : match3
+				currentFlags := (match5 == "") ? valueOrFlags : match5
+				if ((SubStr(match3,1,1) == "'") && (SubStr(match3,0,1) == "'"))
+					match3 := StrReplace(RegexReplace(SubStr(match3,2,StrLen(match3)-2), "(?<=[^\\]|[^\\]\\\\)\\'", "'"), "\\", "\")
+				conditions[counter] := this.CreateCondition(match2, match3, currentFlags)
+				if (match1 == "NOT")
+					match1 := "!"
+				currentExpr := StrReplace(currentExpr, match, " " match1 "UIA_CONDITION=" counter (match6 ? ((match6 == ")") ? ") " : match6) : ""))
+				counter++
+			}
+			currentExpr := StrReplace(StrReplace(StrReplace(currentExpr, " OR ", "||"), " AND ", "&&"), "NOT", "!")
+			; Create NNF: Move NOT conditions to inside parenthesis, remove double NOTs
+			While RegexMatch(currentExpr, "! *(\((?:[^)(]+|(?1))*+\))", match) {
+				match1 := SubStr(match1, 2, StrLen(match1)-2)
+				currentExpr := StrReplace(currentExpr, match, "(" RegexReplace(match1, "([^)(]+?|\((?:[^)(]+|(?1))*+\)) *(\|\||&&|\)|$) *", "!$1$2$3") ")")
+				currentExpr := StrReplace(currentExpr, "!!", "")
+			}
+			; Create all NOT conditions
+			pos:=1, match:=""
+			While (pos := RegexMatch(currentExpr, "! *UIA_CONDITION=(\d+)", match, pos+StrLen(match))) {
+				conditions[match1] := this.CreateNotCondition(conditions[match1])
+				currentExpr := StrReplace(currentExpr, match, "UIA_CONDITION=" match1)
+				pos -= 1
+			}
+			; Create AND/OR conditions
+			currentExpr := StrReplace(currentExpr, " ", ""), parenthesisMatch:=""
+			While RegexMatch(currentExpr, "\(([^()]+)\)", parenthesisMatch) { ; Match parenthesis that doesn't have parentheses inside
+				pos := 1, match:="", match1:="", fullCondition:="", operator:=""
+				while (pos := RegexMatch(parenthesisMatch1, "UIA_CONDITION=(\d+)(&&|\|\||$)", match, pos+StrLen(match))) {
+					fullCondition := (operator == "&&") ? this.CreateAndCondition(fullCondition, conditions[match1]) : (operator == "||") ? this.CreateOrCondition(fullCondition, conditions[match1]) : conditions[match1]
+					operator := match2
+				}
+				conditions[counter] := fullCondition
+				currentExpr := StrReplace(currentExpr, parenthesisMatch, "UIA_CONDITION=" counter)
+				counter++
+			}
+			return conditions[counter-1]
+		} else {
+			if RegexMatch(propertyOrExpr, "^\d+$")
+				propCond := propertyOrExpr
+			else {
+				if (propertyOrExpr = "Type")
+					propertyOrExpr := "ControlType"
+				RegexMatch(propertyOrExpr, "i)(?:UIA_)?\K.+?(?=(Id)?PropertyId|$)", propertyOrExpr), propCond := UIA_Enum.UIA_PropertyId(propertyOrExpr), propertyOrExpr := StrReplace(StrReplace(propertyOrExpr, "AnnotationAnnotation", "Annotation"), "StylesStyle", "Style")
+			}	
+			if RegexMatch(valueOrFlags, "^\w+$") {
+				valueOrFlags := IsFunc("UIA_Enum.UIA_" propertyOrExpr "Id") ? UIA_Enum["UIA_" propertyOrExpr "Id"](valueOrFlags) : IsFunc("UIA_Enum.UIA_" propertyOrExpr) ? UIA_Enum["UIA_" propertyOrExpr](valueOrFlags) : valueOrFlags
+			}
+			if propCond
+				return this.CreatePropertyConditionEx(propCond, valueOrFlags,, flags)
 		}
-		if (propCond && val)
-			return this.CreatePropertyConditionEx(propCond, val,, flags)
 	}
+
 	; Gets ElementFromPoint and filters out the smallest subelement that is under the specified point. If windowEl (window under the point) is provided, then a deep search is performed for the smallest element (this might be very slow in large trees).
 	SmallestElementFromPoint(x="", y="", activateChromiumAccessibility=False, windowEl="") { 
 		if IsObject(windowEl) {
@@ -404,7 +538,8 @@ class UIA_Interface extends UIA_Base {
 
 class UIA_Interface2 extends UIA_Interface {
 	static __IID := "{34723aff-0c9d-49d0-9896-7ab52df8cd8a}"
-		, __Properties := UIA_Interface.__Properties
+	
+	; ---------- UIA_Interface2 properties ----------
 
 	; Specifies whether calls to UI Automation control pattern methods automatically set focus to the target element. Default is True. 
 	AutoSetFocus[] 
@@ -440,7 +575,7 @@ class UIA_Interface2 extends UIA_Interface {
 
 class UIA_Interface3 extends UIA_Interface2 { ; UNTESTED
 	static __IID := "{73d768da-9b51-4b89-936e-c209290973e7}"
-		, __Properties := UIA_Interface2.__Properties
+
 	AddTextEditTextChangedEventHandler(element, scope, textEditChangeType, cacheRequest=0, handler="") {
 		return UIA_Hr(DllCall(this.__Vt(64), "ptr",this.__Value, "ptr", element.__Value, "int", scope, "int", textEditChangeType, "ptr", cacheRequest.__Value, "ptr", handler.__Value))
 	}
@@ -451,7 +586,7 @@ class UIA_Interface3 extends UIA_Interface2 { ; UNTESTED
 
 class UIA_Interface4 extends UIA_Interface3 { ; UNTESTED
 	static __IID := "{1189c02a-05f8-4319-8e21-e817e3db2860}"
-		, __Properties := UIA_Interface3.__Properties
+
 	AddChangesEventHandler(element, scope, changeTypes, changesCount, cacheRequest=0, handler="") {
 		return UIA_Hr(DllCall(this.__Vt(66), "ptr",this.__Value, "ptr", element.__Value, "int", scope, "int", changeTypes, "int", changesCount, "ptr", cacheRequest.__Value, "ptr", handler.__Value))
 	}
@@ -461,7 +596,7 @@ class UIA_Interface4 extends UIA_Interface3 { ; UNTESTED
 }
 class UIA_Interface5 extends UIA_Interface4 { ; UNTESTED
 	static __IID := "{25f700c8-d816-4057-a9dc-3cbdee77e256}"
-		, __Properties := UIA_Interface4.__Properties
+
 	AddNotificationEventHandler(element, scope, cacheRequest, handler) {
 		return UIA_Hr(DllCall(this.__Vt(68), "ptr",this.__Value, "ptr", element.__Value, "int", scope, "ptr", cacheRequest.__Value, "ptr", handler.__Value))
 	}
@@ -471,8 +606,9 @@ class UIA_Interface5 extends UIA_Interface4 { ; UNTESTED
 }
 class UIA_Interface6 extends UIA_Interface5 { ; UNTESTED
 	static __IID := "{aae072da-29e3-413d-87a7-192dbf81ed10}"
-		, __Properties := UIA_Interface5.__Properties
-	
+
+	; ---------- UIA_Interface6 properties ----------
+
 	; Indicates whether an accessible technology client adjusts provider request timeouts when the provider is non-responsive.
 	ConnectionRecoveryBehavior[] 
 	{
@@ -493,6 +629,9 @@ class UIA_Interface6 extends UIA_Interface5 { ; UNTESTED
 			return UIA_Hr(DllCall(this.__Vt(76), "ptr",this.__Value, "int", value))
 		}
 	}
+
+	; ---------- UIA_Interface6 methods ----------
+
 	; Registers one or more event listeners in a single method call.
 	CreateEventHandlerGroup() {
 		return UIA_Hr(DllCall(this.__Vt(70), "ptr",this.__Value, "ptr*", out)) ? new UIA_AutomationEventHandlerGroup(out):
@@ -514,7 +653,6 @@ class UIA_Interface6 extends UIA_Interface5 { ; UNTESTED
 }
 class UIA_Interface7 extends UIA_Interface6 {
 	static __IID := "{29de312e-83c6-4309-8808-e8dfcb46c3c2}"
-		, __Properties := UIA_Interface6.__Properties
 }
 
 /*
@@ -524,7 +662,350 @@ class UIA_Interface7 extends UIA_Interface6 {
 class UIA_Element extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee671425(v=vs.85).aspx
 	static __IID := "{d22108aa-8ac5-49a5-837b-37bbb3d7591e}"
-		,  __properties := "CurrentProcessId,20,int`r`nCurrentControlType,21,CONTROLTYPEID`r`nCurrentLocalizedControlType,22,BSTR`r`nCurrentName,23,BSTR`r`nCurrentAcceleratorKey,24,BSTR`r`nCurrentAccessKey,25,BSTR`r`nCurrentHasKeyboardFocus,26,BOOL`r`nCurrentIsKeyboardFocusable,27,BOOL`r`nCurrentIsEnabled,28,BOOL`r`nCurrentAutomationId,29,BSTR`r`nCurrentClassName,30,BSTR`r`nCurrentHelpText,31,BSTR`r`nCurrentCulture,32,int`r`nCurrentIsControlElement,33,BOOL`r`nCurrentIsContentElement,34,BOOL`r`nCurrentIsPassword,35,BOOL`r`nCurrentNativeWindowHandle,36,UIA_HWND`r`nCurrentItemType,37,BSTR`r`nCurrentIsOffscreen,38,BOOL`r`nCurrentOrientation,39,OrientationType`r`nCurrentFrameworkId,40,BSTR`r`nCurrentIsRequiredForForm,41,BOOL`r`nCurrentItemStatus,42,BSTR`r`nCurrentBoundingRectangle,43,RECT`r`nCurrentLabeledBy,44,IUIAutomationElement`r`nCurrentAriaRole,45,BSTR`r`nCurrentAriaProperties,46,BSTR`r`nCurrentIsDataValidForForm,47,BOOL`r`nCurrentControllerFor,48,IUIAutomationElementArray`r`nCurrentDescribedBy,49,IUIAutomationElementArray`r`nCurrentFlowsTo,50,IUIAutomationElementArray`r`nCurrentProviderDescription,51,BSTR`r`nCachedProcessId,52,int`r`nCachedControlType,53,CONTROLTYPEID`r`nCachedLocalizedControlType,54,BSTR`r`nCachedName,55,BSTR`r`nCachedAcceleratorKey,56,BSTR`r`nCachedAccessKey,57,BSTR`r`nCachedHasKeyboardFocus,58,BOOL`r`nCachedIsKeyboardFocusable,59,BOOL`r`nCachedIsEnabled,60,BOOL`r`nCachedAutomationId,61,BSTR`r`nCachedClassName,62,BSTR`r`nCachedHelpText,63,BSTR`r`nCachedCulture,64,int`r`nCachedIsControlElement,65,BOOL`r`nCachedIsContentElement,66,BOOL`r`nCachedIsPassword,67,BOOL`r`nCachedNativeWindowHandle,68,UIA_HWND`r`nCachedItemType,69,BSTR`r`nCachedIsOffscreen,70,BOOL`r`nCachedOrientation,71,OrientationType`r`nCachedFrameworkId,72,BSTR`r`nCachedIsRequiredForForm,73,BOOL`r`nCachedItemStatus,74,BSTR`r`nCachedBoundingRectangle,75,RECT`r`nCachedLabeledBy,76,IUIAutomationElement`r`nCachedAriaRole,77,BSTR`r`nCachedAriaProperties,78,BSTR`r`nCachedIsDataValidForForm,79,BOOL`r`nCachedControllerFor,80,IUIAutomationElementArray`r`nCachedDescribedBy,81,IUIAutomationElementArray`r`nCachedFlowsTo,82,IUIAutomationElementArray`r`nCachedProviderDescription,83,BSTR"
+	
+	; ---------- UIA_Element properties ----------
+	CurrentProcessId[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(20), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentControlType[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(21), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentLocalizedControlType[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(22), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CurrentName[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(23), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CurrentAcceleratorKey[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(24), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CurrentAccessKey[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(25), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CurrentHasKeyboardFocus[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(26), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentIsKeyboardFocusable[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(27), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentIsEnabled[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(28), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentAutomationId[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(29), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CurrentClassName[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(30), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CurrentHelpText[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(31), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CurrentCulture[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(32), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentIsControlElement[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(33), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentIsContentElement[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(34), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentIsPassword[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(35), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentNativeWindowHandle[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(36), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentItemType[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(37), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CurrentIsOffscreen[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(38), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentOrientation[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(39), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentFrameworkId[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(40), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CurrentIsRequiredForForm[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(41), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentItemStatus[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(42), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CurrentBoundingRectangle[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(43), "ptr",this.__Value, "ptr",&(rect,VarSetCapacity(rect,16))))?UIA_RectToObject(rect):
+		}
+	}
+	CurrentLabeledBy[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(44), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+		}
+	}
+	CurrentAriaRole[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(45), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CurrentAriaProperties[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(46), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CurrentIsDataValidForForm[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(47), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentControllerFor[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(48), "ptr",this.__Value, "ptr*",out))?UIA_ElementArray(out):
+		}
+	}
+	CurrentDescribedBy[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(49), "ptr",this.__Value, "ptr*",out))?UIA_ElementArray(out):
+		}
+	}
+	CurrentFlowsTo[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(50), "ptr",this.__Value, "ptr*",out))?UIA_ElementArray(out):
+		}
+	}
+	CurrentProviderDescription[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(51), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedProcessId[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(52), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedControlType[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(53), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedLocalizedControlType[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(54), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedName[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(55), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedAcceleratorKey[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(56), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedAccessKey[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(57), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedHasKeyboardFocus[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(58), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedIsKeyboardFocusable[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(59), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedIsEnabled[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(60), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedAutomationId[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(61), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedClassName[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(62), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedHelpText[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(63), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedCulture[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(64), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedIsControlElement[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(65), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedIsContentElement[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(66), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedIsPassword[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(67), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedNativeWindowHandle[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(68), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedItemType[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(69), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedIsOffscreen[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(70), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedOrientation[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(71), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedFrameworkId[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(72), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedIsRequiredForForm[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(73), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedItemStatus[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(74), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedBoundingRectangle[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(75), "ptr",this.__Value, "ptr",&(rect,VarSetCapacity(rect,16))))?UIA_RectToObject(rect):
+		}
+	}
+	CachedLabeledBy[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(76), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+		}
+	}
+	CachedAriaRole[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(77), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedAriaProperties[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(78), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedIsDataValidForForm[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(79), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedControllerFor[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(80), "ptr",this.__Value, "ptr*",out))?UIA_ElementArray(out):
+		}
+	}
+	CachedDescribedBy[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(81), "ptr",this.__Value, "ptr*",out))?UIA_ElementArray(out):
+		}
+	}
+	CachedFlowsTo[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(82), "ptr",this.__Value, "ptr*",out))?UIA_ElementArray(out):
+		}
+	}
+	CachedProviderDescription[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(83), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	; ---------- Custom UIA_Element properties ----------
+
+	; Gets or sets the current value of the element. Getter is a wrapper for GetCurrentPropertyValue("Value"), setter a wrapper for SetValue
+	CurrentValue[] { 
+		get {
+			return this.GetCurrentPropertyValue("Value")
+		}
+		set {
+			return this.SetValue(value)
+		}
+	}
+	CurrentExists[] {
+		get {
+			try {
+				if ((val := this.CurrentName this.CurrentValue (this.CurrentBoundingRectangle.t ? 1 : "")) == "")
+					return 0
+			} 
+			return 1
+		}
+	}
+
+	; ---------- UIA_Element methods ----------
 
 	SetFocus() {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value))
@@ -580,25 +1061,25 @@ class UIA_Element extends UIA_Base {
 	}
 	; Retrieves a UIA_Pattern object of the specified control pattern on this element. If a full pattern name is specified then that exact version will be used (eg "TextPattern" will return a UIA_TextPattern object), otherwise the highest version will be used (eg "Text" might return UIA_TextPattern2 if it is available). usedPattern will be set to the actual string used to look for the pattern (used mostly for debugging purposes)
 	GetCurrentPatternAs(pattern="", ByRef usedPattern="") { 
-		if (InStr(usedPattern:=pattern, "Pattern")||(usedPattern := UIA_Pattern(pattern, this)))
+		if (usedPattern := InStr(pattern, "Pattern") ? pattern : UIA_Pattern(pattern, this))
 			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "int",UIA_%usedPattern%.__PatternId, "ptr",UIA_GUID(riid,UIA_%usedPattern%.__iid), "ptr*",out)) ? new UIA_%usedPattern%(out,1):
-		else throw Exception("Pattern not implemented.",-1, "UIA_" pattern "Pattern")
+		throw Exception("Pattern not implemented.",-1, "UIA_" pattern "Pattern")
 	}
 	; Retrieves a UIA_Pattern object of the specified control pattern on this element from the cache of this element. 
 	GetCachedPatternAs(pattern="", ByRef usedPattern="") { 
-		if (InStr(usedPattern:=pattern, "Pattern")||(usedPattern := UIA_Pattern(pattern, this)))
+		if (usedPattern := InStr(pattern, "Pattern") ? pattern : UIA_Pattern(pattern, this))
 			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "int",UIA_%usedPattern%.__PatternId, "ptr",UIA_GUID(riid,UIA_%usedPattern%.__iid), "ptr*",out)) ? new UIA_%usedPattern%(out,1):
-		else throw Exception("Pattern not implemented.",-1, "UIA_" pattern "Pattern")
+		throw Exception("Pattern not implemented.",-1, "UIA_" pattern "Pattern")
 	}
 	GetCurrentPattern(pattern, ByRef usedPattern="") {
 		; I don't know the difference between this and GetCurrentPatternAs
-		if (InStr(usedPattern:=pattern, "Pattern")||(usedPattern := UIA_Pattern(pattern, this)))
+		if (usedPattern := InStr(pattern, "Pattern") ? pattern : UIA_Pattern(pattern, this))
 			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "int",UIA_%usedPattern%.__PatternId, "ptr*",out)) ? new UIA_%usedPattern%(out,1):
 		else throw Exception("Pattern not implemented.",-1, "UIA_" pattern "Pattern")
 	}
-	GetCachedPattern(patternId, ByRef usedPattern="") {
+	GetCachedPattern(pattern, ByRef usedPattern="") {
 		; I don't know the difference between this and GetCachedPatternAs
-		if (InStr(usedPattern:=pattern, "Pattern")||(usedPattern := UIA_Pattern(pattern, this)))
+		if (usedPattern := InStr(pattern, "Pattern") ? pattern : UIA_Pattern(pattern, this))
 			return UIA_Hr(DllCall(this.__Vt(17), "ptr",this.__Value, "int", UIA_%usedPattern%.__PatternId, "ptr*",out)) ? new UIA_%usedPattern%(out,1):
 		else throw Exception("Pattern not implemented.",-1, "UIA_" pattern "Pattern")
 	}
@@ -615,26 +1096,8 @@ class UIA_Element extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(84), "ptr",this.__Value, "ptr", &(point,VarSetCapacity(point,8)), "ptr*", out))&&out? {x:NumGet(point,0,"int"), y:NumGet(point,4,"int")}:
 	}
 	
-	; ------- ONLY CUSTOM FUNCTIONS FROM HERE ON ----------------
-	
-	; Gets or sets the current value of the element. Getter is a wrapper for GetCurrentPropertyValue("Value"), setter a wrapper for SetValue
-	CurrentValue[] { 
-		get {
-			return this.GetCurrentPropertyValue("Value")
-		}
-		set {
-			return this.SetValue(value)
-		}
-	}
-	CurrentExists[] {
-		get {
-			try {
-				if ((val := this.CurrentName this.CurrentValue (this.CurrentBoundingRectangle.t ? 1 : "")) == "")
-					return 0
-			} 
-			return 1
-		}
-	}
+	; ---------- Custom UIA_Element methods ----------
+
 	; Wait until the element doesn't exist, with a default timeOut of 10000ms (10 seconds). Returns 1 if the element doesn't exist, otherwise 0.
 	WaitNotExist(timeOut=10000) { 
 		startTime := A_TickCount
@@ -701,10 +1164,12 @@ class UIA_Element extends UIA_Base {
 		}
 	}
 	; Click using one of the available click-like methods (InvokePattern Invoke(), TogglePattern Toggle(), ExpandCollapsePattern Expand() or Collapse() (depending on the state of the element), SelectionItemPattern Select(), or LegacyIAccessible DoDefaultAction()), in which case ClickCount is ignored. If WhichButton is specified (for example "left", "right") then the native mouse Click function will be used to click the center of the element.
-	; If WhichButton is a number, then Sleep will be called with that number. Otherwise a Sleep can be specified with SleepTime
-	Click(WhichButton="", ClickCount=1, DownOrUp="", Relative="", SleepTime=-1) { 		
-		if ((WhichButton == "") or RegexMatch(WhichButton, "^\d+$")) {
-			SleepTime := WhichButton ? WhichButton : sleepTime
+	; If WhichButton is a number, then Sleep will be called with that number. Eg Click(200) will sleep 200ms after clicking
+	; If ClickCountAndSleepTime is a number >=10, then Sleep will be called with that number. To click 10+ times and sleep after, specify "ClickCount SleepTime". Ex: Click("left", 200) will sleep 200ms after clicking. Ex: Click("left", "20 200") will left-click 20 times and then sleep 200ms.
+	; If Relative is "Rel" or "Relative" then X and Y coordinates are treated as offsets from the current mouse position. Otherwise it expects offset values for both X and Y (eg "-5 10" would offset X by -5 and Y by +10).
+	Click(WhichButtonOrSleepTime="", ClickCountAndSleepTime=1, DownOrUp="", Relative="") {		
+		if ((WhichButtonOrSleepTime == "") or RegexMatch(WhichButtonOrSleepTime, "^\d+$")) {
+			SleepTime := WhichButtonOrSleepTime ? WhichButtonOrSleepTime : -1
 			if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsInvokePatternAvailablePropertyId)) {
 				this.GetCurrentPatternAs("Invoke").Invoke()
 				Sleep, %SleepTime%
@@ -743,23 +1208,36 @@ class UIA_Element extends UIA_Base {
 			}
 			return 0
 		} else {
-			if !(pos := this.GetClickablePoint()).x {
+			rel := (Relative && !InStr(Relative, "rel")) ? StrSplit(Relative, " ") : [0,0]
+			if (ClickCountAndSleepTime := StrSplit(ClickCountAndSleepTime, " "))[2] {
+				ClickCount := ClickCountAndSleepTime[1], SleepTime := ClickCountAndSleepTime[2]
+			} else if (ClickCountAndSleepTime[1] > 9) {
+				ClickCount := 1, SleepTime := ClickCountAndSleepTime[1]
+			} else {
+				ClickCount := ClickCountAndSleepTime[1], SleepTime := -1
+			}
+			if !(pos := this.GetClickablePointRelativeTo()).x {
 				pos := this.GetCurrentPos() ; or should only GetClickablePoint be used instead?
-				Click, % pos.x+pos.w//2 " " pos.y+pos.h//2 " " WhichButton (ClickCount ? " " ClickCount : "") (DownOrUp ? " " DownOrUp : "") (Relative ? " " Relative : "")
+				Click, % pos.x+pos.w//2+rel[1] " " pos.y+pos.h//2+rel[2] " " WhichButtonOrSleepTime (ClickCount ? " " ClickCount : "") (DownOrUp ? " " DownOrUp : "") (Relative ? " " Relative : "")
 			} else
-				Click, % pos.x " " pos.y " " WhichButton (ClickCount ? " " ClickCount : "") (DownOrUp ? " " DownOrUp : "") (Relative ? " " Relative : "")
-			Sleep, %sleepTime%
+				Click, % pos.x+rel[1] " " pos.y+rel[2] " " WhichButtonOrSleepTime (ClickCount ? " " ClickCount : "") (DownOrUp ? " " DownOrUp : "") (Relative ? " " Relative : "")
+			Sleep, %SleepTime%
 		}
 	}
-	; ControlClicks the element after getting relative coordinates with GetClickablePointRelativeTo("window"). Specifying WinTitle makes the function faster, since it bypasses getting the Hwnd from the element.
-	ControlClick(WinTitle="", WinText="", WhichButton="", ClickCount="", Options="", ExcludeTitle="", ExcludeText="") { 
-		if (WinTitle == "")
-			WinTitle := "ahk_id " this.GetParentHwnd()
+	; ControlClicks the element after getting relative coordinates with GetClickablePointRelativeTo("window"). Specifying WinTitle makes the function faster, since it bypasses getting the Hwnd from the element. 
+	; If WinTitle or WinText is a number, then Sleep will be called with that number of milliseconds. Ex: ControlClick(200) will sleep 200ms after clicking. Same for ControlClick("ahk_id 12345", 200)
+	ControlClick(WinTitleOrSleepTime="", WinTextOrSleepTime="", WhichButton="", ClickCount="", Options="", ExcludeTitle="", ExcludeText="") { 
+		if (WinTitleOrSleepTime == "")
+			WinTitleOrSleepTime := "ahk_id " this.GetParentHwnd()	
 		if !(pos := this.GetClickablePointRelativeTo("window")).x {
 			pos := this.GetCurrentPos("window") ; or should GetClickablePoint be used instead?
-			ControlClick, % "X" pos.x+pos.w//2 " Y" pos.y+pos.h//2, % WinTitle, % WinText, % WhichButton, % ClickCount, % Options, % ExcludeTitle, % ExcludeText
+			ControlClick, % "X" pos.x+pos.w//2 " Y" pos.y+pos.h//2, % WinTitleOrSleepTime, % WinTextOrSleepTime, % WhichButton, % ClickCount, % Options, % ExcludeTitle, % ExcludeText
 		} else
-			ControlClick, % "X" pos.x " Y" pos.y, % WinTitle, % WinText, % WhichButton, % ClickCount, % Options, % ExcludeTitle, % ExcludeText
+			ControlClick, % "X" pos.x " Y" pos.y, % WinTitleOrSleepTime, % WinTextOrSleepTime, % WhichButton, % ClickCount, % Options, % ExcludeTitle, % ExcludeText
+		if WinTitleOrSleepTime is integer
+			Sleep, %WinTitleOrSleepTime%
+		else if WinTextOrSleepTime is integer
+			Sleep, %WinTextOrSleepTime%
 	}
 	; Returns an object containing the x, y coordinates and width and height: {x:x coordinate, y:y coordinate, w:width, h:height}. relativeTo can be client, window or screen, default is A_CoordModeMouse.
 	GetCurrentPos(relativeTo="") { 
@@ -825,7 +1303,9 @@ class UIA_Element extends UIA_Base {
 			
 			Criteria can be combined with AND, OR, &&, ||:
 			Example3: "Name=Username: AND ControlType=Button" would FindFirst an element with the name property of "Username:" and control type of button.
-			Parenthesis are not supported! Criteria are evaluated left to right, so "a AND b OR c" would be evaluated as "(a and b) or c".
+
+			If matchMode==3 or matching substrings is supported (Windows 10 17763 and above) and matchMode==2, then parentheses are supported. 
+			Otherwise parenthesis are not supported, and criteria are evaluated left to right, so "a AND b OR c" would be evaluated as "(a and b) or c".
 			
 			Negation can be specified with NOT:
 			Example4: "NOT ControlType=Edit" would return the first element that is not an edit element
@@ -846,32 +1326,46 @@ class UIA_Element extends UIA_Base {
 	*/
 	FindFirstBy(expr, scope=0x4, matchMode=3, caseSensitive=True) { 
 		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
+		if ((matchMode == 3) || (matchMode==2 && MatchSubstringSupported)) {
+			return this.FindFirst(this.__UIA.CreateCondition(expr, ((matchMode==2)?2:0)|!caseSensitive), scope)
+		}
 		pos := 1, match := "", createCondition := "", operator := "", bufName := []
-		while (pos := RegexMatch(expr, "(.*?)=(.*?)( AND | OR | && | \|\| |$)", match, pos+StrLen(match))) {
+		while (pos := RegexMatch(expr, "i) *(NOT|!)? *(\w+?) *=(?: *(\d+|'.*?(?<=[^\\]|[^\\]\\\\)')|(.*?))(?: FLAGS=(\d))?( AND | OR | && | \|\| |$)", match, pos+StrLen(match))) {
 			if !match
 				break
-			if (InStr(match1, "Name") && ((matchMode != 2) || ((matchMode == 2) && !MatchSubstringSupported)) && (matchMode != 3)) {
-				bufName[1] := match1, bufName[2] := match2
+			if ((StrLen(match3) > 1) && (SubStr(match3,1,1) == "'") && (SubStr(match3,0,1) == "'"))
+				match3 := StrReplace(RegexReplace(SubStr(match3,2,StrLen(match3)-2), "(?<=[^\\]|[^\\]\\\\)\\'", "'"), "\\", "\") ; Remove single quotes and escape characters
+			else if match4
+				match3 := match4
+			if ((isNamedProperty := RegexMatch(match2, "i)Name|AutomationId|Value|ClassName|FrameworkId")) && !bufName[1] && ((matchMode != 2) || ((matchMode == 2) && !MatchSubstringSupported)) && (matchMode != 3)) { ; Check if we have a condition that needs FindAll to be searched, and save it. Apply only for the first one encountered.
+				bufName[1] := (match1 ? "NOT " : "") match2, bufName[2] := match3, bufName[3] := match5
 				Continue
-			} else {
-				;OutputDebug, % "Creating condition with: m1: """ match1 """ m2: """ match2 """ m3: """ match3 """ flags: " (((matchMode==2) && (match1="Name"))?2:0)|!caseSensitive
-				newCondition := (SubStr(match1, 1, 4) = "NOT ") ? this.__UIA.CreateNotCondition(this.__UIA.CreateCondition(SubStr(match1, 5), match2, ((matchMode==2 && match1=="Name")?2:0)|!caseSensitive)) : this.__UIA.CreateCondition(match1, match2, (((matchMode==2) && (match1="Name"))?2:0)|!caseSensitive)
 			}
+			newCondition := this.__UIA.CreateCondition(match2, match3, match5 ? match5 : ((((matchMode==2) && isNamedProperty)?2:0)|!caseSensitive))
+			if match1
+				newCondition := this.__UIA.CreateNotCondition(newCondition)
 			fullCondition := (operator == " AND " || operator == " && ") ? this.__UIA.CreateAndCondition(fullCondition, newCondition) : (operator == " OR " || operator == " || ") ? this.__UIA.CreateOrCondition(fullCondition, newCondition) : newCondition
-			operator := match3
+			operator := match6 ; Save the operator to be used in the next loop
 		}
-		if (bufName[1]) {
-			notProp := InStr(bufName[1], "NOT "), name := bufName[2]
-			nameCondition := (matchMode==1)?this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, 2|!caseSensitive):this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_NamePropertyId, ""))
-			fullCondition := IsObject(fullCondition) ? this.__UIA.CreateAndCondition(nameCondition, fullCondition) : nameCondition
-			for k, v in this.FindAll(fullCondition, scope) {
-				curName := v.CurrentName
+		if (bufName[1]) { ; If a special case was encountered requiring FindAll
+			notProp := InStr(bufName[1], "NOT "), property := StrReplace(StrReplace(bufName[1], "NOT "), "Current"), value := bufName[2], caseSensitive := bufName[3] ? !(bufName[3]&1) : caseSensitive 
+			if (property = "value")
+				property := "ValueValue"
+			if (MatchSubstringSupported && (matchMode==1)) { ; Check if we can speed up the search by limiting to substrings when matchMode==1
+				propertyCondition := this.__UIA.CreatePropertyConditionEx(UIA_Enum["UIA_" property "PropertyId"], value,, 2|!caseSensitive)
+				if notProp
+					propertyCondition := this.__UIA.CreateNotCondition(propertyCondition)
+			} else 
+				propertyCondition := this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum["UIA_" property "PropertyId"], ""))
+			fullCondition := IsObject(fullCondition) ? this.__UIA.CreateAndCondition(propertyCondition, fullCondition) : propertyCondition
+			for _, element in this.FindAll(fullCondition, scope) {
+				curValue := element["Current" property]
 				if notProp {
-					if (((matchMode == 1) && !InStr(SubStr(curName, 1, StrLen(name)), name, caseSensitive)) || ((matchMode == 2) && !InStr(curName, name, caseSensitive)) || (InStr(matchMode, "RegEx") && !RegExMatch(curName, name)))
-						return v
+					if (((matchMode == 1) && !InStr(SubStr(curValue, 1, StrLen(value)), value, caseSensitive)) || ((matchMode == 2) && !InStr(curValue, value, caseSensitive)) || (InStr(matchMode, "RegEx") && !RegExMatch(curValue, value)))
+						return element
 				} else {
-					if (((matchMode == 1) && InStr(SubStr(curName, 1, StrLen(name)), name, caseSensitive)) || ((matchMode == 2) && InStr(curName, name, caseSensitive)) || (InStr(matchMode, "RegEx") && RegExMatch(curName, name)))
-						return v
+					if (((matchMode == 1) && InStr(SubStr(curValue, 1, StrLen(value)), value, caseSensitive)) || ((matchMode == 2) && InStr(curValue, value, caseSensitive)) || (InStr(matchMode, "RegEx") && RegExMatch(curValue, value)))
+						return element
 				}
 			}
 		} else {
@@ -925,34 +1419,48 @@ class UIA_Element extends UIA_Base {
 	; FindAll using an expression containing the desired conditions. For more information about expr, see FindFirstBy explanation
 	FindAllBy(expr, scope=0x4, matchMode=3, caseSensitive=True) {
 		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
+		if ((matchMode == 3) || (matchMode==2 && MatchSubstringSupported)) 
+			return this.FindAll(this.__UIA.CreateCondition(expr, ((matchMode==2)?2:0)|!caseSensitive), scope)
 		pos := 1, match := "", createCondition := "", operator := "", bufName := []
-		while (pos := RegexMatch(expr, "(.*?)=(.*?)( AND | OR | && | \|\| |$)", match, pos+StrLen(match))) {
+		while (pos := RegexMatch(expr, "i) *(NOT|!)? *(\w+?) *=(?: *(\d+|'.*?(?<=[^\\]|[^\\]\\\\)')|(.*?))(?: FLAGS=(\d))?( AND | OR | && | \|\| |$)", match, pos+StrLen(match))) {
 			if !match
 				break
-			if (InStr(match1, "Name") && ((matchMode != 2) || ((matchMode == 2) && !MatchSubstringSupported)) && (matchMode != 3)) {
-				bufName[1] := match1, bufName[2] := match2
+			if ((StrLen(match3) > 1) && (SubStr(match3,1,1) == "'") && (SubStr(match3,0,1) == "'"))
+				match3 := StrReplace(RegexReplace(SubStr(match3,2,StrLen(match3)-2), "(?<=[^\\]|[^\\]\\\\)\\'", "'"), "\\", "\") ; Remove single quotes and escape characters
+			else if match4
+				match3 := match4
+			if ((isNamedProperty := RegexMatch(match2, "i)Name|AutomationId|Value|ClassName|FrameworkId")) && !bufName[1] && ((matchMode != 2) || ((matchMode == 2) && !MatchSubstringSupported)) && (matchMode != 3)) { ; Check if we have a condition that needs FindAll to be searched, and save it. Apply only for the first one encountered.
+				bufName[1] := (match1 ? "NOT " : "") match2, bufName[2] := match3, bufName[3] := match5
 				Continue
-			} else {
-				newCondition := (SubStr(match1, 1, 4) = "NOT ") ? this.__UIA.CreateNotCondition(this.__UIA.CreateCondition(SubStr(match1, 5), match2)) : this.__UIA.CreateCondition(match1, match2, ((matchMode==2 && match1="Name")?2:0)|!caseSensitive)
 			}
+			newCondition := this.__UIA.CreateCondition(match2, match3, match5 ? match5 : ((((matchMode==2) && isNamedProperty)?2:0)|!caseSensitive))
+			if match1
+				newCondition := this.__UIA.CreateNotCondition(newCondition)
 			fullCondition := (operator == " AND " || operator == " && ") ? this.__UIA.CreateAndCondition(fullCondition, newCondition) : (operator == " OR " || operator == " || ") ? this.__UIA.CreateOrCondition(fullCondition, newCondition) : newCondition
-			operator := match3
+			operator := match6 ; Save the operator to be used in the next loop
 		}
-		if (bufName[1]) {
-			notProp := InStr(bufName[1], "NOT "), name := bufName[2], returnArr := []
-			nameCondition := (matchMode==1)?this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, 2|!caseSensitive):this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_NamePropertyId, ""))
-			fullCondition := IsObject(fullCondition) ? this.__UIA.CreateAndCondition(nameCondition, fullCondition) : nameCondition
-			for k, v in this.FindAll(fullCondition, scope) {
-				curName := v.CurrentName
+		if (bufName[1]) { ; If a special case was encountered requiring FindAll
+			notProp := InStr(bufName[1], "NOT "), property := StrReplace(StrReplace(bufName[1], "NOT "), "Current"), value := bufName[2], returnArr := [], caseSensitive := bufName[3] ? !(bufName[3]&1) : caseSensitive
+			if (property = "value")
+				property := "ValueValue"
+			if (MatchSubstringSupported && (matchMode==1)) { ; Check if we can speed up the search by limiting to substrings when matchMode==1
+				propertyCondition := this.__UIA.CreatePropertyConditionEx(UIA_Enum["UIA_" property "PropertyId"], value,, 2|!caseSensitive)
+				if notProp
+					propertyCondition := this.__UIA.CreateNotCondition(propertyCondition)
+			} else 
+				propertyCondition := this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum["UIA_" property "PropertyId"], ""))
+			fullCondition := IsObject(fullCondition) ? this.__UIA.CreateAndCondition(propertyCondition, fullCondition) : propertyCondition
+			for _, element in this.FindAll(fullCondition, scope) {
+				curValue := element["Current" property]
 				if notProp {
-					if (((matchMode == 1) && !InStr(SubStr(curName, 1, StrLen(name)), name, caseSensitive)) || ((matchMode == 2) && !InStr(curName, name, caseSensitive)) || ((matchMode = "RegEx") && !RegExMatch(curName, name)))
-						returnArr.Push(v)
+					if (((matchMode == 1) && !InStr(SubStr(curValue, 1, StrLen(value)), value, caseSensitive)) || ((matchMode == 2) && !InStr(curValue, value, caseSensitive)) || (InStr(matchMode, "RegEx") && !RegExMatch(curValue, value)))
+						returnArr.Push(element)
 				} else {
-					if (((matchMode == 1) && InStr(SubStr(curName, 1, StrLen(name)), name, caseSensitive)) || ((matchMode == 2) && InStr(curName, name, caseSensitive)) || ((matchMode = "RegEx") && RegExMatch(curName, name)))
-						returnArr.Push(v)
+					if (((matchMode == 1) && InStr(SubStr(curValue, 1, StrLen(value)), value, caseSensitive)) || ((matchMode == 2) && InStr(curValue, value, caseSensitive)) || (InStr(matchMode, "RegEx") && RegExMatch(curValue, value)))
+						returnArr.Push(element)
 				}
 			}
-			return returnArr
+			return returnArr[1] ? returnArr : ""
 		} else {
 			return this.FindAll(fullCondition, scope)
 		}
@@ -1117,31 +1625,166 @@ class UIA_Element extends UIA_Base {
 class UIA_Element2 extends UIA_Element {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee671425(v=vs.85).aspx
 	static __IID := "{6749C683-F70D-4487-A698-5F79D55290D6}"
-		,  __properties := UIA_Element.__properties "`r`nCurrentOptimizeForVisualContent,85,BOOL`r`nCachedOptimizeForVisualContent,86,BOOL`r`nCurrentLiveSetting,87,int`r`nCachedLiveSetting,88,int`r`nCurrentFlowsFrom,89,UIA_ElementArray`r`nCachedFlowsFrom,90,UIA_ElementArray`r`n"
+
+	; ---------- UIA_Element2 properties ----------
+
+	CurrentOptimizeForVisualContent[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(85), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedOptimizeForVisualContent[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(86), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentLiveSetting[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(87), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedLiveSetting[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(88), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentFlowsFrom[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(89), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedFlowsFrom[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(90), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
 }
 class UIA_Element3 extends UIA_Element2 {
 	static __IID := "{8471DF34-AEE0-4A01-A7DE-7DB9AF12C296}"
-		,  __properties := UIA_Element2.__properties "`r`nCurrentIsPeripheral,92,int`r`nCachedIsPeripheral,93,int"
+
+	; ---------- UIA_Element3 properties ----------
+
+	CurrentIsPeripheral[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(92), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedIsPeripheral[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(93), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+
+	; ---------- UIA methods ----------
+
 	ShowContextMenu() {
 		return UIA_Hr(DllCall(this.__Vt(91), "ptr",this.__Value))
 	}
 }
 class UIA_Element4 extends UIA_Element3 {
 	static __IID := "{3B6E233C-52FB-4063-A4C9-77C075C2A06B}"
-		,  __properties := UIA_Element3.__properties "`r`nCurrentPositionInSet,94,int`r`nCurrentSizeOfSet,95,int`r`nCurrentLevel,96,int`r`nCurrentAnnotationTypes,97,VARIANT`r`nCurrentAnnotationObjects,98,IUIAutomationElementArray`r`nCachedPositionInSet,99,int`r`nCachedSizeOfSet,100,int`r`nCachedLevel,101,int`r`nCachedAnnotationTypes,102,VARIANT`r`nCachedAnnotationObjects,103,IUIAutomationElementArray"
+
+	; ---------- UIA_Element4 properties ----------
+
+	CurrentPositionInSet[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(94), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentSizeOfSet[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(95), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentLevel[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(96), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentAnnotationTypes[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(97), "ptr",this.__Value, "ptr",UIA_Variant(out)))&&out?UIA_VariantData(out):
+		}
+	}
+	CurrentAnnotationObjects[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(98), "ptr",this.__Value, "ptr*",out))?UIA_ElementArray(out):
+		}
+	}
+	CachedPositionInSet[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(99), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedSizeOfSet[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(100), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedLevel[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(101), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedAnnotationTypes[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(102), "ptr",this.__Value, "ptr",UIA_Variant(out)))&&out?UIA_VariantData(out):
+		}
+	}
+	CachedAnnotationObjects[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(103), "ptr",this.__Value, "ptr*",out))?UIA_ElementArray(out):
+		}
+	}
+
 }
 class UIA_Element5 extends UIA_Element4 {
 	static __IID := "{98141C1D-0D0E-4175-BBE2-6BFF455842A7}"
-		,  __properties := UIA_Element4.__properties "`r`nCurrentLandmarkType,104,int`r`nCurrentLocalizedLandmarkType,105,BSTR`r`nCachedLandmarkType,106,int`r`nCachedLocalizedLandmarkType,107,BSTR"
+
+	; ---------- UIA_Element5 properties ----------
+
+	CurrentLandmarkType[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(104), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentLocalizedLandmarkType[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(105), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedLandmarkType[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(106), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedLocalizedLandmarkType[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(107), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
 }
 class UIA_Element6 extends UIA_Element5 {
 	static __IID := "{4780D450-8BCA-4977-AFA5-A4A517F555E3}"
-		,  __properties := UIA_Element5.__properties "`r`nCurrentFullDescription,108,BSTR`r`nCachedFullDescription,109,BSTR"
+
+	; ---------- UIA_Element6 properties ----------
+
+	CurrentFullDescription[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(108), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedFullDescription[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(109), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
 }
 class UIA_Element7 extends UIA_Element6 {
 	static __IID := "{204E8572-CFC3-4C11-B0C8-7DA7420750B7}"
-		,  __properties := UIA_Element6.__properties
-	FindFirstWithOptions(scope, c, traversalOptions=0, root=0) { ; Finds the first matching element in the specified order. traversalOptions must be one of TreeTraversalOptions enums. [optional] root is pointer to the element with which to begin the search.
+	
+	; Finds the first matching element in the specified order. traversalOptions must be one of TreeTraversalOptions enums. [optional] root is pointer to the element with which to begin the search.
+	FindFirstWithOptions(scope, c, traversalOptions=0, root=0) { 
 		return UIA_Hr(DllCall(this.__Vt(110), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:c).__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out))&&out? UIA_Element(out):
 	}
 	FindAllWithOptions(scope, c, traversalOptions=0, root=0) {
@@ -1160,7 +1803,16 @@ class UIA_Element7 extends UIA_Element6 {
 
 class UIA_ElementArray extends UIA_Base {
 	static __IID := "{14314595-b4bc-4055-95f2-58f2e42c9855}"
-		,  __properties := "Length,3,int"
+
+	; ---------- UIA_ElementArray properties ----------
+
+	Length[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+
+	; ---------- UIA_ElementArray methods ----------
 	
 	GetElement(i) {
 		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "int",i, "ptr*",out))? UIA_Element(out):
@@ -1173,8 +1825,17 @@ class UIA_ElementArray extends UIA_Base {
 class UIA_TreeWalker extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee671470(v=vs.85).aspx
 	static __IID := "{4042c624-389c-4afc-a630-9df854a541fc}"
-		,  __properties := "Condition,15,IUIAutomationCondition"
-	
+
+	; ---------- UIA_TreeWalker properties ----------
+
+	Condition[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out))?new UIA_Condition(out):
+		}
+	}
+
+	; ---------- UIA_TreeWalker methods ----------
+
 	GetParentElement(e) {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))? UIA_Element(out):
 	}
@@ -1220,7 +1881,6 @@ class UIA_TreeWalker extends UIA_Base {
 class UIA_Condition extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee671420(v=vs.85).aspx
 	static __IID := "{352ffba8-0973-437c-a61f-f64cafd81df9}"
-		,  __properties := ""
 }
 
 /*
@@ -1229,7 +1889,24 @@ class UIA_Condition extends UIA_Base {
 */
 class UIA_PropertyCondition extends UIA_Condition {
 	static __IID := "{99ebf2cb-5578-4267-9ad4-afd6ea77e94b}"
-		,  __properties := "PropertyId,3,PROPERTYID`r`nPropertyValue,4,VARIANT`r`nPropertyConditionFlags,5,PropertyConditionFlags"
+
+	; ---------- UIA_PropertyCondition properties ----------
+
+	PropertyId[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	PropertyValue[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr",UIA_Variant(out)))&&out?UIA_VariantData(out):
+		}
+	}
+	PropertyConditionFlags[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
 }
 
 /*
@@ -1238,8 +1915,15 @@ class UIA_PropertyCondition extends UIA_Condition {
 */
 class UIA_AndCondition extends UIA_Condition {
 	static __IID := "{a7d0af36-b912-45fe-9855-091ddc174aec}"
-		,  __properties := "ChildCount,3,int"
-	
+
+	; ---------- UIA_AndCondition properties ----------
+
+	ChildCount[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+
 	;~ GetChildrenAsNativeArray	4	IUIAutomationCondition ***childArray
 	GetChildren() { ; Returns a native AHK array containing all the conditions (already subtyped to AndCondition, OrCondition etc)
 		ret := UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out)), arr := []
@@ -1266,8 +1950,17 @@ class UIA_AndCondition extends UIA_Condition {
 */
 class UIA_OrCondition extends UIA_Condition {
 	static __IID := "{8753f032-3db1-47b5-a1fc-6e34a266c712}"
-		,  __properties := "ChildCount,3,int"
-	
+
+	; ---------- UIA_OrCondition properties ----------
+
+	ChildCount[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+
+	; ---------- UIA_OrCondition methods ----------
+
 	;~ GetChildrenAsNativeArray	4	IUIAutomationCondition ***childArray
 	GetChildren() {
 		ret := UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out)), arr := []
@@ -1293,7 +1986,14 @@ class UIA_OrCondition extends UIA_Condition {
 */
 class UIA_BoolCondition extends UIA_Condition {
 	static __IID := "{1B4E1F2E-75EB-4D0B-8952-5A69988E2307}"
-		,  __properties := "BooleanValue,3,boolVal"
+
+	; ---------- UIA_BoolCondition properties ----------
+
+	BooleanValue[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
 }
 
 /*
@@ -1302,7 +2002,6 @@ class UIA_BoolCondition extends UIA_Condition {
 */
 class UIA_NotCondition extends UIA_Condition {
 	static __IID := "{f528b657-847b-498c-8896-d52b565407a1}"
-			,	__Properties := ""
 
 	GetChild() { ; Type of the received condition can be determined with out.__Class
 		ret := UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out)), obj := ComObject(9, out, 1)
@@ -1325,7 +2024,26 @@ class UIA_IUnknown extends UIA_Base {
 */
 class UIA_CacheRequest extends UIA_Base {
 	static __IID := "{b32a92b5-bc25-4078-9c08-d7ee95c48e03}"
-		,  __properties := "CurrentTreeScope,6,int`r`nCurrentTreeFilter,8,int`r`nCurrentAutomationElementMode,10,int"
+
+	; ---------- UIA_CacheRequest properties ----------
+
+	CurrentTreeScope[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentTreeFilter[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentAutomationElementMode[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+
+	; ---------- UIA_CacheRequest methods ----------
 
 	Clone() {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",out)) ? new UIA_CacheRequest(out):
@@ -1354,7 +2072,6 @@ class UIA_CacheRequest extends UIA_Base {
 class _UIA_EventHandler extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696044(v=vs.85).aspx
 	static __IID := "{146c3c17-f12e-4e22-8c27-f894b9b79c69}"
-		,	__Properties := ""
 
 	HandleAutomationEvent(sender, eventId) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
@@ -1369,7 +2086,7 @@ class _UIA_EventHandler extends UIA_Base {
 class _UIA_FocusChangedEventHandler extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696051(v=vs.85).aspx
 	static __IID := "{c270f6b5-5c69-4290-9745-7a7f97169468}"
-		,	__Properties := ""
+
 	HandleFocusChangedEvent(sender) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
 		%funcName%(UIA_Element(sender))
@@ -1383,7 +2100,7 @@ class _UIA_FocusChangedEventHandler extends UIA_Base {
 class _UIA_PropertyChangedEventHandler extends UIA_Base { ; UNTESTED
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696119(v=vs.85).aspx
 	static __IID := "{40cd37d4-c756-4b0c-8c6f-bddfeeb13b50}"
-		,	__Properties := ""
+
 	HandlePropertyChangedEvent(sender, propertyId, newValue) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
 		%funcName%(UIA_Element(sender), eventId, UIA_VariantData(newValue))
@@ -1397,7 +2114,7 @@ class _UIA_PropertyChangedEventHandler extends UIA_Base { ; UNTESTED
 class _UIA_StructureChangedEventHandler extends UIA_Base { ; UNTESTED
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696197(v=vs.85).aspx
 	static __IID := "{e81d1b4e-11c5-42f8-9754-e7036c79f054}"
-		,	__Properties := ""
+
 	HandleStructureChangedEvent(sender, changeType, runtimeId) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
 		%funcName%(UIA_Element(sender), changeType, UIA_SafeArrayToAHKArray(ComObj(0x2003,runtimeId,1)))
@@ -1411,13 +2128,12 @@ class _UIA_StructureChangedEventHandler extends UIA_Base { ; UNTESTED
 class _UIA_TextEditTextChangedEventHandler extends UIA_Base { ; UNTESTED
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/dn302202(v=vs.85).aspx
 	static __IID := "{92FAA680-E704-4156-931A-E32D5BB38F3F}"
-		,	__Properties := ""
+
 	HandleTextEditTextChangedEvent(sender, changeType, eventStrings) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
 		%funcName%(UIA_Element(sender), changeType, UIA_SafeArrayToAHKArray(ComObj(0x2008,eventStrings,1)))
 		return param1
 	}
-	;~ HandleTextEditTextChangedEvent	3
 }
 /*
 	Exposes a method to handle one or more Microsoft UI Automation change events
@@ -1425,7 +2141,7 @@ class _UIA_TextEditTextChangedEventHandler extends UIA_Base { ; UNTESTED
 */
 class _UIA_ChangesEventHandler extends UIA_Base { ; UNTESTED
 	static __IID := "{58EDCA55-2C3E-4980-B1B9-56C17F27A2A0}"
-		,	__Properties := ""
+
 	HandleChangesEvent(sender, uiaChanges, changesCount) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version, changes := {}
 		changes.uiaId := NumGet(uiaChanges,, 0), changes.payload := UIA_VariantData(uiaChanges,, 8), changes.extraInfo := UIA_VariantData(uiaChanges,,16+2*A_PtrSize)
@@ -1440,7 +2156,7 @@ class _UIA_ChangesEventHandler extends UIA_Base { ; UNTESTED
 */
 class _UIA_NotificationEventHandler extends UIA_Base {
 	static __IID := "{C7CB2637-E6C2-4D0C-85DE-4948C02175C7}"
-		,	__Properties := ""
+
 	HandleNotificationEvent(sender, notificationKind, notificationProcessing, displayString, activityId) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
 		%funcName%(UIA_Element(sender), notificationKind, notificationProcessing, StrGet(displayString), StrGet(activityId))
@@ -1451,7 +2167,7 @@ class _UIA_NotificationEventHandler extends UIA_Base {
 
 class UIA_AutomationEventHandlerGroup extends UIA_Base {
 	static __IID := "{C9EE12F2-C13B-4408-997C-639914377F4E}"
-		,	__Properties := ""
+
 	AddActiveTextPositionChangedEventHandler(scope=0x4, cacheRequest=0, handler="") {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "int", scope, "int", cacheRequest.__Value, "ptr",out))
 	}
@@ -1486,7 +2202,21 @@ class UIA_DockPattern extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee671421
 	static	__IID := "{fde5ef97-1464-48f6-90bf-43d0948e86ec}"
 		,	__PatternID := 10011
-		,	__Properties := "CurrentDockPosition,4,int`r`nCachedDockPosition,5,int"
+
+	; ---------- UIA_DockPattern properties ----------
+
+	CurrentDockPosition[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedDockPosition[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+
+	; ---------- UIA_DockPattern methods ----------
 
 	SetDockPosition(Pos) {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "uint",pos))
@@ -1507,7 +2237,21 @@ class UIA_DockPattern extends UIA_Base {
 class UIA_ExpandCollapsePattern extends UIA_Base {
 	static	__IID := "{619be086-1f4e-4ee4-bafa-210128738730}"
 		,	__PatternID := 10005
-		,	__Properties := "CachedExpandCollapseState,6,int`r`nCurrentExpandCollapseState,5,int"
+
+	; ---------- UIA_ExpandCollapsePattern properties ----------
+
+	CachedExpandCollapseState[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentExpandCollapseState[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+
+	; ---------- UIA_ExpandCollapsePattern methods ----------
 	
 	Expand() {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value))
@@ -1530,7 +2274,59 @@ class UIA_GridItemPattern extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696053
 	static	__IID := "{78f8ef57-66c3-4e09-bd7c-e79b2004894d}"
 		,	__PatternID := 10007
-		,	__Properties := "CurrentContainingGrid,3,IUIAutomationElement`r`nCurrentRow,4,int`r`nCurrentColumn,5,int`r`nCurrentRowSpan,6,int`r`nCurrentColumnSpan,7,int`r`nCachedContainingGrid,8,IUIAutomationElement`r`nCachedRow,9,int`r`nCachedColumn,10,int`r`nCachedRowSpan,11,int`r`nCachedColumnSpan,12,int"
+
+	; ---------- UIA_GridItemPattern properties ----------
+
+	CurrentContainingGrid[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+		}
+	}
+	CurrentRow[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentColumn[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentRowSpan[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentColumnSpan[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedContainingGrid[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+		}
+	}
+	CachedRow[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedColumn[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedRowSpan[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedColumnSpan[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
 }
 
 /*
@@ -1541,7 +2337,31 @@ class UIA_GridPattern extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696064
 	static	__IID := "{414c3cdc-856b-4f5b-8538-3131c6302550}"
 		,	__PatternID := 10006
-		,	__Properties := "CurrentRowCount,4,int`r`nCurrentColumnCount,5,int`r`nCachedRowCount,6,int`r`nCachedColumnCount,7,int"
+
+	; ---------- UIA_GridPattern properties ----------
+
+	CurrentRowCount[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentColumnCount[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedRowCount[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedColumnCount[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+
+	; ---------- UIA_GridPattern methods ----------
 
 	GetItem(row,column) { ; Hr!=0 if no result, or blank output?
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "uint",row, "uint",column, "ptr*",out))&&out? UIA_Element(out):
@@ -1556,7 +2376,6 @@ class UIA_InvokePattern extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696070
 	static	__IID := "{fb377fbe-8ea6-46d5-9c73-6499642d3059}"
 		,	__PatternID := 10000
-		,	__Properties := ""
 	
 	Invoke() {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value))
@@ -1571,7 +2390,6 @@ class UIA_ItemContainerPattern extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696072
 	static	__IID := "{c690fdb2-27a8-423c-812d-429773c9084e}"
 		,	__PatternID := 10019
-		,	__Properties := ""
 
 	FindItemByProperty(startAfter, propertyId, ByRef value, type=8) {	; Hr!=0 if no result, or blank output?
 		if (type!="Variant")
@@ -1587,7 +2405,104 @@ class UIA_ItemContainerPattern extends UIA_Base {
 class UIA_LegacyIAccessiblePattern extends UIA_Base {
 	static	__IID := "{828055ad-355b-4435-86d5-3b51c14a9b1b}"
 		,	__PatternID := 10018
-		,	__Properties := "CurrentChildId,6,int`r`nCurrentName,7,BSTR`r`nCurrentValue,8,BSTR`r`nCurrentDescription,9,BSTR`r`nCurrentRole,10,DWORD`r`nCurrentState,11,DWORD`r`nCurrentHelp,12,BSTR`r`nCurrentKeyboardShortcut,13,BSTR`r`nCurrentDefaultAction,15,BSTR`r`nCachedChildId,16,int`r`nCachedName,17,BSTR`r`nCachedValue,18,BSTR`r`nCachedDescription,19,BSTR`r`nCachedRole,20,DWORD`r`nCachedState,21,DWORD`r`nCachedHelp,22,BSTR`r`nCachedKeyboardShortcut,23,BSTR`r`nCachedDefaultAction,25,BSTR"
+
+	; ---------- UIA_LegacyIAccessiblePattern properties ----------
+
+	CurrentChildId[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentName[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CurrentValue[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+		set {
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr",&value))
+		}
+	}
+	CurrentDescription[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CurrentRole[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentState[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentHelp[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CurrentKeyboardShortcut[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CurrentDefaultAction[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedChildId[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedName[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(17), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedValue[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(18), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedDescription[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(19), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedRole[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(20), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedState[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(21), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedHelp[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(22), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedKeyboardShortcut[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(23), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedDefaultAction[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(25), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+
+	; ---------- UIA_LegacyIAccessiblePattern methods ----------
 
 	Select(flags=3) {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "int",flags))
@@ -1619,7 +2534,21 @@ class UIA_MultipleViewPattern extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696099
 	static	__IID := "{8d253c91-1dc5-4bb5-b18f-ade16fa495e8}"
 		,	__PatternID := 10008
-		,	__Properties := "CurrentCurrentView,5,int`r`nCachedCurrentView,7,int"
+
+	; ---------- UIA_MultipleViewPattern properties ----------
+
+	CurrentCurrentView[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedCurrentView[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+
+	; ---------- UIA_MultipleViewPattern methods ----------
 
 	GetViewName(view) { ; need to release BSTR?
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "int",view, "ptr*",name))? StrGet(name) (DllCall("oleaut32\SysFreeString", "ptr", name)?"":""):
@@ -1643,7 +2572,74 @@ class UIA_RangeValuePattern extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696147
 	static	__IID := "{59213f4f-7346-49e5-b120-80555987a148}"
 		,	__PatternID := 10003
-		,	__Properties := "CurrentValue,4,double`r`nCurrentIsReadOnly,5,BOOL`r`nCurrentMaximum,6,double`r`nCurrentMinimum,7,double`r`nCurrentLargeChange,8,double`r`nCurrentSmallChange,9,double`r`nCachedValue,10,double`r`nCachedIsReadOnly,11,BOOL`r`nCachedMaximum,12,double`r`nCachedMinimum,13,double`r`nCachedLargeChange,14,double`r`nCachedSmallChange,15,double"
+
+	; ---------- UIA_RangeValuePattern properties ----------
+
+	CurrentValue[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "Double*",out))?out:
+		}
+		set {
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "double",value))
+		}
+	}
+	CurrentIsReadOnly[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentMaximum[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+	CurrentMinimum[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+	CurrentLargeChange[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+	CurrentSmallChange[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+	CachedValue[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+	CachedIsReadOnly[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedMaximum[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+	CachedMinimum[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+	CachedLargeChange[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+	CachedSmallChange[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+
+	; ---------- UIA_RangeValuePattern methods ----------
 
 	SetValue(val) {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "double",val))
@@ -1658,7 +2654,6 @@ class UIA_ScrollItemPattern extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696165
 	static	__IID := "{b488300f-d015-4f19-9c29-bb595e3645ef}"
 		,	__PatternID := 10017
-		,	__Properties := ""
 
 	ScrollIntoView() {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value))
@@ -1673,7 +2668,66 @@ class UIA_ScrollPattern extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696167
 	static	__IID := "{88f4d42a-e881-459d-a77c-73bbbb7e02dc}"
 		,	__PatternID := 10004
-		,	__Properties := "CurrentHorizontalScrollPercent,5,double`r`nCurrentVerticalScrollPercent,6,double`r`nCurrentHorizontalViewSize,7,double`r`nCurrentHorizontallyScrollable,9,BOOL`r`nCurrentVerticallyScrollable,10,BOOL`r`nCachedHorizontalScrollPercent,11,double`r`nCachedVerticalScrollPercent,12,double`r`nCachedHorizontalViewSize,13,double`r`nCachedVerticalViewSize,14,double`r`nCachedHorizontallyScrollable,15,BOOL`r`nCachedVerticallyScrollable,16,BOOL"
+
+	; ---------- UIA_ScrollPattern properties ----------
+
+	CurrentHorizontalScrollPercent[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+	CurrentVerticalScrollPercent[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+	CurrentHorizontalViewSize[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+	CurrentHorizontallyScrollable[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentVerticallyScrollable[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedHorizontalScrollPercent[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+	CachedVerticalScrollPercent[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+	CachedHorizontalViewSize[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+	CachedVerticalViewSize[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+	CachedHorizontallyScrollable[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedVerticallyScrollable[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+
+	; ---------- UIA_ScrollPattern methods ----------
 		
 	Scroll(horizontal=-1, vertical=-1) { ; Default is ScrollAmount_NoAmount
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "uint",horizontal, "uint",vertical))
@@ -1697,7 +2751,32 @@ class UIA_ScrollPattern extends UIA_Base {
 class UIA_SelectionItemPattern extends UIA_Base { ; UNTESTED
 	static	__IID := "{A8EFA66A-0FDA-421A-9194-38021F3578EA}"
 		,	__PatternID := 10010
-		,	__Properties := "CurrentIsSelected,6,int`r`nCurrentSelectionContainer,7,IUIAutomationElement`r`nCachedIsSelected,8,int`r`nCachedSelectionContainer,9,IUIAutomationElement"
+
+	; ---------- UIA_SelectionItemPattern properties ----------
+
+	CurrentIsSelected[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentSelectionContainer[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+		}
+	}
+	CachedIsSelected[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedSelectionContainer[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+		}
+	}
+
+	; ---------- UIA_SelectionItemPattern methods ----------
+
 	Select() {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value))
 	}
@@ -1716,7 +2795,32 @@ class UIA_SelectionItemPattern extends UIA_Base { ; UNTESTED
 class UIA_SelectionPattern extends UIA_Base {
 	static	__IID := "{5ED5202E-B2AC-47A6-B638-4B0BF140D78E}"
 		,	__PatternID := 10001
-		,	__Properties := "CurrentCanSelectMultiple,4,int`r`nCurrentIsSelectionRequired,5,int`r`nCachedCanSelectMultiple,7,int`r`nCachedIsSelectionRequired,8,int"
+
+	; ---------- UIA_SelectionPattern properties ----------
+
+	CurrentCanSelectMultiple[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentIsSelectionRequired[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedCanSelectMultiple[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedIsSelectionRequired[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+
+	; ---------- UIA_SelectionPattern methods ----------
+
 	GetCurrentSelection() { ; Returns an array of selected elements
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*", out))&&out?UIA_ElementArray(out):
 	}
@@ -1728,8 +2832,49 @@ class UIA_SelectionPattern extends UIA_Base {
 class UIA_SelectionPattern2 extends UIA_SelectionPattern { ; UNTESTED
 	static	__IID := "{0532bfae-c011-4e32-a343-6d642d798555}"
 		,	__PatternID := 10034
-		,	__Properties := UIA_SelectionPattern.__Properties .  "`r`nCurrentFirstSelectedItem,9,IUIAutomationElement`r`nCurrentLastSelectedItem,10,IUIAutomationElement`r`nCurrentCurrentSelectedItem,11,IUIAutomationElement`r`nCurrentItemCount,12,int`r`nCachedFirstSelectedItem,13,IUIAutomationElement`r`nCachedLastSelectedItem,14,IUIAutomationElement`r`nCachedCurrentSelectedItem,15,IUIAutomationElement`r`nCachedItemCount,16,int"
-	
+
+	; ---------- UIA_SelectionPattern2 properties ----------
+
+	CurrentFirstSelectedItem[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+		}
+	}
+	CurrentLastSelectedItem[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+		}
+	}
+	CurrentCurrentSelectedItem[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+		}
+	}
+	CurrentItemCount[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedFirstSelectedItem[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+		}
+	}
+	CachedLastSelectedItem[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+		}
+	}
+	CachedCurrentSelectedItem[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+		}
+	}
+	CachedItemCount[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
 }
 
 /*
@@ -1739,7 +2884,22 @@ class UIA_SelectionPattern2 extends UIA_SelectionPattern { ; UNTESTED
 class UIA_SpreadsheetItemPattern extends UIA_Base { ; UNTESTED
 	static	__IID := "{7D4FB86C-8D34-40E1-8E83-62C15204E335}"
 		,	__PatternID := 10027
-		,	__Properties := "CurrentFormula,3,BSTR`r`nCachedFormula,6,BSTR"
+
+	; ---------- UIA_SpreadsheetItemPattern properties ----------
+
+	CurrentFormula[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedFormula[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+
+	; ---------- UIA_SpreadsheetItemPattern methods ----------
+
 	GetCurrentAnnotationObjects() {
 		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*", out))&&out?UIA_ElementArray(out):
 	}
@@ -1761,7 +2921,7 @@ class UIA_SpreadsheetItemPattern extends UIA_Base { ; UNTESTED
 class UIA_SpreadsheetPattern extends UIA_Base { ; UNTESTED
 	static	__IID := "{7517A7C8-FAAE-4DE9-9F08-29B91E8595C1}"
 		,	__PatternID := 10026
-		,	__Properties := ""
+
 	GetItemByName(name) {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr", &name, "ptr*", out))? UIA_Element(out):
 	}
@@ -1774,7 +2934,82 @@ class UIA_SpreadsheetPattern extends UIA_Base { ; UNTESTED
 class UIA_StylesPattern extends UIA_Base { ; UNTESTED
 	static	__IID := "{85B5F0A2-BD79-484A-AD2B-388C9838D5FB}"
 		,	__PatternID := 10025
-		,	__Properties := "CurrentStyleId,3,int`r`nCurrentStyleName,4,int`r`nCurrentFillColor,5,int`r`nCurrentFillPatternStyle,6,int`r`nCurrentShape,7,int`r`nCurrentFillPatternColor,8,int`r`nCurrentExtendedProperties,9,int`r`nCachedStyleId,11,int`r`nCachedStyleName,12,int`r`nCachedFillColor,13,int`r`nCachedFillPatternStyle,14,int`r`nCachedShape,15,int`r`nCachedFillPatternColor,16,int`r`nCachedExtendedProperties,17,int"
+
+	; ---------- UIA_StylesPattern properties ----------
+
+	CurrentStyleId[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentStyleName[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentFillColor[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentFillPatternStyle[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentShape[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentFillPatternColor[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentExtendedProperties[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedStyleId[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedStyleName[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedFillColor[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedFillPatternStyle[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedShape[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedFillPatternColor[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedExtendedProperties[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(17), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+
+	; ---------- UIA_StylesPattern methods ----------
+
 	GetCurrentExtendedPropertiesAsArray(byref propertyCount) {
 		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*", propertyArray, "int*", propertyCount))?UIA_SafeArrayToAHKArray(ComObj(0x2003,propertyArray,1)):
 	}
@@ -1790,7 +3025,7 @@ class UIA_StylesPattern extends UIA_Base { ; UNTESTED
 class UIA_SynchronizedInputPattern extends UIA_Base { ; UNTESTED
 	static	__IID := "{2233BE0B-AFB7-448B-9FDA-3B378AA5EAE1}"
 		,	__PatternID := 10021
-		,	__Properties := ""
+
 	StartListening(inputType) {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "int",inputType))
 	}
@@ -1806,7 +3041,7 @@ class UIA_SynchronizedInputPattern extends UIA_Base { ; UNTESTED
 class UIA_TableItemPattern extends UIA_Base {
 	static	__IID := "{0B964EB3-EF2E-4464-9C79-61D61737A27E}"
 		,	__PatternID := 10013
-		,	__Properties := ""
+
 	GetCurrentRowHeaderItems() {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*", out))&&out?UIA_ElementArray(out):
 	}
@@ -1828,7 +3063,22 @@ class UIA_TableItemPattern extends UIA_Base {
 class UIA_TablePattern extends UIA_Base {
 	static	__IID := "{620E691C-EA96-4710-A850-754B24CE2417}"
 		,	__PatternID := 10012
-		,	__Properties := "CurrentRowOrColumnMajor,5,int`r`nCachedRowOrColumnMajor,8,int"
+
+	; ---------- UIA_TablePattern properties ----------
+
+	CurrentRowOrColumnMajor[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedRowOrColumnMajor[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+
+	; ---------- UIA_TablePattern methods ----------
+
 	GetCurrentRowHeaders() {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*", out))&&out?UIA_ElementArray(out):
 	}
@@ -1850,8 +3100,25 @@ class UIA_TablePattern extends UIA_Base {
 class UIA_TextPattern extends UIA_Base {
 	static	__IID := "{32EBA289-3583-42C9-9C59-3B6D9A1E9B6A}"
 		,	__PatternID := 10014
-		,	__Properties := "DocumentRange,7,IUIAutomationTextRange`r`nSupportedTextSelection,8,int" ; DocumentRange returns a TextRange that encloses the main text of a document.
-	RangeFromPoint(x, y) { ; Retrieves an empty TextRange nearest to the specified screen coordinates
+
+	; ---------- UIA_TextPattern properties ----------
+
+	; DocumentRange returns a TextRange that encloses the main text of a document.
+	DocumentRange[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?UIA_TextRange(out):
+		}
+	}
+	SupportedTextSelection[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+
+	; ---------- UIA_TextPattern methods ----------
+
+	; Retrieves an empty TextRange nearest to the specified screen coordinates
+	RangeFromPoint(x, y) { 
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "int64",x&0xFFFFFFFF|y<<32, "ptr*",out))?UIA_TextRange(out):
 	}
 	; Retrieves a text range enclosing a child element such as an image, hyperlink, Microsoft Excel spreadsheet, or other embedded object.
@@ -1871,7 +3138,7 @@ class UIA_TextPattern extends UIA_Base {
 class UIA_TextPattern2 extends UIA_TextPattern {
 	static	__IID := "{506A921A-FCC9-409F-B23B-37EB74106872}"
 		,	__PatternID := 10024
-		,	__Properties := UIA_TextPattern.__Properties
+
 	RangeFromAnnotation(annotation) {
 		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr", annotation.__Value, "ptr*",out))?UIA_TextRange(out):
 	}
@@ -1887,7 +3154,7 @@ class UIA_TextPattern2 extends UIA_TextPattern {
 class UIA_TextEditPattern extends UIA_TextPattern { ; UNTESTED
 	static	__IID := "{17E21576-996C-4870-99D9-BFF323380C06}"
 		,	__PatternID := 10032
-		,	__Properties := ""
+
 	GetActiveComposition() {
 		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*", out))?UIA_TextRange(out):
 	}
@@ -1903,7 +3170,19 @@ class UIA_TextEditPattern extends UIA_TextPattern { ; UNTESTED
 class UIA_TextChildPattern extends UIA_Base { ; UNTESTED
 	static	__IID := "{6552B038-AE05-40C8-ABFD-AA08352AAB86}"
 		,	__PatternID := 10029
-		,	__Properties := "TextContainer,3,IUIAutomationElement`r`nTextRange,4,IUIAutomationTextRange"
+
+	; ---------- UIA_TextChildPattern properties ----------
+
+	TextContainer[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+		}
+	}
+	TextRange[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out))?UIA_TextRange(out):
+		}
+	}
 }
 
 /*
@@ -1915,7 +3194,26 @@ class UIA_TogglePattern extends UIA_Base
     ; https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtogglepattern
     static __IID := "{94cf8058-9b8d-4ab9-8bfd-4cd0a33c8c70}"
 	, __PatternID := 10015
-	, __Properties := "CurrentToggleState,4,int`r`nCachedToggleState,5,int"
+
+	; ---------- UIA_TogglePattern properties ----------
+
+	CurrentToggleState[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out))?out:
+		}
+		set { ; Custom
+			if ((currentState := this.CurrentToggleState) != value)
+				this.Toggle()
+		}
+	}
+	CachedToggleState[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+
+	; ---------- UIA_TogglePattern methods ----------
+
     Toggle() {
       return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value))
     }
@@ -1928,7 +3226,42 @@ class UIA_TogglePattern extends UIA_Base
 class UIA_TransformPattern extends UIA_Base {
 	static	__IID := "{A9B55844-A55D-4EF0-926D-569C16FF89BB}"
 		,	__PatternID := 10016
-		,	__Properties := "CurrentCanMove,6,bool`r`nCurrentCanResize,7,bool`r`nCurrentCanRotate,8,bool`r`nCachedCanMove,9,bool`r`nCachedCanResize,10,bool`r`nCachedCanRotate,11,bool"
+
+	; ---------- UIA_TransformPattern properties ----------
+
+	CurrentCanMove[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentCanResize[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentCanRotate[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedCanMove[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedCanResize[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedCanRotate[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+
+	; ---------- UIA_TransformPattern methods ----------
+
 	Move(x, y) {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "double",x, "double",y))
 	}
@@ -1943,7 +3276,52 @@ class UIA_TransformPattern extends UIA_Base {
 class UIA_TransformPattern2 extends UIA_TransformPattern { ; UNTESTED 
 	static	__IID := "{6D74D017-6ECB-4381-B38B-3C17A48FF1C2}"
 		,	__PatternID := 10028
-		,	__Properties := UIA_TransformPattern.__Properties . "`r`nCurrentCanZoom,14,bool`r`nCachedCanZoom,15,bool`r`nCurrentZoomLevel,16,double`r`nCachedZoomLevel,17,double`r`nCurrentZoomMinimum,18,double`r`nCachedZoomMinimum,19,double`r`nCurrentZoomMaximum,20,double`r`nCachedZoomMaximum,21,double"
+
+	; ---------- UIA_TransformPattern2 properties ----------
+
+	CurrentCanZoom[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedCanZoom[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentZoomLevel[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+	CachedZoomLevel[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(17), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+	CurrentZoomMinimum[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(18), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+	CachedZoomMinimum[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(19), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+	CurrentZoomMaximum[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(20), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+	CachedZoomMaximum[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(21), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+
+	; ---------- UIA_TransformPattern2 methods ----------
+
 	Zoom(zoomValue) {
 		return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "double",zoomValue))
 	}
@@ -1959,7 +3337,34 @@ class UIA_TransformPattern2 extends UIA_TransformPattern { ; UNTESTED
 class UIA_ValuePattern extends UIA_Base {
 	static	__IID := "{A94CD8B1-0844-4CD6-9D2D-640537AB39E9}"
 		,	__PatternID := 10002
-		,	__Properties := "CurrentValue,4,BSTR`r`nCurrentIsReadOnly,5,BOOL`r`nCachedValue,6,double`r`nCachedIsReadOnly,7,BOOL"
+
+	; ---------- UIA_ValuePattern properties ----------
+
+	CurrentValue[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+		set {
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",&value))
+		}
+	}
+	CurrentIsReadOnly[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedValue[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+	CachedIsReadOnly[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+
+	; ---------- UIA_ValuePattern methods ----------
 
 	SetValue(val) {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",&val))
@@ -1973,7 +3378,6 @@ class UIA_ValuePattern extends UIA_Base {
 class UIA_VirtualizedItemPattern extends UIA_Base {
 	static	__IID := "{6BA3D7A6-04CF-4F11-8793-A8D1CDE9969F}"
 		,	__PatternID := 10020
-		,	__Properties := ""
 
 	Realize() {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value))
@@ -1987,7 +3391,72 @@ class UIA_VirtualizedItemPattern extends UIA_Base {
 class UIA_WindowPattern extends UIA_Base {
 	static __IID := "{0FAEF453-9208-43EF-BBB2-3B485177864F}"
 		, __PatternID := 10009
-		,  __Properties := "CurrentCanMaximize,6,int`r`nCurrentCanMinimize,7,int`r`nCurrentIsModal,8,int`r`nCurrentIsTopmost,9,int`r`nCurrentWindowVisualState,10,int`r`nCurrentWindowInteractionState,11,int`r`nCachedCanMaximize,12,int`r`nCachedCanMinimize,13,int`r`nCachedIsModal,14,int`r`nCachedIsTopmost,15,int`r`nCachedWindowVisualState,16,int`r`nCachedWindowInteractionState,17,int"
+
+	; ---------- UIA_WindowPattern properties ----------
+
+	CurrentCanMaximize[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentCanMinimize[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentIsModal[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentIsTopmost[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentWindowVisualState[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentWindowInteractionState[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedCanMaximize[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedCanMinimize[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedIsModal[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedIsTopmost[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedWindowVisualState[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedWindowInteractionState[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(17), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+
+	; ---------- UIA_WindowPattern methods ----------
+
 	Close() {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value))
 	}
@@ -2006,7 +3475,59 @@ class UIA_WindowPattern extends UIA_Base {
 class UIA_AnnotationPattern extends UIA_Base {	
 	static __IID := "{9A175B21-339E-41B1-8E8B-623F6B681098}"
 		, __PatternID := 10023
-		,  __Properties := "CurrentAnnotationTypeId,3,int`r`nCurrentAnnotationTypeName,4,BSTR`r`nCurrentAuthor,5,BSTR`r`nCurrentDateTime,6,BSTR`r`nCurrentTarget,7,IUIAutomationElement`r`nCachedAnnotationTypeId,8,int`r`nCachedAnnotationTypeName,9,BSTR`r`nCachedAuthor,10,BSTR`r`nCachedDateTime,11,BSTR`r`nCachedTarget,12,IUIAutomationElement"
+
+	; ---------- UIA_AnnotationPattern properties ----------
+
+	CurrentAnnotationTypeId[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentAnnotationTypeName[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CurrentAuthor[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CurrentDateTime[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CurrentTarget[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+		}
+	}
+	CachedAnnotationTypeId[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedAnnotationTypeName[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedAuthor[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedDateTime[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedTarget[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+		}
+	}
 }
 
 /*
@@ -2016,7 +3537,42 @@ class UIA_AnnotationPattern extends UIA_Base {
 class UIA_DragPattern extends UIA_Base { ; UNTESTED, couldn't find a window that supported this
 	static __IID := "{1DC7B570-1F54-4BAD-BCDA-D36A722FB7BD}"
 		, __PatternID := 10030
-		,  __Properties := "CurrentIsGrabbed,3,int`r`nCachedIsGrabbed,4,int`r`nCurrentDropEffect,5,BSTR`r`nCachedDropEffect,6,BSTR`r`nCurrentDropEffects,7,VARIANT`r`nCachedDropEffects,8,VARIANT`r`n"
+
+	; ---------- UIA_DragPattern properties ----------
+
+	CurrentIsGrabbed[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CachedIsGrabbed[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+	CurrentDropEffect[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedDropEffect[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CurrentDropEffects[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr",UIA_Variant(out)))&&out?UIA_VariantData(out):
+		}
+	}
+	CachedDropEffects[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr",UIA_Variant(out)))&&out?UIA_VariantData(out):
+		}
+	}
+
+	; ---------- UIA_GrabPattern methods ----------
+
 	GetCurrentGrabbedItems() {
 		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
 	}
@@ -2032,7 +3588,29 @@ class UIA_DragPattern extends UIA_Base { ; UNTESTED, couldn't find a window that
 class UIA_DropTargetPattern extends UIA_Base { ; UNTESTED
 	static __IID := "{69A095F7-EEE4-430E-A46B-FB73B1AE39A5}"
 		, __PatternID := 10031
-		,  __Properties := "CurrentDropTargetEffect,3,BSTR`r`nCachedDropTargetEffect,4,BSTR`r`nCurrentDropTargetEffects,5,VARIANT`r`nCachedDropTargetEffects,6,VARIANT`r`n"
+
+	; ---------- UIA_DropTargetPattern properties ----------
+
+	CurrentDropTargetEffect[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CachedDropTargetEffect[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+		}
+	}
+	CurrentDropTargetEffects[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr",UIA_Variant(out)))&&out?UIA_VariantData(out):
+		}
+	}
+	CachedDropTargetEffects[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",UIA_Variant(out)))&&out?UIA_VariantData(out):
+		}
+	}
 }
 
 /*
@@ -2043,7 +3621,6 @@ class UIA_ObjectModelPattern extends UIA_Base {			; Windows 8 [desktop apps only
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/hh437262(v=vs.85).aspx
 	static	__IID := "{71c284b3-c14d-4d14-981e-19751b0d756d}"
 		,	__PatternID := 10022
-		,	__Properties := ""
 	
 	GetUnderlyingObjectModel() { ; UNTESTED. Returns IUnknown interface used to access the underlying object model of the provider.
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*", out))?out:
@@ -2059,7 +3636,7 @@ class UIA_ObjectModelPattern extends UIA_Base {			; Windows 8 [desktop apps only
 */
 class UIA_TextRange extends UIA_Base {
 	static __IID := "{A543CC6A-F4AE-494B-8239-C814481187A8}"
-		,  __Properties := ""
+
 	; Returns a copy of the TextRange (retrieves a new IUIAutomationTextRange identical to the original and inheriting all properties of the original).
 	Clone() { 
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?UIA_TextRange(out):
@@ -2146,14 +3723,14 @@ class UIA_TextRange extends UIA_Base {
 
 class UIA_TextRange2 extends UIA_TextRange {
 	static __IID := "{BB9B40E0-5E04-46BD-9BE0-4B601B9AFAD4}"
-		,  __Properties := ""
+
 	ShowContextMenu() {
 		return UIA_Hr(DllCall(this.__Vt(21), "ptr",this.__Value,"ptr*",out))
 	}
 }
 class UIA_TextRange3 extends UIA_TextRange2 { ; UNTESTED
 	static __IID := "{6A315D69-5512-4C2E-85F0-53FCE6DD4BC2}"
-		,  __Properties := ""
+
 	GetEnclosingElementBuildCache(cacheRequest) {
 		return UIA_Hr(DllCall(this.__Vt(22), "Ptr", this.__Value, "Ptr", cacheRequest.__Value, "Ptr*", out))?UIA_Element(out):
 	}
@@ -2178,7 +3755,16 @@ class UIA_TextRange3 extends UIA_TextRange2 { ; UNTESTED
 */
 class UIA_TextRangeArray extends UIA_Base {
 	static __IID := "{CE4AE76A-E717-4C98-81EA-47371D028EB6}"
-		,  __Properties := "Length,3,int"
+
+	; ---------- UIA_TextRangeArray properties ----------
+
+	Length[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?out:
+		}
+	}
+
+	; ---------- UIA_TextRangeArray methods ----------
 	
 	GetElement(i) {
 		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "int",i, "ptr*",out))?UIA_TextRange(out):
@@ -2270,7 +3856,10 @@ class UIA_TextRangeArray extends UIA_Base {
 	}
 	; Used by UIA methods to create new Pattern objects of the highest available version for a given pattern.
 	UIA_Pattern(p, el) {
-		patternName := InStr(p, "Pattern") ? p : p "Pattern", i:=1
+		if p is integer
+			patterName := UIA_Enum.UIA_Pattern(p), i := 1
+		else
+			patternName := InStr(p, "Pattern") ? p : p "Pattern", i:=1
 		Loop {
 			i++
 			if !(IsObject(UIA_%patternName%%i%) && UIA_%patternName%%i%.__iid && UIA_%patternName%%i%.__PatternID)
@@ -2442,6 +4031,11 @@ class UIA_TextRangeArray extends UIA_Base {
 		if flag
 			DllCall("oleaut32\SafeArrayDestroy","ptr", p)
 		return item
+	}
+	UIA_GetBSTRValue(ByRef bstr) {
+		val := StrGet(bstr)
+		DllCall("oleaut32\SysFreeString", "ptr", bstr)
+		return val
 	}
 	/*
 		UIA_CreateEventHandler(funcName, handlerType) returns a new handler object that can be used with methods that create EventHandlers (eg AddAutomationEventHandler)
@@ -2824,8 +4418,10 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 		}
 		
 		n := StrReplace(StrReplace(n, "UIA_"), "PropertyId")
+		if (SubStr(n,1,7) = "Current")
+			n := SubStr(n,8)
 		RegexMatch(ids, "i)(?:^|,)" n "(?:" n ")?(?:Id)?:(\d+)", m)
-		if !m1 && (n = "type")
+		if (!m1 && (n = "type"))
 			return 30003
 		return m1
 	}

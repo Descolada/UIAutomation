@@ -48,7 +48,6 @@ Sleep, 1000
 
 MsgBox, % "We can also get the location of texts. Press OK to test it"
 br := wholeRange.GetBoundingRectangles()
-;MsgBox, % br.MaxIndex() " " br[1].l " " br[1].t " " br[1].r " " br[1].b
 for _, v in br {
 	RangeTip(v.x, v.y, v.w, v.h)
 	Sleep, 1000

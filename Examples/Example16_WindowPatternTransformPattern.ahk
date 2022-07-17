@@ -47,4 +47,4 @@ transformPattern.Resize(600,400)
 Sleep, 500
 MsgBox, Press OK to close window
 windowPattern.Close()
-
+ExitApp

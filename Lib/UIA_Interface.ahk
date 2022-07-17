@@ -160,6 +160,8 @@ class UIA_Interface extends UIA_Base {
 	; Retrieves a UI Automation element for the specified window. Additionally activateChromiumAccessibility flag can be set to True to send the WM_GETOBJECT message to Chromium-based apps to activate accessibility if it isn't activated.
 	ElementFromHandle(hwnd, activateChromiumAccessibility=False) { 
 		static activatedHwnds := {}
+		if hwnd is not integer
+			hwnd := WinExist(hwnd)
 		if (activateChromiumAccessibility && !activatedHwnds[hwnd])
 			try retEl := UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",hwnd, "ptr*",out))? UIA_Element(out):
 		if retEl { ; In some setups Chromium-based renderers don't react to UIA calls by enabling accessibility, so we need to send the WM_GETOBJECT message to the first renderer control for the application to enable accessibility. Thanks to users malcev and rommmcek for this tip. Explanation why this works: https://www.chromium.org/developers/design-documents/accessibility/#TOC-How-Chrome-detects-the-presence-of-Assistive-Technology 
@@ -226,27 +228,31 @@ class UIA_Interface extends UIA_Base {
 	CreateFalseCondition() { 
 		return UIA_Hr(DllCall(this.__Vt(22), "ptr",this.__Value, "ptr*",out))? new UIA_BoolCondition(out):
 	}
-	; Creates a condition that selects elements that have a property with the specified value (var). 
+	; Creates a condition that selects elements that have a property with the specified value. 
 	; If type is specified then a new variant is created with the specified variant type, otherwise the type is fetched from UIA_PropertyVariantType enums (so usually this can be left unchanged).
-	CreatePropertyCondition(propertyId, var, type="Variant") { 
+	CreatePropertyCondition(propertyId, value, type="Variant") { 
+		if propertyId is not integer
+			propertyId := UIA_Enum.UIA_PropertyId(propertyId)
 		if (type!="Variant")
-			UIA_Variant(var,type,var)
+			UIA_Variant(value,type,value)
 		else if (maybeVar := UIA_Enum.UIA_PropertyVariantType(propertyId)) {
-			UIA_Variant(var,maybeVar,var)
+			UIA_Variant(value,maybeVar,value)
 		}
-		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(23), "ptr",this.__Value, "int",propertyId, "int64", NumGet(var, 0, "int64"), "int64", NumGet(var, 8, "int64"), "ptr*",out) : DllCall(this.__Vt(23), "ptr",this.__Value, "int",propertyId, "ptr",&var, "ptr*",out))? new UIA_PropertyCondition(out):
+		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(23), "ptr",this.__Value, "int",propertyId, "int64", NumGet(value, 0, "int64"), "int64", NumGet(value, 8, "int64"), "ptr*",out) : DllCall(this.__Vt(23), "ptr",this.__Value, "int",propertyId, "ptr",&value, "ptr*",out))? new UIA_PropertyCondition(out):
 	}
-	; Creates a condition that selects elements that have a property with the specified value (var), using optional flags. If type is specified then a new variant is created with the specified variant type, otherwise the type is fetched from UIA_PropertyVariantType enums (so usually this can be left unchanged). flags can be one of PropertyConditionFlags, default is PropertyConditionFlags_IgnoreCase = 0x1.
-	CreatePropertyConditionEx(propertyId, var, type="Variant", flags=0x1) { 
+	; Creates a condition that selects elements that have a property with the specified value (value), using optional flags. If type is specified then a new variant is created with the specified variant type, otherwise the type is fetched from UIA_PropertyVariantType enums (so usually this can be left unchanged). flags can be one of PropertyConditionFlags, default is PropertyConditionFlags_IgnoreCase = 0x1.
+	CreatePropertyConditionEx(propertyId, value, type="Variant", flags=0x1) { 
+		if propertyId is not integer
+			propertyId := UIA_Enum.UIA_PropertyId(propertyId)
 		maybeVar := UIA_Enum.UIA_PropertyVariantType(propertyId)
 		if (type!="Variant")
-			UIA_Variant(var,type,var)
+			UIA_Variant(value,type,value)
 		else if maybeVar {
-			UIA_Variant(var,maybeVar,var)
+			UIA_Variant(value,maybeVar,value)
 		}
 		if (maybeVar != 8) ; Check if the type is not BSTR to remove flags
 			flags := 0
-		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(24), "ptr",this.__Value, "int",propertyId, "int64", NumGet(var, 0, "int64"), "int64", NumGet(var, 8, "int64"), "uint",flags, "ptr*",out) : DllCall(this.__Vt(24), "ptr",this.__Value, "int",propertyId, "ptr",&var, "uint",flags, "ptr*",out))? new UIA_PropertyCondition(out):
+		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(24), "ptr",this.__Value, "int",propertyId, "int64", NumGet(value, 0, "int64"), "int64", NumGet(value, 8, "int64"), "uint",flags, "ptr*",out) : DllCall(this.__Vt(24), "ptr",this.__Value, "int",propertyId, "ptr",&value, "uint",flags, "ptr*",out))? new UIA_PropertyCondition(out):
 	}
 	; Creates a condition that selects elements that match both of two conditions.
 	CreateAndCondition(c1,c2) { 
@@ -534,6 +540,19 @@ class UIA_Interface extends UIA_Base {
 			return element
 		}
 	}
+	; This can be used when a Chromium apps content isn't accessible by normal methods (ElementFromHandle, GetRootElement etc). fromFocused=True uses the focused element as a reference point, fromFocused=False uses ElementFromPoint
+	GetChromiumContentElement(winTitle="A", fromFocused=True) {
+		WinActivate, %winTitle%
+		WinWaitActive, %winTitle%,,1
+		WinGetPos, X, Y, W, H, %winTitle%
+		if fromFocused
+			el := this.GetFocusedElement()
+		else
+			el := this.ElementFromPoint(x+w//2, y+h//2) ; Use ElementFromPoint on the center of the window (the actual coordinate doesn't really matter, it just needs to be inside the window)
+		chromiumTW := this.CreateTreeWalker(this.CreateCondition("ControlType","Document")) ; Create a TreeWalker to find the Document element (the content)
+		try focusedEl := chromiumTW.NormalizeElement(el) ; Get the first parent that is a Window element
+		return focusedEl
+	}
 }
 
 class UIA_Interface2 extends UIA_Interface {
@@ -598,7 +617,7 @@ class UIA_Interface5 extends UIA_Interface4 { ; UNTESTED
 	static __IID := "{25f700c8-d816-4057-a9dc-3cbdee77e256}"
 
 	AddNotificationEventHandler(element, scope, cacheRequest, handler) {
-		return UIA_Hr(DllCall(this.__Vt(68), "ptr",this.__Value, "ptr", element.__Value, "int", scope, "ptr", cacheRequest.__Value, "ptr", handler.__Value))
+		return UIA_Hr(DllCall(this.__Vt(68), "ptr",this.__Value, "ptr", element.__Value, "uint", scope, "ptr", cacheRequest.__Value, "ptr", handler.__Value))
 	}
 	RemoveNotificationEventHandler(element, handler) {
 		return UIA_Hr(DllCall(this.__Vt(69), "ptr",this.__Value, "ptr", element.__Value, "ptr", handler.__Value))
@@ -1060,13 +1079,13 @@ class UIA_Element extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "uint",propertyId, "uint",ignoreDefaultValue, "ptr",UIA_Variant(out)))? UIA_VariantData(out):
 	}
 	; Retrieves a UIA_Pattern object of the specified control pattern on this element. If a full pattern name is specified then that exact version will be used (eg "TextPattern" will return a UIA_TextPattern object), otherwise the highest version will be used (eg "Text" might return UIA_TextPattern2 if it is available). usedPattern will be set to the actual string used to look for the pattern (used mostly for debugging purposes)
-	GetCurrentPatternAs(pattern="", ByRef usedPattern="") { 
+	GetCurrentPatternAs(pattern, ByRef usedPattern="") { 
 		if (usedPattern := InStr(pattern, "Pattern") ? pattern : UIA_Pattern(pattern, this))
 			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "int",UIA_%usedPattern%.__PatternId, "ptr",UIA_GUID(riid,UIA_%usedPattern%.__iid), "ptr*",out)) ? new UIA_%usedPattern%(out,1):
 		throw Exception("Pattern not implemented.",-1, "UIA_" pattern "Pattern")
 	}
 	; Retrieves a UIA_Pattern object of the specified control pattern on this element from the cache of this element. 
-	GetCachedPatternAs(pattern="", ByRef usedPattern="") { 
+	GetCachedPatternAs(pattern, ByRef usedPattern="") { 
 		if (usedPattern := InStr(pattern, "Pattern") ? pattern : UIA_Pattern(pattern, this))
 			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "int",UIA_%usedPattern%.__PatternId, "ptr",UIA_GUID(riid,UIA_%usedPattern%.__iid), "ptr*",out)) ? new UIA_%usedPattern%(out,1):
 		throw Exception("Pattern not implemented.",-1, "UIA_" pattern "Pattern")
@@ -1227,6 +1246,7 @@ class UIA_Element extends UIA_Base {
 	; ControlClicks the element after getting relative coordinates with GetClickablePointRelativeTo("window"). Specifying WinTitle makes the function faster, since it bypasses getting the Hwnd from the element. 
 	; If WinTitle or WinText is a number, then Sleep will be called with that number of milliseconds. Ex: ControlClick(200) will sleep 200ms after clicking. Same for ControlClick("ahk_id 12345", 200)
 	ControlClick(WinTitleOrSleepTime="", WinTextOrSleepTime="", WhichButton="", ClickCount="", Options="", ExcludeTitle="", ExcludeText="") { 
+		this.SetFocus()
 		if (WinTitleOrSleepTime == "")
 			WinTitleOrSleepTime := "ahk_id " this.GetParentHwnd()	
 		if !(pos := this.GetClickablePointRelativeTo("window")).x {
@@ -1303,6 +1323,8 @@ class UIA_Element extends UIA_Base {
 			
 			Criteria can be combined with AND, OR, &&, ||:
 			Example3: "Name=Username: AND ControlType=Button" would FindFirst an element with the name property of "Username:" and control type of button.
+
+			Flags can be modified for each individual condition by specifying FLAGS=n after the condition (and before and/or operator). 0=no flags; 1=ignore case (case insensitive matching); 2=match substring; 3=ignore case and match substring
 
 			If matchMode==3 or matching substrings is supported (Windows 10 17763 and above) and matchMode==2, then parentheses are supported. 
 			Otherwise parenthesis are not supported, and criteria are evaluated left to right, so "a AND b OR c" would be evaluated as "(a and b) or c".
@@ -1650,12 +1672,12 @@ class UIA_Element2 extends UIA_Element {
 	}
 	CurrentFlowsFrom[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(89), "ptr",this.__Value, "ptr*",out))?out:
+			return UIA_Hr(DllCall(this.__Vt(89), "ptr",this.__Value, "ptr*",out))?UIA_ElementArray(out):
 		}
 	}
 	CachedFlowsFrom[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(90), "ptr",this.__Value, "ptr*",out))?out:
+			return UIA_Hr(DllCall(this.__Vt(90), "ptr",this.__Value, "ptr*",out))?UIA_ElementArray(out):
 		}
 	}
 }
@@ -2076,7 +2098,7 @@ class _UIA_EventHandler extends UIA_Base {
 	HandleAutomationEvent(sender, eventId) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
 		%funcName%(UIA_Element(sender), eventId)
-		return param1
+		return 0
 	}
 }
 /*
@@ -2090,7 +2112,7 @@ class _UIA_FocusChangedEventHandler extends UIA_Base {
 	HandleFocusChangedEvent(sender) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
 		%funcName%(UIA_Element(sender))
-		return param1
+		return 0
 	}
 }
 /*
@@ -2104,7 +2126,7 @@ class _UIA_PropertyChangedEventHandler extends UIA_Base { ; UNTESTED
 	HandlePropertyChangedEvent(sender, propertyId, newValue) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
 		%funcName%(UIA_Element(sender), eventId, UIA_VariantData(newValue))
-		return param1
+		return 0
 	}
 }
 /*
@@ -2118,7 +2140,7 @@ class _UIA_StructureChangedEventHandler extends UIA_Base { ; UNTESTED
 	HandleStructureChangedEvent(sender, changeType, runtimeId) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
 		%funcName%(UIA_Element(sender), changeType, UIA_SafeArrayToAHKArray(ComObj(0x2003,runtimeId,1)))
-		return param1
+		return 0
 	}
 }
 /*
@@ -2132,7 +2154,7 @@ class _UIA_TextEditTextChangedEventHandler extends UIA_Base { ; UNTESTED
 	HandleTextEditTextChangedEvent(sender, changeType, eventStrings) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
 		%funcName%(UIA_Element(sender), changeType, UIA_SafeArrayToAHKArray(ComObj(0x2008,eventStrings,1)))
-		return param1
+		return 0
 	}
 }
 /*
@@ -2147,7 +2169,7 @@ class _UIA_ChangesEventHandler extends UIA_Base { ; UNTESTED
 		changes.uiaId := NumGet(uiaChanges,, 0), changes.payload := UIA_VariantData(uiaChanges,, 8), changes.extraInfo := UIA_VariantData(uiaChanges,,16+2*A_PtrSize)
 		
 		%funcName%(UIA_Element(sender), changes, changesCount)
-		return param1
+		return 0
 	}
 }
 /*
@@ -2161,7 +2183,7 @@ class _UIA_NotificationEventHandler extends UIA_Base {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
 		%funcName%(UIA_Element(sender), notificationKind, notificationProcessing, StrGet(displayString), StrGet(activityId))
 		DllCall("oleaut32\SysFreeString", "ptr", displayString), DllCall("oleaut32\SysFreeString", "ptr", activityId)
-		return param1
+		return 0
 	}
 }
 
@@ -2684,6 +2706,11 @@ class UIA_ScrollPattern extends UIA_Base {
 	CurrentHorizontalViewSize[] {
 		get {
 			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "Double*",out))?out:
+		}
+	}
+	CurrentVerticalViewSize[] {
+		get {
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "Double*",out))?out:
 		}
 	}
 	CurrentHorizontallyScrollable[] {
@@ -3355,7 +3382,7 @@ class UIA_ValuePattern extends UIA_Base {
 	}
 	CachedValue[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "Double*",out))?out:
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedIsReadOnly[] {
@@ -3815,7 +3842,7 @@ class UIA_TextRangeArray extends UIA_Base {
 	; Converts an error code to the corresponding error message
 	UIA_Hr(hr) {
 		;~ http://blogs.msdn.com/b/eldar/archive/2007/04/03/a-lot-of-hresult-codes.aspx
-		static err:={0x8000FFFF:"Catastrophic failure.",0x80004001:"Not implemented.",0x8007000E:"Out of memory.",0x80070057:"One or more arguments are not valid.",0x80004002:"Interface not supported.",0x80004003:"Pointer not valid.",0x80070006:"Handle not valid.",0x80004004:"Operation aborted.",0x80004005:"Unspecified error.",0x80070005:"General access denied.",0x800401E5:"The object identified by this moniker could not be found.",0x80040201:"UIA_E_ELEMENTNOTAVAILABLE",0x80040200:"UIA_E_ELEMENTNOTENABLED",0x80131509:"UIA_E_INVALIDOPERATION",0x80040202:"UIA_E_NOCLICKABLEPOINT",0x80040204:"UIA_E_NOTSUPPORTED",0x80040203:"UIA_E_PROXYASSEMBLYNOTLOADED"} ; //not completed
+		static err:={0x8000FFFF:"Catastrophic failure.",0x80004001:"Not implemented.",0x8007000E:"Out of memory.",0x80070057:"One or more arguments are not valid.",0x80004002:"Interface not supported.",0x80004003:"Pointer not valid.",0x80070006:"Handle not valid.",0x80004004:"Operation aborted.",0x80004005:"Unspecified error.",0x80070005:"General access denied.",0x800401E5:"The object identified by this moniker could not be found.",0x80040201:"UIA_E_ELEMENTNOTAVAILABLE",0x80040200:"UIA_E_ELEMENTNOTENABLED",0x80131509:"UIA_E_INVALIDOPERATION",0x80040202:"UIA_E_NOCLICKABLEPOINT",0x80040204:"UIA_E_NOTSUPPORTED",0x80040203:"UIA_E_PROXYASSEMBLYNOTLOADED",0x80131505:"COR_E_TIMEOUT"} ; //not completed
 		if hr&&(hr&=0xFFFFFFFF) {
 			RegExMatch(Exception("",-2).what,"(\w+).(\w+)",i)
 			throw Exception(UIA_Hex(hr) " - " err[hr], -2, i2 "  (" i1 ")")
@@ -4053,7 +4080,7 @@ class UIA_TextRangeArray extends UIA_Base {
 	*/
 	UIA_CreateEventHandler(funcName, handlerType="") { ; Possible handlerType values: empty, FocusChanged, StructureChanged, TextEditTextChanged, Changes, Notification.
 		if !IsFunc(funcName){
-			msgbox %funcName% is not a function.
+			throw, % funcName "is not a function!"
 			return
 		}
 		static ptr
@@ -4064,11 +4091,11 @@ class UIA_TextRangeArray extends UIA_Base {
 		,NumPut(RegisterCallback("_UIA_AddRef","F"),ptr,A_PtrSize*2)
 		,NumPut(RegisterCallback("_UIA_Release","F"),ptr,A_PtrSize*3)
 		,NumPut(RegisterCallback("_UIA_" handlerType "EventHandler.Handle" (handlerType == "" ? "Automation" : handlerType) "Event","F",,&handler),ptr,A_PtrSize*4)
-		return handler	
+		return handler
 	}
 	_UIA_QueryInterface(pSelf, pRIID, pObj){ ; Credit: https://github.com/neptercn/UIAutomation/blob/master/UIA.ahk
 		DllCall("ole32\StringFromIID","ptr",pRIID,"ptr*",sz),str:=StrGet(sz) ; sz should not be freed here
-		return (str="{00000000-0000-0000-C000-000000000046}")||(str="{146c3c17-f12e-4e22-8c27-f894b9b79c69}")||(str="{40cd37d4-c756-4b0c-8c6f-bddfeeb13b50}")||(str="{e81d1b4e-11c5-42f8-9754-e7036c79f054}")||(str="{c270f6b5-5c69-4290-9745-7a7f97169468}")?NumPut(pSelf,pObj+0)*0:0x80004002 ; E_NOINTERFACE
+		return (str="{00000000-0000-0000-C000-000000000046}")||(str="{146c3c17-f12e-4e22-8c27-f894b9b79c69}")||(str="{40cd37d4-c756-4b0c-8c6f-bddfeeb13b50}")||(str="{e81d1b4e-11c5-42f8-9754-e7036c79f054}")||(str="{c270f6b5-5c69-4290-9745-7a7f97169468}")||(str="{92FAA680-E704-4156-931A-E32D5BB38F3F}")||(str="{58EDCA55-2C3E-4980-B1B9-56C17F27A2A0}")||(str="{C7CB2637-E6C2-4D0C-85DE-4948C02175C7}")?NumPut(pSelf,pObj+0)*0:0x80004002 ; E_NOINTERFACE
 	}
 	_UIA_AddRef(pSelf){
 	}

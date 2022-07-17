@@ -27,11 +27,10 @@ lorem =
 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 ) ; Some sample text to play around with
 Run, notepad.exe
-WinActivate, ahk_exe notepad.exe
 WinWaitActive, ahk_exe notepad.exe
 UIA := UIA_Interface()
 	
-NotepadEl := UIA.ElementFromHandle(WinExist("ahk_exe notepad.exe"))
+NotepadEl := UIA.ElementFromHandle("ahk_exe notepad.exe")
 DocumentControlCondition := UIA.CreatePropertyCondition(UIA.ControlTypePropertyId, UIA.DocumentControlTypeId) ; If UIA Interface version is 1, then the ControlType is Edit instead of Document!
 DocumentControl := NotepadEl.FindFirst(DocumentControlCondition)
 DocumentControl.SetValue(lorem) ; Set the value to our sample text

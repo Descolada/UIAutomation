@@ -43,10 +43,10 @@
 ; Base class for all UIA objects (UIA_Interface, UIA_Element etc), that is also used to get constants and enumerations from UIA_Enum.
 class UIA_Base {
 	__New(p="", flag=0, version="") {
-		ObjInsert(this,"__Type","IUIAutomation" SubStr(this.__Class,5))
-		,ObjInsert(this,"__Value",p)
-		,ObjInsert(this,"__Flag",flag)
-		,ObjInsert(this,"__Version",version)
+		ObjRawSet(this,"__Type","IUIAutomation" SubStr(this.__Class,5))
+		,ObjRawSet(this,"__Value",p)
+		,ObjRawSet(this,"__Flag",flag)
+		,ObjRawSet(this,"__Version",version)
 	}
 	__Get(member) {
 		if member not in base,__UIA,TreeWalkerTrue,TrueCondition ; These should act as normal
@@ -81,7 +81,7 @@ class UIA_Base {
 			throw Exception("Method Call not supported by the " this.__Class " Class.",-1,member)
 	}
 	__Delete() {
-		this.__Flag ? ObjRelease(this.__Value):
+		this.__Flag ? ((this.__Flag == 2) ? DllCall("GlobalFree", "Ptr", this.__Value) : ObjRelease(this.__Value)):
 	}
 	__Vt(n) {
 		return NumGet(NumGet(this.__Value+0,"ptr")+n*A_PtrSize,"ptr")
@@ -1227,7 +1227,10 @@ class UIA_Element extends UIA_Base {
 			}
 			return 0
 		} else {
-			rel := (Relative && !InStr(Relative, "rel")) ? StrSplit(Relative, " ") : [0,0]
+			rel := [0,0]
+			if (Relative && !InStr(Relative, "rel"))
+				rel := StrSplit(Relative, " "), Relative := ""
+			
 			if (ClickCountAndSleepTime := StrSplit(ClickCountAndSleepTime, " "))[2] {
 				ClickCount := ClickCountAndSleepTime[1], SleepTime := ClickCountAndSleepTime[2]
 			} else if (ClickCountAndSleepTime[1] > 9) {
@@ -1237,9 +1240,9 @@ class UIA_Element extends UIA_Base {
 			}
 			if !(pos := this.GetClickablePointRelativeTo()).x {
 				pos := this.GetCurrentPos() ; or should only GetClickablePoint be used instead?
-				Click, % pos.x+pos.w//2+rel[1] " " pos.y+pos.h//2+rel[2] " " WhichButtonOrSleepTime (ClickCount ? " " ClickCount : "") (DownOrUp ? " " DownOrUp : "") (Relative ? " " Relative : "")
+				Click, % (pos.x+pos.w//2+rel[1]) " " (pos.y+pos.h//2+rel[2]) " " WhichButtonOrSleepTime (ClickCount ? " " ClickCount : "") (DownOrUp ? " " DownOrUp : "") (Relative ? " " Relative : "")
 			} else
-				Click, % pos.x+rel[1] " " pos.y+rel[2] " " WhichButtonOrSleepTime (ClickCount ? " " ClickCount : "") (DownOrUp ? " " DownOrUp : "") (Relative ? " " Relative : "")
+				Click, % (pos.x+rel[1]) " " (pos.y+rel[2]) " " WhichButtonOrSleepTime (ClickCount ? " " ClickCount : "") (DownOrUp ? " " DownOrUp : "") (Relative ? " " Relative : "")
 			Sleep, %SleepTime%
 		}
 	}
@@ -2194,7 +2197,7 @@ class UIA_AutomationEventHandlerGroup extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "int", scope, "int", cacheRequest.__Value, "ptr",out))
 	}
 	AddAutomationEventHandler(eventId, scope=0x4, cacheRequest=0, handler="") {
-		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "int", eventId, "uint", scope, "ptr",cacheRequest.__Value,"ptr", handler.__Value))
+		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "uint", eventId, "uint", scope, "ptr",cacheRequest.__Value,"ptr", handler.__Value))
 	}
 	AddChangesEventHandler(scope, changeTypes, changesCount, cacheRequest=0, handler="") {
 		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "int", scope, "int", changeTypes, "int", changesCount, "ptr", cacheRequest.__Value, "ptr", handler.__Value))
@@ -4083,14 +4086,13 @@ class UIA_TextRangeArray extends UIA_Base {
 			throw, % funcName "is not a function!"
 			return
 		}
-		static ptr
-		VarSetCapacity(ptr,A_PtrSize*5)
-		handler := new _UIA_%handlerType%EventHandler(&ptr,1,funcName), ObjAddRef(ptr) ; deref will be done on destruction of EventHandler. Function name piggybacks on the __Version property
-		,NumPut(&ptr+A_PtrSize,ptr)
-		,NumPut(RegisterCallback("_UIA_QueryInterface","F"),ptr,A_PtrSize*1)
-		,NumPut(RegisterCallback("_UIA_AddRef","F"),ptr,A_PtrSize*2)
-		,NumPut(RegisterCallback("_UIA_Release","F"),ptr,A_PtrSize*3)
-		,NumPut(RegisterCallback("_UIA_" handlerType "EventHandler.Handle" (handlerType == "" ? "Automation" : handlerType) "Event","F",,&handler),ptr,A_PtrSize*4)
+		ptr := DllCall("GlobalAlloc", "UInt",0x40, "UInt",A_PtrSize*5, "Ptr" )
+		handler := new _UIA_%handlerType%EventHandler(ptr,2,funcName) ; deref will be done on destruction of EventHandler. Function name piggybacks on the __Version property
+		,NumPut(ptr+A_PtrSize,ptr+0)
+		,NumPut(RegisterCallback("_UIA_QueryInterface","F"),ptr+0,A_PtrSize*1)
+		,NumPut(RegisterCallback("_UIA_AddRef","F"),ptr+0,A_PtrSize*2)
+		,NumPut(RegisterCallback("_UIA_Release","F"),ptr+0,A_PtrSize*3)
+		,NumPut(RegisterCallback("_UIA_" handlerType "EventHandler.Handle" (handlerType == "" ? "Automation" : handlerType) "Event","F",,&handler),ptr+0,A_PtrSize*4)
 		return handler
 	}
 	_UIA_QueryInterface(pSelf, pRIID, pObj){ ; Credit: https://github.com/neptercn/UIAutomation/blob/master/UIA.ahk

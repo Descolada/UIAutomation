@@ -60,8 +60,14 @@ class UIA_Base {
 			if InStr(this.__Class, "UIA_Element") {
 				if (prop := UIA_Enum.UIA_PropertyId(member))
 					return this.GetCurrentPropertyValue(prop)
-				if ((SubStr(member, -6) = "Pattern") && (UIA_Enum.UIA_PatternId(member)))
-					return this.GetCurrentPatternAs(member)
+				else if ((SubStr(member, 1, 6) = "Cached") && (prop := UIA_Enum.UIA_PropertyId(SubStr(member, 7))))
+					return this.GetCachedPropertyValue(prop)
+				if (member ~= "i)Pattern\d?") { 
+					if UIA_Enum.UIA_PatternId(member)
+						return this.GetCurrentPatternAs(member)
+					else if ((SubStr(member, 1, 6) = "Cached") && (pattern := UIA_Enum.UIA_PatternId(SubStr(member, 7))))
+						return this.GetCachedPatternAs(pattern)
+				}
 			}
 			throw Exception("Property not supported by the " this.__Class " Class.",-1,member)
 		}
@@ -158,43 +164,27 @@ class UIA_Interface extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	; Retrieves a UI Automation element for the specified window. Additionally activateChromiumAccessibility flag can be set to True to send the WM_GETOBJECT message to Chromium-based apps to activate accessibility if it isn't activated.
-	ElementFromHandle(hwnd, activateChromiumAccessibility=False) { 
-		static activatedHwnds := {}
+	ElementFromHandle(hwnd, activateChromiumAccessibility=True) { 
 		if hwnd is not integer
 			hwnd := WinExist(hwnd)
-		if (activateChromiumAccessibility && !activatedHwnds[hwnd])
-			try retEl := UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",hwnd, "ptr*",out))? UIA_Element(out):
-		if retEl { ; In some setups Chromium-based renderers don't react to UIA calls by enabling accessibility, so we need to send the WM_GETOBJECT message to the first renderer control for the application to enable accessibility. Thanks to users malcev and rommmcek for this tip. Explanation why this works: https://www.chromium.org/developers/design-documents/accessibility/#TOC-How-Chrome-detects-the-presence-of-Assistive-Technology 
-			WinGet, cList, ControlList, ahk_id %hwnd%
-			if InStr(cList, "Chrome_RenderWidgetHostHWND1") {
-				SendMessage, WM_GETOBJECT := 0x003D, 0, 1, Chrome_RenderWidgetHostHWND1, ahk_id %hwnd%
-				try rendererEl := retEl.FindFirstBy("ClassName=Chrome_RenderWidgetHostHWND", 0x5), startTime := A_TickCount
-				if rendererEl {
-					rendererEl.CurrentName ; it doesn't work without calling CurrentName (at least in Skype)
-					while (!rendererEl.CurrentValue && (A_TickCount-startTime < 500))
-						Sleep, 40
-				}
-			}
-			activatedHwnds[hwnd] := 1
-		}
+		if activateChromiumAccessibility
+			this.ActivateChromiumAccessibility(hwnd)
 		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",hwnd, "ptr*",out))? UIA_Element(out):
 	}
 	; Retrieves the UI Automation element at the specified point on the desktop. Additionally activateChromiumAccessibility flag can be set to True to send the WM_GETOBJECT message to Chromium-based apps to activate accessibility if it isn't activated.
-	ElementFromPoint(x="", y="", activateChromiumAccessibility=False) { 
-		static activatedHwnds := {}
+	ElementFromPoint(x="", y="", activateChromiumAccessibility=True) { 
 		if (x==""||y=="") {
 			VarSetCapacity(pt, 8, 0), NumPut(8, pt, "Int"), DllCall("user32.dll\GetCursorPos","UInt",&pt), x :=  NumGet(pt,0,"Int"), y := NumGet(pt,4,"Int")
 		}
-		if (activateChromiumAccessibility && (hwnd := DllCall("GetAncestor", "UInt", DllCall("user32.dll\WindowFromPoint", "int64",  y << 32 | x), "UInt", GA_ROOT := 2)) && !activatedHwnds[hwnd]) { ; hwnd from point by SKAN
-			WinGet, cList, ControlList, ahk_id %hwnd%
-			if InStr(cList, "Chrome_RenderWidgetHostHWND1") 
-				try this.ElementFromHandle(hwnd, True)
-			activatedHwnds[hwnd] := 1
+		if (activateChromiumAccessibility && (hwnd := DllCall("GetAncestor", "UInt", DllCall("user32.dll\WindowFromPoint", "int64",  y << 32 | x), "UInt", GA_ROOT := 2))) { ; hwnd from point by SKAN
+			this.ActivateChromiumAccessibility(hwnd)
 		}
 		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "UInt64",x==""||y==""?pt:x&0xFFFFFFFF|(y&0xFFFFFFFF)<<32, "ptr*",out))? UIA_Element(out):
 	}	
 	; Retrieves the UI Automation element that has the input focus.
-	GetFocusedElement() { 
+	GetFocusedElement(activateChromiumAccessibility=True) { 
+		if activateChromiumAccessibility
+			this.ActivateChromiumAccessibility(hwnd)
 		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	; Retrieves the UI Automation element that represents the desktop, prefetches the requested properties and control patterns, and stores the prefetched items in the cache.
@@ -202,15 +192,23 @@ class UIA_Interface extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	; Retrieves a UI Automation element for the specified window, prefetches the requested properties and control patterns, and stores the prefetched items in the cache.
-	ElementFromHandleBuildCache(hwnd, cacheRequest) { 
+	ElementFromHandleBuildCache(hwnd, cacheRequest, activateChromiumAccessibility=True) { 
+		if hwnd is not integer
+			hwnd := WinExist(hwnd)
+		if activateChromiumAccessibility
+			this.ActivateChromiumAccessibility(hwnd)
 		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr",hwnd, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	; Retrieves the UI Automation element at the specified point on the desktop, prefetches the requested properties and control patterns, and stores the prefetched items in the cache.
-	ElementFromPointBuildCache(x="", y="", cacheRequest=0) { ; UNTESTED. 
+	ElementFromPointBuildCache(x="", y="", cacheRequest=0, activateChromiumAccessibility=True) { ; UNTESTED. 
+		if activateChromiumAccessibility
+			this.ActivateChromiumAccessibility(hwnd)
 		return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "UInt64",x==""||y==""?0*DllCall("GetCursorPos","Int64*",pt)+pt:x&0xFFFFFFFF|(y&0xFFFFFFFF)<<32, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}	
 	; Retrieves the UI Automation element that has the input focus, prefetches the requested properties and control patterns, and stores the prefetched items in the cache. 
-	GetFocusedElementBuildCache(cacheRequest) { ; UNTESTED. 
+	GetFocusedElementBuildCache(cacheRequest, activateChromiumAccessibility=True) { ; UNTESTED. 
+		if activateChromiumAccessibility
+			this.ActivateChromiumAccessibility()
 		return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	; Retrieves a UIA_TreeWalker object that can be used to traverse the Microsoft UI Automation tree.
@@ -552,6 +550,29 @@ class UIA_Interface extends UIA_Base {
 		chromiumTW := this.CreateTreeWalker(this.CreateCondition("ControlType","Document")) ; Create a TreeWalker to find the Document element (the content)
 		try focusedEl := chromiumTW.NormalizeElement(el) ; Get the first parent that is a Window element
 		return focusedEl
+	}
+	ActivateChromiumAccessibility(hwnd="A") {
+		static activatedHwnds := {}
+		if hwnd is not integer
+			hwnd := WinExist(hwnd)
+		if !activatedHwnds[hwnd] {
+			WinGet, cList, ControlList, ahk_id %hwnd%
+			if !InStr(cList, "Chrome_RenderWidgetHostHWND1")
+				return
+			try retEl := UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",hwnd, "ptr*",out))? UIA_Element(out): ; ElementFromHandle
+		}
+		if retEl { ; In some setups Chromium-based renderers don't react to UIA calls by enabling accessibility, so we need to send the WM_GETOBJECT message to the first renderer control for the application to enable accessibility. Thanks to users malcev and rommmcek for this tip. Explanation why this works: https://www.chromium.org/developers/design-documents/accessibility/#TOC-How-Chrome-detects-the-presence-of-Assistive-Technology 
+			SendMessage, WM_GETOBJECT := 0x003D, 0, 1, Chrome_RenderWidgetHostHWND1, ahk_id %hwnd%
+			try {
+				rendererEl := retEl.FindFirstBy("ClassName=Chrome_RenderWidgetHostHWND", 0x5), startTime := A_TickCount
+				if rendererEl {
+					rendererEl.CurrentName ; it doesn't work without calling CurrentName (at least in Skype)
+					while (!rendererEl.CurrentValue && (A_TickCount-startTime < 500))
+						Sleep, 40
+				}
+			}
+			activatedHwnds[hwnd] := 1
+		}
 	}
 }
 
@@ -1014,6 +1035,11 @@ class UIA_Element extends UIA_Base {
 			return this.SetValue(value)
 		}
 	}
+	CachedValue[] { 
+		get {
+			return this.GetCachedPropertyValue("Value")
+		}
+	}
 	CurrentExists[] {
 		get {
 			try {
@@ -1296,15 +1322,15 @@ class UIA_Element extends UIA_Base {
 			arr.Push(nextChild)
 		return arr
 	}
-	TWRecursive(maxDepth=20, layer="", useTreeWalker := False) { ; This function might hang if the element has thousands of empty custom elements (e.g. complex webpage)
+	DumpRecursive(maxDepth=20, layer="", useTreeWalker := False, cached := False) { ; This function might hang if the element has thousands of empty custom elements (e.g. complex webpage)
 		StrReplace(layer, ".",, dotcount)
 		if (dotcount > maxDepth)
 			return ""
-		if !(children := (useTreeWalker ? this.TWGetChildren() : this.GetChildren()))
+		if !(children := (cached ? this.GetCachedChildren() : (useTreeWalker ? this.TWGetChildren() : this.GetChildren())))
 			return ""
 		returnStr := ""
 		for k, v in children {
-			returnStr .= layer . (layer == "" ? "" : ".") . k " " v.Dump() . "`n" . v.TWRecursive(maxDepth, layer (layer == "" ? "" : ".") k)
+			returnStr .= layer . (layer == "" ? "" : ".") . k " " (cached ? v.CachedDump() : v.Dump()) . "`n" . v.DumpRecursive(maxDepth, layer (layer == "" ? "" : ".") k, useTreeWalker, cached)
 		}
 		return returnStr
 	}
@@ -1312,9 +1338,16 @@ class UIA_Element extends UIA_Base {
 	Dump() { 
 		return "Type: " (ctrlType := this.CurrentControlType) " (" UIA_Enum.UIA_ControlTypeId(ctrlType) ")" ((name := this.CurrentName) == "" ? "" : " Name: """ name """") ((val := this.CurrentValue) == "" ? "" : " Value: """ val """") ((lct := this.CurrentLocalizedControlType) == "" ? "" : " LocalizedControlType: """ lct """") ((aid := this.CurrentAutomationId) == "" ? "" : " AutomationId: """ aid """") ((ak := this.CurrentAcceleratorKey) == "" ? "" : " AcceleratorKey: """ ak """")
 	}
+	CachedDump() { 
+		return "Type: " (ctrlType := this.CachedControlType) " (" UIA_Enum.UIA_ControlTypeId(ctrlType) ")" ((name := this.CachedName) == "" ? "" : " Name: """ name """") ((val := this.CachedValue) == "" ? "" : " Value: """ val """") ((lct := this.CachedLocalizedControlType) == "" ? "" : " LocalizedControlType: """ lct """") ((aid := this.CachedAutomationId) == "" ? "" : " AutomationId: """ aid """") ((ak := this.CachedAcceleratorKey) == "" ? "" : " AcceleratorKey: """ ak """")
+	}
 	; Returns info (ControlType, Name etc) for all descendants of the element. maxDepth is the allowed depth of recursion, by default 20 layers. DO NOT call this on the root element!
 	DumpAll(maxDepth=20) { 
-		return (this.Dump() .  "`n" . this.TWRecursive(maxDepth))
+		return (this.Dump() .  "`n" . this.DumpRecursive(maxDepth))
+	}
+	; Requires caching for properties ControlType, LocalizedControlType, Name, Value, AutomationId, AcceleratorKey
+	CachedDumpAll(maxDepth=20) { 
+		return (this.CachedDump() .  "`n" . this.DumpRecursive(maxDepth,,,True))
 	}
 	/*
 		FindFirst using search criteria. 
@@ -1588,7 +1621,7 @@ class UIA_Element extends UIA_Base {
 		return el
 	}
 	; Calls UIA_Element.FindByPath until the element is found and then returns it, with a timeOut of 10000ms (10 seconds). 
-	WaitElementExistByPath(searchPath="", c="", timeOut=10000) { 
+	WaitElementExistByPath(searchPath, c="", timeOut=10000) { 
 		startTime := A_TickCount
 		while (!IsObject(el := this.FindByPath(searchPath, c)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
 			Sleep, 100
@@ -1865,19 +1898,19 @@ class UIA_TreeWalker extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	GetFirstChildElement(e) {
-		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))&&out? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	GetLastChildElement(e) {
-		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))&&out? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	GetNextSiblingElement(e) {
-		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))&&out? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	GetPreviousSiblingElement(e) {
-		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))&&out? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	NormalizeElement(e) {
-		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))&&out? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	GetParentElementBuildCache(e, cacheRequest) {
 		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr",e.__Value, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
@@ -2052,41 +2085,45 @@ class UIA_CacheRequest extends UIA_Base {
 
 	; ---------- UIA_CacheRequest properties ----------
 
-	CurrentTreeScope[] {
+	TreeScope[] {
 		get {
 			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?out:
 		}
+		set {
+			UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr", value))
+		}
 	}
-	CurrentTreeFilter[] {
+	TreeFilter[] {
 		get {
 			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))?out:
 		}
+		set {
+			UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr",value.__Value))
+		}
 	}
-	CurrentAutomationElementMode[] {
+	AutomationElementMode[] {
 		get {
 			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out))?out:
+		}
+		set {
+			UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr",value))
 		}
 	}
 
 	; ---------- UIA_CacheRequest methods ----------
 
 	Clone() {
-		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",out)) ? new UIA_CacheRequest(out):
+		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr",out)) ? new UIA_CacheRequest(out):
 	}	
 	AddProperty(property) {
+		if property is not integer
+			property := UIA_Enum.UIA_PropertyId(property)
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",property))
 	}
 	AddPattern(pattern) {
+		if pattern is not integer
+			pattern := UIA_Enum.UIA_PatternId(pattern)
 		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value,"ptr",pattern))
-	}
-	SetTreeScope(scope) {
-		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr",scope))
-	}
-	SetTreeFilter(condition) {
-		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr",condition.__Value))
-	}
-	SetAutomationElementMode(mode) {
-		return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr",mode))
 	}
 }
 
@@ -3859,6 +3896,8 @@ class UIA_TextRangeArray extends UIA_Base {
 	; Used by UIA methods to create new UIA_Element objects of the highest available version. The highest version to try can be changed by modifying UIA_Enum.UIA_CurrentVersion_Element value.
 	UIA_Element(e,flag=1) {
 		static v, previousVersion
+		if !e
+			return
 		if (previousVersion != UIA_Enum.UIA_CurrentVersion_Element) ; Check if the user wants an element with a different version
 			v := ""
 		else if v
@@ -3887,7 +3926,7 @@ class UIA_TextRangeArray extends UIA_Base {
 	; Used by UIA methods to create new Pattern objects of the highest available version for a given pattern.
 	UIA_Pattern(p, el) {
 		if p is integer
-			patterName := UIA_Enum.UIA_Pattern(p), i := 1
+			return patternName := UIA_Enum.UIA_Pattern(p)
 		else
 			patternName := InStr(p, "Pattern") ? p : p "Pattern", i:=1
 		Loop {

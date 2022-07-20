@@ -15,9 +15,11 @@ cUIA := new UIA_Browser("ahk_exe " browserExe) ; Initialize UIA_Browser, which a
 cUIA.WaitPageLoad("New Tab", 5000) ; Wait the New Tab page to load with a timeout of 5 seconds
 cUIA.Navigate("https://www.google.com/preferences#languages") ; Set the URL and navigate to it
 cUIA.WaitPageLoad() ; Wait the page to load
-cUIA.FindFirstByName("Show more").Click() ; Display all languages to ensure English is visible
-cUIA.WaitElementExistByName("English").Click() ; Select English
-cUIA.FindFirstByName("Save").Click(2000) ; Click Save and Sleep for 2000ms
+
+EnglishEl := cUIA.WaitElementExistByName("English") ; Find the English language radiobutton
+EnglishEl.Click() ; Select English
+TW := cUIA.CreateTreeWalker(cUIA.CreateCondition("ControlType", "Button")) ; To find the "Save" button, we need to use a TreeWalker to get the next button element from the radiobutton, since "Save" differs between languages
+TW.GetNextSiblingElement(EnglishEl).Click(2000) ; Find the "Save" button, click it, and Sleep for 2000ms
 cUIA.CloseAlert() ; Sometimes a dialog pops up that confirms the save, in that case press "OK"
 cUIA.WaitPageLoad("Google") ; Wait for Google main page to load, default timeout of 10 seconds
 

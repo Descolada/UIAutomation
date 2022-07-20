@@ -11,7 +11,7 @@ Run, %browserExe% -inprivate --force-renderer-accessibility ; Run in Incognito m
 WinWaitActive, ahk_exe %browserExe%
 cUIA := new UIA_Browser("ahk_exe " browserExe) ; Initialize UIA_Browser, which also initializes UIA_Interface
 cUIA.WaitPageLoad("New Tab", 5000) ; Wait the New Tab page to load with a timeout of 5 seconds
-cUIA.SetURL("google.com", True) ; Set the URL to google and navigate
+cUIA.Navigate("google.com") ; Set the URL to google and navigate
 cUIA.WaitPageLoad()
 langBut := cUIA.WaitElementExist("ClassName=neDYw tHlp8d AND ControlType=Button OR ControlType=MenuItem") ; First lets make sure the selected language is correct. The expression is evaluated left to right: finds an element where ClassName is "neDYw tHlp8d" and ControlType is button OR an element with a MenuItem controltype.
 

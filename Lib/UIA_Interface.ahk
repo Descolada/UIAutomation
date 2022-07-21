@@ -212,7 +212,9 @@ class UIA_Interface extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	; Retrieves a UIA_TreeWalker object that can be used to traverse the Microsoft UI Automation tree.
-	CreateTreeWalker(condition) { 
+	CreateTreeWalker(condition) {
+		if !IsObject(condition)
+			condition := this.CreateCondition(condition)
 		return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "ptr",Condition.__Value, "ptr*",out))? new UIA_TreeWalker(out):
 	}
 	CreateCacheRequest() { 
@@ -1059,13 +1061,17 @@ class UIA_Element extends UIA_Base {
 	GetRuntimeId() { 
 		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",sa))? UIA_SafeArrayToAHKArray(ComObj(0x2003,sa,1)):
 	}
-	; Retrieves the first child or descendant element that matches the specified condition. scope must be one of TreeScope enums (default is TreeScope_Descendants := 0x4).
-	FindFirst(c="", scope=0x4) { 
-		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:c).__Value, "ptr*",out))&&out? UIA_Element(out):
+	; Retrieves the first child or descendant element that matches the specified condition. scope must be one of TreeScope enums (default is TreeScope_Descendants := 0x4). If cacheRequest is specified, then FindFirstBuildCache is used instead.
+	FindFirst(c="", scope=0x4, cacheRequest="") { 
+		if (cacheRequest == "")	
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:c).__Value, "ptr*",out))&&out? UIA_Element(out):
+		return this.FindFirstBuildCache(c, scope, cacheRequest)
 	}
-	; Returns all UI Automation elements that satisfy the specified condition. scope must be one of TreeScope enums (default is TreeScope_Descendants := 0x4).
-	FindAll(c="", scope=0x4) { 
-		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:c).__Value, "ptr*",out))&&out? UIA_ElementArray(out):
+	; Returns all UI Automation elements that satisfy the specified condition. scope must be one of TreeScope enums (default is TreeScope_Descendants := 0x4). If cacheRequest is specified, then FindAllBuildCache is used instead.
+	FindAll(c="", scope=0x4, cacheRequest="") { 
+		if (cacheRequest == "")
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:c).__Value, "ptr*",out))&&out? UIA_ElementArray(out):
+		return this.FindAllBuildCache(c, scope, cacheRequest)
 	}
 	; Retrieves the first child or descendant element that matches the specified condition, prefetches the requested properties and control patterns, and stores the prefetched items in the cache
 	FindFirstBuildCache(c="", scope=0x4, cacheRequest="") { ; UNTESTED. 
@@ -1256,13 +1262,15 @@ class UIA_Element extends UIA_Base {
 			rel := [0,0]
 			if (Relative && !InStr(Relative, "rel"))
 				rel := StrSplit(Relative, " "), Relative := ""
-			
+			ClickCount := 1, SleepTime := -1
 			if (ClickCountAndSleepTime := StrSplit(ClickCountAndSleepTime, " "))[2] {
 				ClickCount := ClickCountAndSleepTime[1], SleepTime := ClickCountAndSleepTime[2]
-			} else if (ClickCountAndSleepTime[1] > 9) {
-				ClickCount := 1, SleepTime := ClickCountAndSleepTime[1]
-			} else {
-				ClickCount := ClickCountAndSleepTime[1], SleepTime := -1
+			} else if ClickCountAndSleepTime[1] {
+				if (ClickCountAndSleepTime[1] > 9) {
+					SleepTime := ClickCountAndSleepTime[1]
+				} else {
+					ClickCount := ClickCountAndSleepTime[1]
+				}
 			}
 			if !(pos := this.GetClickablePointRelativeTo()).x {
 				pos := this.GetCurrentPos() ; or should only GetClickablePoint be used instead?
@@ -1281,8 +1289,9 @@ class UIA_Element extends UIA_Base {
 		if !(pos := this.GetClickablePointRelativeTo("window")).x {
 			pos := this.GetCurrentPos("window") ; or should GetClickablePoint be used instead?
 			ControlClick, % "X" pos.x+pos.w//2 " Y" pos.y+pos.h//2, % WinTitleOrSleepTime, % WinTextOrSleepTime, % WhichButton, % ClickCount, % Options, % ExcludeTitle, % ExcludeText
-		} else
+		} else {
 			ControlClick, % "X" pos.x " Y" pos.y, % WinTitleOrSleepTime, % WinTextOrSleepTime, % WhichButton, % ClickCount, % Options, % ExcludeTitle, % ExcludeText
+		}
 		if WinTitleOrSleepTime is integer
 			Sleep, %WinTitleOrSleepTime%
 		else if WinTextOrSleepTime is integer
@@ -1382,10 +1391,10 @@ class UIA_Element extends UIA_Base {
 			If matching for a string, this will specify case-sensitivity.
 
 	*/
-	FindFirstBy(expr, scope=0x4, matchMode=3, caseSensitive=True) { 
+	FindFirstBy(expr, scope=0x4, matchMode=3, caseSensitive=True, cacheRequest="") { 
 		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
 		if ((matchMode == 3) || (matchMode==2 && MatchSubstringSupported)) {
-			return this.FindFirst(this.__UIA.CreateCondition(expr, ((matchMode==2)?2:0)|!caseSensitive), scope)
+			return this.FindFirst(this.__UIA.CreateCondition(expr, ((matchMode==2)?2:0)|!caseSensitive), scope, cacheRequest)
 		}
 		pos := 1, match := "", createCondition := "", operator := "", bufName := []
 		while (pos := RegexMatch(expr, "i) *(NOT|!)? *(\w+?) *=(?: *(\d+|'.*?(?<=[^\\]|[^\\]\\\\)')|(.*?))(?: FLAGS=(\d))?( AND | OR | && | \|\| |$)", match, pos+StrLen(match))) {
@@ -1416,7 +1425,7 @@ class UIA_Element extends UIA_Base {
 			} else 
 				propertyCondition := this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum["UIA_" property "PropertyId"], ""))
 			fullCondition := IsObject(fullCondition) ? this.__UIA.CreateAndCondition(propertyCondition, fullCondition) : propertyCondition
-			for _, element in this.FindAll(fullCondition, scope) {
+			for _, element in this.FindAll(fullCondition, scope, cacheRequest) {
 				curValue := element["Current" property]
 				if notProp {
 					if (((matchMode == 1) && !InStr(SubStr(curValue, 1, StrLen(value)), value, caseSensitive)) || ((matchMode == 2) && !InStr(curValue, value, caseSensitive)) || (InStr(matchMode, "RegEx") && !RegExMatch(curValue, value)))
@@ -1427,34 +1436,34 @@ class UIA_Element extends UIA_Base {
 				}
 			}
 		} else {
-			return this.FindFirst(fullCondition, scope)
+			return this.FindFirst(fullCondition, scope, cacheRequest)
 		}
 	}
 	; FindFirst using UIA_NamePropertyId. "scope" is search scope, which can be any of UIA_Enum TreeScope values. "MatchMode" has same convention as window TitleMatchMode: 1=needs to start with the specified name, 2=can contain anywhere, 3=exact match, RegEx=regex match. 
-	FindFirstByName(name, scope=0x4, matchMode=3, caseSensitive=True) {
+	FindFirstByName(name, scope=0x4, matchMode=3, caseSensitive=True, cacheRequest="") {
 		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
 		if (matchMode == 3 || (MatchSubstringSupported && (matchMode == 2))) {
 			nameCondition := this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, ((matchMode==3)?0:2)|!caseSensitive)
-			return this.FindFirst(nameCondition, scope)
+			return this.FindFirst(nameCondition, scope, cacheRequest)
 		}
 		nameCondition := ((matchMode==1)&&MatchSubstringSupported)?this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, 2|!caseSensitive):this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_NamePropertyId, ""))
-		for k, v in this.FindAll(nameCondition, scope) {
+		for k, v in this.FindAll(nameCondition, scope, cacheRequest) {
 			curName := v.CurrentName
 			if (((matchMode == 1) && InStr(SubStr(curName, 1, StrLen(name)), name, caseSensitive))|| ((matchMode == 2) && InStr(curName, name, caseSensitive)) || ((matchMode = "RegEx") && RegExMatch(curName, name)))
 				return v		
 		}
 	}
 	; FindFirst using UIA_ControlTypeId. controlType can be the ControlTypeId numeric value, or in string form (eg "Button")
-	FindFirstByType(controlType, scope=0x4) {
+	FindFirstByType(controlType, scope=0x4, cacheRequest="") {
 		if controlType is not integer
 			controlType := UIA_Enum.UIA_ControlTypeId(controlType)
 		if !controlType
 			throw Exception("Invalid control type specified", -1)
 		controlCondition := this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_ControlTypePropertyId, controlType)
-		return this.FindFirst(controlCondition, scope)
+		return this.FindFirst(controlCondition, scope, cacheRequest)
 	}
 	; FindFirst using UIA_NamePropertyId and UIA_ControlTypeId. controlType can be the ControlTypeId numeric value, or in string form (eg "Button"). scope is search scope, which can be any of UIA_Enum TreeScope values. matchMode has same convention as window TitleMatchMode: 1=needs to start with the specified name, 2=can contain anywhere, 3=exact match, RegEx=regex match
-	FindFirstByNameAndType(name, controlType, scope=0x4, matchMode=3, caseSensitive=True) { 
+	FindFirstByNameAndType(name, controlType, scope=0x4, matchMode=3, caseSensitive=True, cacheRequest="") { 
 		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
 		if controlType is not integer
 			controlType := UIA_Enum.UIA_ControlTypeId(controlType)
@@ -1464,21 +1473,21 @@ class UIA_Element extends UIA_Base {
 		if (matchMode == 3 || (MatchSubstringSupported && (matchMode == 2))) {
 			nameCondition := this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, ((matchMode==3)?0:2)|!caseSensitive)
 			AndCondition := this.__UIA.CreateAndCondition(nameCondition, controlCondition)
-			return this.FindFirst(AndCondition, scope)
+			return this.FindFirst(AndCondition, scope, cacheRequest)
 		}
 		nameCondition := ((matchMode==1) && MatchSubstringSupported)?this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, 2|(!caseSensitive)):this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_NamePropertyId, ""))
 		AndCondition := this.__UIA.CreateAndCondition(nameCondition, controlCondition)
-		for k, v in this.FindAll(AndCondition, scope) {
+		for k, v in this.FindAll(AndCondition, scope, cacheRequest) {
 			curName := v.CurrentName
 			if (((matchMode == 1) && InStr(SubStr(curName, 1, StrLen(name)), name, caseSensitive)) || ((matchMode == 2) && InStr(curName, name, caseSensitive)) || ((matchMode = "RegEx") && RegExMatch(curName, name)))
 				return v		
 		}
 	}
 	; FindAll using an expression containing the desired conditions. For more information about expr, see FindFirstBy explanation
-	FindAllBy(expr, scope=0x4, matchMode=3, caseSensitive=True) {
+	FindAllBy(expr, scope=0x4, matchMode=3, caseSensitive=True, cacheRequest="") {
 		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
 		if ((matchMode == 3) || (matchMode==2 && MatchSubstringSupported)) 
-			return this.FindAll(this.__UIA.CreateCondition(expr, ((matchMode==2)?2:0)|!caseSensitive), scope)
+			return this.FindAll(this.__UIA.CreateCondition(expr, ((matchMode==2)?2:0)|!caseSensitive), scope, cacheRequest)
 		pos := 1, match := "", createCondition := "", operator := "", bufName := []
 		while (pos := RegexMatch(expr, "i) *(NOT|!)? *(\w+?) *=(?: *(\d+|'.*?(?<=[^\\]|[^\\]\\\\)')|(.*?))(?: FLAGS=(\d))?( AND | OR | && | \|\| |$)", match, pos+StrLen(match))) {
 			if !match
@@ -1508,7 +1517,7 @@ class UIA_Element extends UIA_Base {
 			} else 
 				propertyCondition := this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum["UIA_" property "PropertyId"], ""))
 			fullCondition := IsObject(fullCondition) ? this.__UIA.CreateAndCondition(propertyCondition, fullCondition) : propertyCondition
-			for _, element in this.FindAll(fullCondition, scope) {
+			for _, element in this.FindAll(fullCondition, scope, cacheRequest) {
 				curValue := element["Current" property]
 				if notProp {
 					if (((matchMode == 1) && !InStr(SubStr(curValue, 1, StrLen(value)), value, caseSensitive)) || ((matchMode == 2) && !InStr(curValue, value, caseSensitive)) || (InStr(matchMode, "RegEx") && !RegExMatch(curValue, value)))
@@ -1520,19 +1529,19 @@ class UIA_Element extends UIA_Base {
 			}
 			return returnArr[1] ? returnArr : ""
 		} else {
-			return this.FindAll(fullCondition, scope)
+			return this.FindAll(fullCondition, scope, cacheRequest)
 		}
 	}
 	; FindAll using UIA_NamePropertyId. scope is search scope, which can be any of UIA_Enum TreeScope values. matchMode has same convention as window TitleMatchMode: 1=needs to start with the specified name, 2=can contain anywhere, 3=exact match, RegEx=regex match
-	FindAllByName(name, scope=0x4, matchMode=3, caseSensitive=True) { 
+	FindAllByName(name, scope=0x4, matchMode=3, caseSensitive=True, cacheRequest="") { 
 		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
 		if (matchMode == 3 || ((matchMode == 2) && MatchSubstringSupported)) {
 			nameCondition := this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, ((matchMode==3)?0:2)|!caseSensitive)
-			return this.FindAll(nameCondition, scope)
+			return this.FindAll(nameCondition, scope, cacheRequest)
 		}
 		nameCondition := ((matchMode==1) && MatchSubstringSupported)?this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, 2|!caseSensitive):this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_NamePropertyId, ""))
 		retList := []
-		for k, v in this.FindAll(nameCondition, scope) {
+		for k, v in this.FindAll(nameCondition, scope, cacheRequest) {
 			curName := v.CurrentName
 			if (((matchMode == 1) && InStr(SubStr(curName, 1, StrLen(name)), name, caseSensitive)) || ((matchMode == 2) && InStr(curName, name, caseSensitive)) || ((matchMode = "RegEx") && RegExMatch(curName, name)))
 				retList.Push(v)		
@@ -1540,16 +1549,16 @@ class UIA_Element extends UIA_Base {
 		return retList
 	}
 	; FindAll using UIA_ControlTypeId. controlType can be the ControlTypeId numeric value, or in string form (eg "Button"). scope is search scope, which can be any of UIA_Enum TreeScope values.
-	FindAllByType(controlType, scope=0x4) {
+	FindAllByType(controlType, scope=0x4, cacheRequest="") {
 		if controlType is not integer
 			controlType := UIA_Enum.UIA_ControlTypeId(controlType)
 		if !controlType
 			throw Exception("Invalid control type specified", -1)
 		controlCondition := this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_ControlTypePropertyId, controlType)
-		return this.FindAll(controlCondition, scope)
+		return this.FindAll(controlCondition, scope, cacheRequest)
 	}
 	; FindAll using UIA_NamePropertyId and UIA_ControlTypeId. controlType can be the ControlTypeId numeric value, or in string form (eg "Button"). scope is search scope, which can be any of UIA_Enum TreeScope values. matchMode has same convention as window TitleMatchMode: 1=needs to start with the specified name, 2=can contain anywhere, 3=exact match, RegEx=regex match
-	FindAllByNameAndType(name, controlType, scope=0x4, matchMode=3) { 
+	FindAllByNameAndType(name, controlType, scope=0x4, matchMode=3, cacheRequest="") { 
 		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
 		if controlType is not integer
 			controlType := UIA_Enum.UIA_ControlTypeId(controlType)
@@ -1559,12 +1568,12 @@ class UIA_Element extends UIA_Base {
 		if (matchMode == 3 || (MatchSubstringSupported && (matchMode == 2))) {
 			nameCondition := this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name, ((matchMode==3)?0:2)|!caseSensitive)
 			AndCondition := this.__UIA.CreateAndCondition(nameCondition, controlCondition)
-			return this.FindAll(AndCondition, scope)
+			return this.FindAll(AndCondition, scope, cacheRequest)
 		}
 		nameCondition := ((matchMode==1) && MatchSubstringSupported)?this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name, , 2|!caseSensitive):this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_NamePropertyId, ""))
 		AndCondition := this.__UIA.CreateAndCondition(nameCondition, controlCondition)
 		returnArr := []
-		for k, v in this.FindAll(AndCondition, scope) {
+		for k, v in this.FindAll(AndCondition, scope, cacheRequest) {
 			curName := v.CurrentName
 			if (((matchMode == 1) && InStr(SubStr(curName, 1, StrLen(name)), name, caseSensitive)) || ((matchMode == 2) && InStr(curName, name, caseSensitive)) || ((matchMode = "RegEx") && RegExMatch(curName, name)))
 				returnArr.Push(v)	
@@ -1628,9 +1637,9 @@ class UIA_Element extends UIA_Base {
 		return el
 	}
 	; Calls UIA_Element.FindFirstBy until the element is found and then returns it, with a timeOut of 10000ms (10 seconds). For explanations of the other arguments, see FindFirstBy
-	WaitElementExist(expr, scope=0x4, matchMode=3, caseSensitive=True, timeOut=10000) { 
+	WaitElementExist(expr, scope=0x4, matchMode=3, caseSensitive=True, timeOut=10000, cacheRequest="") { 
 		startTime := A_TickCount
-		while (!IsObject(el := this.FindFirstBy(expr, scope, matchMode, caseSensitive)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
+		while (!IsObject(el := this.FindFirstBy(expr, scope, matchMode, caseSensitive, cacheRequest)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
 			Sleep, 100
 		return el
 	}
@@ -1639,23 +1648,23 @@ class UIA_Element extends UIA_Base {
 		return !IsObject(el := this.FindFirstBy(expr, scope, matchMode, caseSensitive)) || el.WaitNotExist(timeOut)
 	}
 	; Calls UIA_Element.FindFirstByName until the element is found and then returns it, with a timeOut of 10000ms (10 seconds)
-	WaitElementExistByName(name, scope=0x4, matchMode=3, caseSensitive=True, timeOut=10000) {
+	WaitElementExistByName(name, scope=0x4, matchMode=3, caseSensitive=True, timeOut=10000, cacheRequest="") {
 		startTime := A_TickCount
-		while (!IsObject(el := this.FindFirstByName(name, scope, matchMode, caseSensitive)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
+		while (!IsObject(el := this.FindFirstByName(name, scope, matchMode, caseSensitive, cacheRequest)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
 			Sleep, 100
 		return el
 	}
 	; Calls UIA_Element.FindFirstByType until the element is found and then returns it, with a timeOut of 10000ms (10 seconds)
-	WaitElementExistByType(controlType, scope=0x4, timeOut=10000) { 
+	WaitElementExistByType(controlType, scope=0x4, timeOut=10000, cacheRequest="") { 
 		startTime := A_TickCount
-		while (!IsObject(el := this.FindFirstByType(controlType, scope)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
+		while (!IsObject(el := this.FindFirstByType(controlType, scope, cacheRequest)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
 			Sleep, 100
 		return el
 	}
 	; Calls UIA_Element.FindFirstByNameAndType until the element is found and then returns it, with a timeOut of 10000ms (10 seconds)
-	WaitElementExistByNameAndType(name, controlType, scope=0x4, matchMode=3, caseSensitive=True, timeOut=10000) {
+	WaitElementExistByNameAndType(name, controlType, scope=0x4, matchMode=3, caseSensitive=True, timeOut=10000, cacheRequest="") {
 		startTime := A_TickCount
-		while (!IsObject(el := this.FindFirstByNameAndType(name, controlType, scope, matchMode, caseSensitive)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut))) {
+		while (!IsObject(el := (this.FindFirstByNameAndType(name, controlType, scope, matchMode, caseSensitive, cacheRequest))) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut))) {
 			Sleep, 100
 		}
 		return el
@@ -1676,7 +1685,7 @@ class UIA_Element extends UIA_Base {
 		Sleep, %displayTime%
 		Loop 4
 			Gui, Range_%A_Index%: Destroy
-		return
+		return this
 	}
 }
 

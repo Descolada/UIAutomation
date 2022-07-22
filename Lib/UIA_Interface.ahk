@@ -393,15 +393,22 @@ class UIA_Interface extends UIA_Base {
 	;~ ReservedNotSupportedValue 	54
 	;~ ReservedMixedAttributeValue 	55
 	
+	/*
+		This only works if the program implements IAccessible (Acc/MSAA) natively (option 1 in the following explanation). 
+
+		There are two types of Acc objects:
+		1) Where the program implements Acc natively. In this case, Acc will be the actual IAccessible object for the implementation.
+		2) The program doesn't implement Acc, but Acc instead creates a proxy object which sends messages to the window and maps Win32 controls to a specific IAccessible method. This would be for most Win32 programs, where for example accName would actually do something similar to ControlGetText and return that value. If ElementFromIAccessible is used with this kind of proxy object, E_INVALIDARG - "One or more arguments are not valid" error is returned.
+	*/
 	ElementFromIAccessible(IAcc, childId=0) {
 		/* The method returns E_INVALIDARG - "One or more arguments are not valid" - if the underlying implementation of the
 		Microsoft UI Automation element is not a native Microsoft Active Accessibility server; that is, if a client attempts to retrieve
 		the IAccessible interface for an element originally supported by a proxy object from Oleacc.dll, or by the UIA-to-MSAA Bridge.
 		*/
-		return UIA_Hr(DllCall(this.__Vt(56), "ptr",this.__Value, "ptr",ComObjValue(IAcc), "int",childId, "ptr*",out))? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(56), "ptr",this.__Value, "ptr",IsObject(IAcc) ? ComObjValue(IAcc) : IAcc, "int",childId, "ptr*",out))? UIA_Element(out):
 	}
 	ElementFromIAccessibleBuildCache(IAcc, childId, cacheRequest) {
-		return UIA_Hr(DllCall(this.__Vt(57), "ptr",this.__Value, "ptr",ComObjValue(IAcc), "int",childId, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(57), "ptr",this.__Value, "ptr",IsObject(IAcc) ? ComObjValue(IAcc) : IAcc, "int",childId, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}
 
 	; ------- ONLY CUSTOM FUNCTIONS FROM HERE ON ----------------

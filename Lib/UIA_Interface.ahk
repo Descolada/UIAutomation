@@ -200,10 +200,12 @@ class UIA_Interface extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr",hwnd, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	; Retrieves the UI Automation element at the specified point on the desktop, prefetches the requested properties and control patterns, and stores the prefetched items in the cache.
-	ElementFromPointBuildCache(x="", y="", cacheRequest=0, activateChromiumAccessibility=True) { ; UNTESTED. 
+	ElementFromPointBuildCache(x="", y="", cacheRequest=0, activateChromiumAccessibility=True) { 
+		if (x==""||y=="")
+			VarSetCapacity(pt, 8, 0), NumPut(8, pt, "Int"), DllCall("user32.dll\GetCursorPos","UInt",&pt), x :=  NumGet(pt,0,"Int"), y := NumGet(pt,4,"Int")
 		if activateChromiumAccessibility
 			this.ActivateChromiumAccessibility(hwnd)
-		return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "UInt64",x==""||y==""?0*DllCall("GetCursorPos","Int64*",pt)+pt:x&0xFFFFFFFF|(y&0xFFFFFFFF)<<32, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "UInt64",x==""||y==""?pt:x&0xFFFFFFFF|(y&0xFFFFFFFF)<<32, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}	
 	; Retrieves the UI Automation element that has the input focus, prefetches the requested properties and control patterns, and stores the prefetched items in the cache. 
 	GetFocusedElementBuildCache(cacheRequest, activateChromiumAccessibility=True) { ; UNTESTED. 
@@ -514,7 +516,10 @@ class UIA_Interface extends UIA_Base {
 	}
 
 	; Gets ElementFromPoint and filters out the smallest subelement that is under the specified point. If windowEl (window under the point) is provided, then a deep search is performed for the smallest element (this might be very slow in large trees).
-	SmallestElementFromPoint(x="", y="", activateChromiumAccessibility=False, windowEl="") { 
+	SmallestElementFromPoint(x="", y="", activateChromiumAccessibility=True, windowEl="") { 
+		if (x==""||y=="") {
+			VarSetCapacity(pt, 8, 0), NumPut(8, pt, "Int"), DllCall("user32.dll\GetCursorPos","UInt",&pt), x :=  NumGet(pt,0,"Int"), y := NumGet(pt,4,"Int")
+		}
 		if IsObject(windowEl) {
 			element := this.ElementFromPoint(x, y, activateChromiumAccessibility)
 			bound := element.CurrentBoundingRectangle, elementSize := (bound.r-bound.l)*(bound.b-bound.t), prevElementSize := 0, stack := [windowEl, element], x := x==""?0:x, y := y==""?0:y

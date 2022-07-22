@@ -65,7 +65,7 @@ class UIA_Base {
 				if (member ~= "i)Pattern\d?") { 
 					if UIA_Enum.UIA_PatternId(member)
 						return this.GetCurrentPatternAs(member)
-					else if ((SubStr(member, 1, 6) = "Cached") && (pattern := UIA_Enum.UIA_PatternId(SubStr(member, 7))))
+					else if ((SubStr(member, 1, 6) = "Cached") && UIA_Enum.UIA_PatternId(pattern := SubStr(member, 7)))
 						return this.GetCachedPatternAs(pattern)
 				}
 			}
@@ -1345,10 +1345,10 @@ class UIA_Element extends UIA_Base {
 	}
 	; Returns info about the element: ControlType, Name, Value, LocalizedControlType, AutomationId, AcceleratorKey. 
 	Dump() { 
-		return "Type: " (ctrlType := this.CurrentControlType) " (" UIA_Enum.UIA_ControlTypeId(ctrlType) ")" ((name := this.CurrentName) == "" ? "" : " Name: """ name """") ((val := this.CurrentValue) == "" ? "" : " Value: """ val """") ((lct := this.CurrentLocalizedControlType) == "" ? "" : " LocalizedControlType: """ lct """") ((aid := this.CurrentAutomationId) == "" ? "" : " AutomationId: """ aid """") ((ak := this.CurrentAcceleratorKey) == "" ? "" : " AcceleratorKey: """ ak """")
+		return "Type: " (ctrlType := this.CurrentControlType) " (" UIA_Enum.UIA_ControlTypeId(ctrlType) ")" ((name := this.CurrentName) == "" ? "" : " Name: """ name """") ((val := this.CurrentValue) == "" ? "" : " Value: """ val """") ((lct := this.CurrentLocalizedControlType) == "" ? "" : " LocalizedControlType: """ lct """") ((aid := this.CurrentAutomationId) == "" ? "" : " AutomationId: """ aid """") ((cm := this.CurrentClassName) == "" ? "" : " ClassName: """ cm """") ((ak := this.CurrentAcceleratorKey) == "" ? "" : " AcceleratorKey: """ ak """")
 	}
 	CachedDump() { 
-		return "Type: " (ctrlType := this.CachedControlType) " (" UIA_Enum.UIA_ControlTypeId(ctrlType) ")" ((name := this.CachedName) == "" ? "" : " Name: """ name """") ((val := this.CachedValue) == "" ? "" : " Value: """ val """") ((lct := this.CachedLocalizedControlType) == "" ? "" : " LocalizedControlType: """ lct """") ((aid := this.CachedAutomationId) == "" ? "" : " AutomationId: """ aid """") ((ak := this.CachedAcceleratorKey) == "" ? "" : " AcceleratorKey: """ ak """")
+		return "Type: " (ctrlType := this.CachedControlType) " (" UIA_Enum.UIA_ControlTypeId(ctrlType) ")" ((name := this.CachedName) == "" ? "" : " Name: """ name """") ((val := this.CachedValue) == "" ? "" : " Value: """ val """") ((lct := this.CachedLocalizedControlType) == "" ? "" : " LocalizedControlType: """ lct """") ((aid := this.CachedAutomationId) == "" ? "" : " AutomationId: """ aid """") ((cm := this.CachedClassName) == "" ? "" : " ClassName: """ cm """") ((ak := this.CachedAcceleratorKey) == "" ? "" : " AcceleratorKey: """ ak """")
 	}
 	; Returns info (ControlType, Name etc) for all descendants of the element. maxDepth is the allowed depth of recursion, by default 20 layers. DO NOT call this on the root element!
 	DumpAll(maxDepth=20) { 
@@ -3934,7 +3934,7 @@ class UIA_TextRangeArray extends UIA_Base {
 	}
 	; Used by UIA methods to create new Pattern objects of the highest available version for a given pattern.
 	UIA_Pattern(p, el) {
-		if p is integer
+		if p is integer 
 			return patternName := UIA_Enum.UIA_Pattern(p)
 		else
 			patternName := InStr(p, "Pattern") ? p : p "Pattern", i:=1

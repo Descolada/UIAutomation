@@ -38,6 +38,7 @@
 	- UIA Element existance - dependent on window being visible (non minimized), and also sometimes Elements are lazily generated (eg Microsoft Teams, when a meeting is started then the toolbar buttons (eg Mute, react) aren't visible to UIA, but hovering over them with the cursor or calling ElementFromPoint causes Teams to generate and make them visible to UIA.
 	- better way of supporting differing versions of IUIAutomation (version 2, 3, 4)
 	- Get methods vs property getter: currently we use properties when the item stores data, fetching the data is "cheap" and when it doesn't have side-effects, and in computationally expensive cases use Get...(). 
+	- should ElementFromHandle etc methods have activateChromiumAccessibility set to True or False? Currently is True, because Chromium apps are very common, and checking whether its on should be relatively fast.
 */
 
 ; Base class for all UIA objects (UIA_Interface, UIA_Element etc), that is also used to get constants and enumerations from UIA_Enum.
@@ -164,27 +165,27 @@ class UIA_Interface extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	; Retrieves a UI Automation element for the specified window. Additionally activateChromiumAccessibility flag can be set to True to send the WM_GETOBJECT message to Chromium-based apps to activate accessibility if it isn't activated.
-	ElementFromHandle(hwnd, activateChromiumAccessibility=True) { 
+	ElementFromHandle(hwnd="A", activateChromiumAccessibility=True) { 
 		if hwnd is not integer
 			hwnd := WinExist(hwnd)
-		if activateChromiumAccessibility
-			this.ActivateChromiumAccessibility(hwnd)
+		if (activateChromiumAccessibility && IsObject(retEl := this.ActivateChromiumAccessibility(hwnd)))
+			return retEl
 		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",hwnd, "ptr*",out))? UIA_Element(out):
 	}
-	; Retrieves the UI Automation element at the specified point on the desktop. Additionally activateChromiumAccessibility flag can be set to True to send the WM_GETOBJECT message to Chromium-based apps to activate accessibility if it isn't activated.
-	ElementFromPoint(x="", y="", activateChromiumAccessibility=True) { 
+	; Retrieves the UI Automation element at the specified point on the desktop. Additionally activateChromiumAccessibility flag can be set to True to send the WM_GETOBJECT message to Chromium-based apps to activate accessibility if it isn't activated. If Chromium needs to be activated, then activateChromiumAccessibility is set to that windows element.
+	ElementFromPoint(x="", y="", ByRef activateChromiumAccessibility=True) { 
 		if (x==""||y=="") {
 			VarSetCapacity(pt, 8, 0), NumPut(8, pt, "Int"), DllCall("user32.dll\GetCursorPos","UInt",&pt), x :=  NumGet(pt,0,"Int"), y := NumGet(pt,4,"Int")
 		}
 		if (activateChromiumAccessibility && (hwnd := DllCall("GetAncestor", "UInt", DllCall("user32.dll\WindowFromPoint", "int64",  y << 32 | x), "UInt", GA_ROOT := 2))) { ; hwnd from point by SKAN
-			this.ActivateChromiumAccessibility(hwnd)
+			activateChromiumAccessibility := this.ActivateChromiumAccessibility(hwnd)
 		}
 		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "UInt64",x==""||y==""?pt:x&0xFFFFFFFF|(y&0xFFFFFFFF)<<32, "ptr*",out))? UIA_Element(out):
 	}	
-	; Retrieves the UI Automation element that has the input focus.
-	GetFocusedElement(activateChromiumAccessibility=True) { 
+	; Retrieves the UI Automation element that has the input focus. If activateChromiumAccessibility is set to True, and Chromium needs to be activated, then activateChromiumAccessibility is set to that windows element.
+	GetFocusedElement(ByRef activateChromiumAccessibility=True) { 
 		if activateChromiumAccessibility
-			this.ActivateChromiumAccessibility(hwnd)
+			activateChromiumAccessibility := this.ActivateChromiumAccessibility()
 		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	; Retrieves the UI Automation element that represents the desktop, prefetches the requested properties and control patterns, and stores the prefetched items in the cache.
@@ -192,25 +193,25 @@ class UIA_Interface extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	; Retrieves a UI Automation element for the specified window, prefetches the requested properties and control patterns, and stores the prefetched items in the cache.
-	ElementFromHandleBuildCache(hwnd, cacheRequest, activateChromiumAccessibility=True) { 
+	ElementFromHandleBuildCache(hwnd="A", cacheRequest=0, activateChromiumAccessibility=True) { 
 		if hwnd is not integer
 			hwnd := WinExist(hwnd)
-		if activateChromiumAccessibility
-			this.ActivateChromiumAccessibility(hwnd)
+		if (activateChromiumAccessibility && IsObject(retEl := this.ActivateChromiumAccessibility(hwnd, cacheRequest)))
+			return retEl
 		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr",hwnd, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	; Retrieves the UI Automation element at the specified point on the desktop, prefetches the requested properties and control patterns, and stores the prefetched items in the cache.
-	ElementFromPointBuildCache(x="", y="", cacheRequest=0, activateChromiumAccessibility=True) { 
+	ElementFromPointBuildCache(x="", y="", cacheRequest=0, ByRef activateChromiumAccessibility=True) { 
 		if (x==""||y=="")
 			VarSetCapacity(pt, 8, 0), NumPut(8, pt, "Int"), DllCall("user32.dll\GetCursorPos","UInt",&pt), x :=  NumGet(pt,0,"Int"), y := NumGet(pt,4,"Int")
 		if activateChromiumAccessibility
-			this.ActivateChromiumAccessibility(hwnd)
+			activateChromiumAccessibility := this.ActivateChromiumAccessibility(hwnd)
 		return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "UInt64",x==""||y==""?pt:x&0xFFFFFFFF|(y&0xFFFFFFFF)<<32, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}	
 	; Retrieves the UI Automation element that has the input focus, prefetches the requested properties and control patterns, and stores the prefetched items in the cache. 
-	GetFocusedElementBuildCache(cacheRequest, activateChromiumAccessibility=True) { ; UNTESTED. 
+	GetFocusedElementBuildCache(cacheRequest, ByRef activateChromiumAccessibility=True) { ; UNTESTED. 
 		if activateChromiumAccessibility
-			this.ActivateChromiumAccessibility()
+			activateChromiumAccessibility := this.ActivateChromiumAccessibility()
 		return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	; Retrieves a UIA_TreeWalker object that can be used to traverse the Microsoft UI Automation tree.
@@ -371,11 +372,11 @@ class UIA_Interface extends UIA_Base {
 	
 	; Retrieves the registered programmatic name of a property. Intended for debugging and diagnostic purposes only. The string is not localized.
 	GetPropertyProgrammaticName(Id) { 
-		return UIA_Hr(DllCall(this.__Vt(49), "ptr",this.__Value, "int",Id, "ptr*",out))? StrGet(out) (DllCall("oleaut32\SysFreeString", "ptr", out)?"":""):
+		return UIA_Hr(DllCall(this.__Vt(49), "ptr",this.__Value, "int",Id, "ptr*",out))? UIA_GetBSTRValue(out):
 	}
 	; Retrieves the registered programmatic name of a control pattern. Intended for debugging and diagnostic purposes only. The string is not localized.
 	GetPatternProgrammaticName(Id) { 
-		return UIA_Hr(DllCall(this.__Vt(50), "ptr",this.__Value, "int",Id, "ptr*",out))? StrGet(out):
+		return UIA_Hr(DllCall(this.__Vt(50), "ptr",this.__Value, "int",Id, "ptr*",out))? UIA_GetBSTRValue(out):
 	}
 	; Returns an object where keys are the names and values are the Ids
 	PollForPotentialSupportedPatterns(e, Byref Ids="", Byref Names="") { 
@@ -409,7 +410,7 @@ class UIA_Interface extends UIA_Base {
 		*/
 		return UIA_Hr(DllCall(this.__Vt(56), "ptr",this.__Value, "ptr",IsObject(IAcc) ? ComObjValue(IAcc) : IAcc, "int",childId, "ptr*",out))? UIA_Element(out):
 	}
-	ElementFromIAccessibleBuildCache(IAcc, childId, cacheRequest) {
+	ElementFromIAccessibleBuildCache(IAcc, childId=0, cacheRequest=0) {
 		return UIA_Hr(DllCall(this.__Vt(57), "ptr",this.__Value, "ptr",IsObject(IAcc) ? ComObjValue(IAcc) : IAcc, "int",childId, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}
 
@@ -553,19 +554,20 @@ class UIA_Interface extends UIA_Base {
 		}
 	}
 	; This can be used when a Chromium apps content isn't accessible by normal methods (ElementFromHandle, GetRootElement etc). fromFocused=True uses the focused element as a reference point, fromFocused=False uses ElementFromPoint
-	GetChromiumContentElement(winTitle="A", fromFocused=True) {
+	GetChromiumContentElement(winTitle="A", ByRef fromFocused=True) {
 		WinActivate, %winTitle%
 		WinWaitActive, %winTitle%,,1
 		WinGetPos, X, Y, W, H, %winTitle%
 		if fromFocused
-			el := this.GetFocusedElement()
+			fromFocused := this.GetFocusedElement()
 		else
-			el := this.ElementFromPoint(x+w//2, y+h//2) ; Use ElementFromPoint on the center of the window (the actual coordinate doesn't really matter, it just needs to be inside the window)
+			fromFocused := this.ElementFromPoint(x+w//2, y+h//2) ; Use ElementFromPoint on the center of the window (the actual coordinate doesn't really matter, it just needs to be inside the window)
 		chromiumTW := this.CreateTreeWalker(this.CreateCondition("ControlType","Document")) ; Create a TreeWalker to find the Document element (the content)
-		try focusedEl := chromiumTW.NormalizeElement(el) ; Get the first parent that is a Window element
+		try focusedEl := chromiumTW.NormalizeElement(fromFocused) ; Get the first parent that is a Window element
 		return focusedEl
 	}
-	ActivateChromiumAccessibility(hwnd="A") {
+	; In some setups Chromium-based renderers don't react to UIA calls by enabling accessibility, so we need to send the WM_GETOBJECT message to the renderer control to enable accessibility. Thanks to users malcev and rommmcek for this tip. Explanation why this works: https://www.chromium.org/developers/design-documents/accessibility/#TOC-How-Chrome-detects-the-presence-of-Assistive-Technology 
+	ActivateChromiumAccessibility(hwnd="A", cacheRequest=0) {
 		static activatedHwnds := {}
 		if hwnd is not integer
 			hwnd := WinExist(hwnd)
@@ -573,9 +575,12 @@ class UIA_Interface extends UIA_Base {
 			WinGet, cList, ControlList, ahk_id %hwnd%
 			if !InStr(cList, "Chrome_RenderWidgetHostHWND1")
 				return
-			try retEl := UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",hwnd, "ptr*",out))? UIA_Element(out): ; ElementFromHandle
+			if cacheRequest
+				try retEl := UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr",hwnd, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out): ; ElementFromHandleBuildCache
+			else
+				try retEl := UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",hwnd, "ptr*",out))? UIA_Element(out): ; ElementFromHandle
 		}
-		if retEl { ; In some setups Chromium-based renderers don't react to UIA calls by enabling accessibility, so we need to send the WM_GETOBJECT message to the first renderer control for the application to enable accessibility. Thanks to users malcev and rommmcek for this tip. Explanation why this works: https://www.chromium.org/developers/design-documents/accessibility/#TOC-How-Chrome-detects-the-presence-of-Assistive-Technology 
+		if retEl { 
 			SendMessage, WM_GETOBJECT := 0x003D, 0, 1, Chrome_RenderWidgetHostHWND1, ahk_id %hwnd%
 			try {
 				rendererEl := retEl.FindFirstBy("ClassName=Chrome_RenderWidgetHostHWND", 0x5), startTime := A_TickCount
@@ -585,7 +590,8 @@ class UIA_Interface extends UIA_Base {
 						Sleep, 40
 				}
 			}
-			activatedHwnds[hwnd] := 1
+			activatedHwnds[hwnd] := 1 ; Shouldn't store the element here, otherwise it can't be released until the program exits
+			return retEl
 		}
 	}
 }
@@ -3875,6 +3881,10 @@ class UIA_TextRangeArray extends UIA_Base {
 		static uia
 		if (IsObject(uia) && (maxVersion == ""))
 			return uia
+		; enable screenreader flag if disabled
+		DllCall("user32.dll\SystemParametersInfo", "uint", 0x0046, "uint", 0, "ptr*", screenreader) ; SPI_GETSCREENREADER
+		if !screenreader
+			DllCall("user32.dll\SystemParametersInfo", "uint", 0x0047, "uint", 1, "int", 0, "uint", 2) ; SPI_SETSCREENREADER
 		max := (maxVersion?maxVersion:UIA_Enum.UIA_MaxVersion_Interface)+1
 		while (--max) {
 			 

@@ -32,4 +32,4 @@ allEnglishEls := cUIA.FindAllByName("English") ; Find all elements with name "En
 allEnglishEls[allEnglishEls.MaxIndex()].Click() ; Select the last element with the name English (because English might also be an option in source languages, in which case it would be found first)
 
 cUIA.WaitElementExistByName("Source text").SetValue("Este es un texto de muestra") ; Set some text to translate
-return
+ExitApp

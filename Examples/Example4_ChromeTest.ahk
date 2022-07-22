@@ -18,4 +18,4 @@ if Clipboard
 	MsgBox, Page information successfully dumped. Use Ctrl+V to paste the info somewhere, such as in Notepad.
 else
 	MsgBox, Something went wrong and nothing was dumped in the clipboard!
-return
+ExitApp

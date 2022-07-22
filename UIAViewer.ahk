@@ -525,8 +525,8 @@ ConstructTreeView(el, parent="") {
 		return
 	try {
 		elDesc := el.CurrentLocalizedControlType " """ el.CurrentName """"
-		if (elDesc == " """"")
-			return
+		;if (elDesc == " """"")
+		;	return
 		Stored.TreeView[TWEl := TV_Add(elDesc, parent)] := el
 		if !(children := el.FindAll(UIA.TrueCondition, 0x2))
 			return

@@ -369,12 +369,12 @@ class UIA_Browser {
 	CloseTab(tabElementOrName="", matchMode=3, caseSensitive=True) { 
 		if IsObject(tabElementOrName) {
 			if (tabElementOrName.CurrentControlType == this.UIA.TabItemControlType)
-				try tabElementOrName.FindFirstByName("Close",,1,False).Click()
+				try this.TWT.GetLastChildElement(tabElementOrName).Click()
 		} else {
 			if (tabElementOrName == "") {
-				this.GetTab().FindFirstByName("Close",,1,False).Click()
+				try this.TWT.GetLastChildElement(this.GetTab()).Click()
 			} else
-				try this.TabBarElement.FindFirstByNameAndType(searchPhrase, "TabItem",, matchMode, caseSensitive).FindFirstByName("Close",,1,False).Click()
+				try this.TWT.GetLastChildElement(this.TabBarElement.FindFirstByNameAndType(searchPhrase, "TabItem",, matchMode, caseSensitive)).Click()
 		}
 	}
 	

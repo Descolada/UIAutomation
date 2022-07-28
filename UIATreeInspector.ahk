@@ -669,7 +669,6 @@ Acc_Query(Acc)
 
 RangeTip(x:="", y:="", w:="", h:="", color:="Red", d:=2) ; from the FindText library, credit goes to feiyue
 {
-  local
   static id:=0
   if (x="")
   {

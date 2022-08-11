@@ -81,7 +81,6 @@ class UIA_Base {
 		}
 	}
 	__Call(member, params*) {
-		
 		if RegexMatch(member, "i)^(?:UIA_)?(PatternId|EventId|PropertyId|AttributeId|ControlTypeId|AnnotationType|StyleId|LandmarkTypeId|HeadingLevel|ChangeId|MetadataId)$", match) {
 			return UIA_Enum["UIA_" match1](params*)
 		} else if !ObjHasKey(UIA_Base,member)&&!ObjHasKey(this,member)&&!"_NewEnum"
@@ -216,9 +215,7 @@ class UIA_Interface extends UIA_Base {
 	}
 	; Retrieves a UIA_TreeWalker object that can be used to traverse the Microsoft UI Automation tree.
 	CreateTreeWalker(condition) {
-		if !IsObject(condition)
-			condition := this.CreateCondition(condition)
-		return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "ptr",Condition.__Value, "ptr*",out))? new UIA_TreeWalker(out):
+		return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "ptr",(IsObject(condition)?condition:this.CreateCondition(condition)).__Value, "ptr*",out))? new UIA_TreeWalker(out):
 	}
 	CreateCacheRequest() { 
 		return UIA_Hr(DllCall(this.__Vt(20), "ptr",this.__Value, "ptr*",out))? new UIA_CacheRequest(out):
@@ -320,7 +317,9 @@ class UIA_Interface extends UIA_Base {
 	;~ AddPropertyChangedEventHandlerNativeArray 	34
 	
 	; Registers a method that handles an array of property-changed events
-	AddPropertyChangedEventHandler(element,scope=0x1,cacheRequest=0,handler="",propertyArray="") { 
+	AddPropertyChangedEventHandler(element,scope=0x1,cacheRequest=0,handler="",propertyArray="") {
+		if !IsObject(propertyArray)
+			propertyArray := [propertyArray] 
 		SafeArray:=ComObjArray(0x3,propertyArray.MaxIndex())
 		for i,propertyId in propertyArray
 			SafeArray[i-1]:=propertyId
@@ -1082,22 +1081,22 @@ class UIA_Element extends UIA_Base {
 	; Retrieves the first child or descendant element that matches the specified condition. scope must be one of TreeScope enums (default is TreeScope_Descendants := 0x4). If cacheRequest is specified, then FindFirstBuildCache is used instead.
 	FindFirst(c="", scope=0x4, cacheRequest="") { 
 		if (cacheRequest == "")	
-			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:c).__Value, "ptr*",out))&&out? UIA_Element(out):
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr*",out))&&out? UIA_Element(out):
 		return this.FindFirstBuildCache(c, scope, cacheRequest)
 	}
 	; Returns all UI Automation elements that satisfy the specified condition. scope must be one of TreeScope enums (default is TreeScope_Descendants := 0x4). If cacheRequest is specified, then FindAllBuildCache is used instead.
 	FindAll(c="", scope=0x4, cacheRequest="") { 
 		if (cacheRequest == "")
-			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:c).__Value, "ptr*",out))&&out? UIA_ElementArray(out):
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr*",out))&&out? UIA_ElementArray(out):
 		return this.FindAllBuildCache(c, scope, cacheRequest)
 	}
 	; Retrieves the first child or descendant element that matches the specified condition, prefetches the requested properties and control patterns, and stores the prefetched items in the cache
 	FindFirstBuildCache(c="", scope=0x4, cacheRequest="") { ; UNTESTED. 
-		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:c).__Value, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	; Returns all UI Automation elements that satisfy the specified condition, prefetches the requested properties and control patterns, and stores the prefetched items in the cache.
 	FindAllBuildCache(c="", scope=0x4, cacheRequest="") { ; UNTESTED. 
-		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:c).__Value, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_ElementArray(out):
+		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_ElementArray(out):
 	}
 	; Retrieves a new UI Automation element with an updated cache.
 	BuildUpdatedCache(cacheRequest) { ; UNTESTED. 
@@ -1869,17 +1868,17 @@ class UIA_Element7 extends UIA_Element6 {
 	static __IID := "{204E8572-CFC3-4C11-B0C8-7DA7420750B7}"
 	
 	; Finds the first matching element in the specified order. traversalOptions must be one of TreeTraversalOptions enums. [optional] root is pointer to the element with which to begin the search.
-	FindFirstWithOptions(scope, c, traversalOptions=0, root=0) { 
-		return UIA_Hr(DllCall(this.__Vt(110), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:c).__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out))&&out? UIA_Element(out):
+	FindFirstWithOptions(scope=0x4, c="", traversalOptions=0, root=0) { 
+		return UIA_Hr(DllCall(this.__Vt(110), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out))&&out? UIA_Element(out):
 	}
-	FindAllWithOptions(scope, c, traversalOptions=0, root=0) {
-		return UIA_Hr(DllCall(this.__Vt(111), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:c).__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out))&&out? UIA_Element(out):
+	FindAllWithOptions(scope=0x4, c="", traversalOptions=0, root=0) {
+		return UIA_Hr(DllCall(this.__Vt(111), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out))&&out? UIA_Element(out):
 	}
-	FindFirstWithOptionsBuildCache(scope, c, cacheRequest, traversalOptions=0, root=0) {
-		return UIA_Hr(DllCall(this.__Vt(112), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:c).__Value, "ptr", cacheRequest.__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out))&&out? UIA_Element(out):
+	FindFirstWithOptionsBuildCache(scope=0x4, c="", cacheRequest=0, traversalOptions=0, root=0) {
+		return UIA_Hr(DllCall(this.__Vt(112), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr", cacheRequest.__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out))&&out? UIA_Element(out):
 	}
-	FindAllWithOptionsBuildCache(scope, c, cacheRequest, traversalOptions=0, root=0) {
-		return UIA_Hr(DllCall(this.__Vt(113), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:c).__Value, "ptr", cacheRequest.__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out))&&out? UIA_Element(out):
+	FindAllWithOptionsBuildCache(scope=0x4, c="", cacheRequest=0, traversalOptions=0, root=0) {
+		return UIA_Hr(DllCall(this.__Vt(113), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr", cacheRequest.__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out))&&out? UIA_Element(out):
 	}
 	GetCurrentMetadataValue(targetId, metadataId) {
 		return UIA_Hr(DllCall(this.__Vt(114), "ptr",this.__Value, "int",targetId, "int", metadataId, "ptr*", UIA_Variant(out)))? UIA_VariantData(out):
@@ -2192,7 +2191,7 @@ class _UIA_PropertyChangedEventHandler extends UIA_Base { ; UNTESTED
 
 	HandlePropertyChangedEvent(sender, propertyId, newValue) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
-		%funcName%(UIA_Element(sender), eventId, UIA_VariantData(newValue))
+		%funcName%(UIA_Element(sender), propertyId, UIA_VariantData(newValue,0))
 		return 0
 	}
 }
@@ -4035,7 +4034,7 @@ class UIA_TextRangeArray extends UIA_Base {
 		; Old implementation:
 		; return (VarSetCapacity(var,8+2*A_PtrSize)+NumPut(type,var,0,"short")+NumPut(type=8? DllCall("oleaut32\SysAllocString", "ptr",&val):val,var,8,"ptr"))*0+&var
 	}
-	UIA_IsVariant(ByRef vt, ByRef type="", offset=0) {
+	UIA_IsVariant(ByRef vt, ByRef type="", offset=0, flag=1) {
 		size:=VarSetCapacity(vt),type:=NumGet(vt,offset,"UShort")
 		return size>=16&&size<=24&&type>=0&&(type<=23||type|0x2000)
 	}
@@ -4055,8 +4054,13 @@ class UIA_TextRangeArray extends UIA_Base {
 		return _.haskey(type)?_[type]:[A_PtrSize,"ptr"]
 	}
 	UIA_VariantData(ByRef p, flag=1, offset=0) {
-		var := !UIA_IsVariant(p,vt, offset)?"Invalid Variant":ComObject(0x400C, &p)[] ; https://www.autohotkey.com/boards/viewtopic.php?t=6979
-		UIA_VariantClear(&p) ; Clears variant, except if it contains a pointer to an object (eg IDispatch). BSTR is automatically freed.
+		if flag {
+			var := !UIA_IsVariant(p,vt, offset)?"Invalid Variant":ComObject(0x400C, &p)[] ; https://www.autohotkey.com/boards/viewtopic.php?t=6979
+			UIA_VariantClear(&p) ; Clears variant, except if it contains a pointer to an object (eg IDispatch). BSTR is automatically freed.
+		} else {
+			vt:=NumGet(p+0,offset,"UShort"), var := !(vt>=0&&(vt<=23||vt|0x2000))?"Invalid Variant":ComObject(0x400C, p)[]
+			UIA_VariantClear(p)
+		}
 		return vt=11?-var:var ; Negate value if VT_BOOL (-1=True, 0=False)
 		; Old implementation, based on Sean's COM_Enumerate function
 		; return !UIA_IsVariant(p,vt, offset)?"Invalid Variant"

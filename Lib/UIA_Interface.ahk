@@ -329,8 +329,8 @@ class UIA_Interface extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(36), "ptr",this.__Value, "ptr",element.__Value, "ptr", handler.__Value))
 	}
 
-	AddStructureChangedEventHandler(element, handler) { ; UNTESTED. 
-		return UIA_Hr(DllCall(this.__Vt(37), "ptr",this.__Value, "ptr",element.__Value, "ptr",handler.__Value))
+	AddStructureChangedEventHandler(element, scope=0x4, cacheRequest=0, handler=0) { 
+		return UIA_Hr(DllCall(this.__Vt(37), "ptr",this.__Value, "ptr",element.__Value, "int", scope, "ptr", cacheRequest.__Value, "ptr",handler.__Value))
 	}
 	RemoveStructureChangedEventHandler(element, handler) { ; UNTESTED
 		return UIA_Hr(DllCall(this.__Vt(38), "ptr",this.__Value, "ptr", element.__Value, "ptr",handler.__Value))
@@ -646,7 +646,7 @@ class UIA_Interface3 extends UIA_Interface2 { ; UNTESTED
 class UIA_Interface4 extends UIA_Interface3 { ; UNTESTED
 	static __IID := "{1189c02a-05f8-4319-8e21-e817e3db2860}"
 
-	AddChangesEventHandler(element, scope, changeTypes, changesCount, cacheRequest=0, handler="") {
+	AddChangesEventHandler(element, scope, changeTypes, changesCount, cacheRequest=0, handler="") { ; NOT WORKING. changeTypes should be an array?
 		return UIA_Hr(DllCall(this.__Vt(66), "ptr",this.__Value, "ptr", element.__Value, "int", scope, "int", changeTypes, "int", changesCount, "ptr", cacheRequest.__Value, "ptr", handler.__Value))
 	}
 	RemoveChangesEventHandler(element, handler) {
@@ -656,7 +656,7 @@ class UIA_Interface4 extends UIA_Interface3 { ; UNTESTED
 class UIA_Interface5 extends UIA_Interface4 { ; UNTESTED
 	static __IID := "{25f700c8-d816-4057-a9dc-3cbdee77e256}"
 
-	AddNotificationEventHandler(element, scope, cacheRequest, handler) {
+	AddNotificationEventHandler(element, scope=0x4, cacheRequest=0, handler=0) {
 		return UIA_Hr(DllCall(this.__Vt(68), "ptr",this.__Value, "ptr", element.__Value, "uint", scope, "ptr", cacheRequest.__Value, "ptr", handler.__Value))
 	}
 	RemoveNotificationEventHandler(element, handler) {
@@ -2266,7 +2266,7 @@ class UIA_AutomationEventHandlerGroup extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "int", scope, "int", changeTypes, "int", changesCount, "ptr", cacheRequest.__Value, "ptr", handler.__Value))
 	}
 	AddNotificationEventHandler(scope=0x4, cacheRequest=0, handler="") {
-		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "int", scope, "int", cacheRequest.__Value, "ptr",out))
+		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "int", scope, "int", cacheRequest.__Value, "ptr", handler.__Value, "ptr",out))
 	}
 	AddPropertyChangedEventHandler(scope=0x1,cacheRequest=0,handler="",propertyArray="") { 
 		SafeArray:=ComObjArray(0x3,propertyArray.MaxIndex())

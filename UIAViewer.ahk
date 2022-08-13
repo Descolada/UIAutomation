@@ -7,8 +7,9 @@ DetectHiddenWindows, On
 
 DeepSearchFromPoint := False ; Sets the default value for the deep search checkbox. When set to True (or checked), UIAViewer iterates through the whole UIA tree to find the smallest element from mouse point. This might be very slow with large trees.
 
-global UIA := UIA_Interface(), IsCapturing := False, Stored := {}, Acc, EnableAccTree := False, MainGuiHwnd
+global UIA := UIA_Interface(), IsCapturing := False, Stored := {}, Acc, EnableAccTree := False, MainGuiHwnd, SaveToClipboard
 Stored.TreeView := {}
+DDLMacroActionValue := ""
 Acc_Init()
 Acc_Error(1)
 
@@ -44,12 +45,31 @@ ClearLVPropertyIds()
 Gui Add, GroupBox, x%_xoffsetfirst% y395 w302 h90 vGBPatterns, UIAutomation Element Patterns
 Gui Add, TreeView, xm+%_xoffsetfirst% yp+%_yoffset% r4 w285 vTVPatterns gTVPatterns AltSubmit
 Gui Add, Button, xm+10 yp+75 w150 gButCapture vButCapture, Start capturing (F1)
-Gui Add, CheckBox, xp+160 yp-2 w170 vCBDeepSearch, Deep search (slower)
+Gui Add, CheckBox, xp+160 yp-2 w120 vCBDeepSearch, Deep search (slower)
 if DeepSearchFromPoint
 	GuiControl,, CBDeepSearch, 1
-Gui Add, Button, xp+200 yp w192 vButRefreshTreeView gButRefreshTreeView +Disabled, Start capturing to show tree
 
-Gui Add, TreeView, x320 y8 w300 h435 hwndhMainTreeView vMainTreeView gMainTreeView
+Gui, Add, Tab3, x320 y8 w300 h505 vTabsMain, Tree view|Macro creator
+Gui, Tab, 1
+Gui Add, TreeView, x+5 y+5 w200 h400 hwndhMainTreeView vMainTreeView gMainTreeView
+Gui Add, Button, xp+40 y+5 w192 vButRefreshTreeView gButRefreshTreeView +Disabled, Start capturing to show tree
+
+Gui, Tab, 2
+Gui, Add, Text, x+10 y+10, Search function: 
+Gui, Add, DropDownList, x+10 yp-%_ysoffset% w190 vDDLMacroFunction, WaitElementExist||FindFirstBy|WaitElementNotExist|No function
+Gui, Add, Text, x331 y+10, Element name:
+Gui, Add, Edit, x+15 yp-%_ysoffset% w70 vEditMacroElementName, el 
+Gui, Add, CheckBox, x+10 yp+%_ysoffset% w100 vCBMacroCaseSensitive Checked, Case sensitive
+Gui, Add, Text, x331 y+15, Match mode:
+Gui, Add, DropDownList, x+25 yp-%_ysoffset% w190 vDDLMacroMatchMode, 3: Exact||2: Partial (anywhere)|1: Partial (from beginning)|RegEx
+Gui, Add, Text, x331 y+15, Timeout (ms):
+Gui, Add, Edit, x+23 yp-%_ysoffset% w50 Number vEditMacroTimeout, 10000
+Gui, Add, Text, x+10 yp+%_ysoffset% , Action:
+Gui, Add, DropDownList, x+10 yp-1 w85 gDDLMacroAction vDDLMacroAction, Click||ControlClick|Click("left")|Highlight|SetValue|Do nothing
+Gui, Add, Text, x331 y+10, Start capturing and press the PrintScreen button`nto add functions.
+Gui, Add, Edit, x331 y+10 w275 h350 vEditMacroContent, %A_Space%`; #Include <UIA_Interface>`n `; SetTitleMatchMode, 2
+Gui, Tab
+
 Gui, Font, Bold
 Gui, Add, StatusBar, gMainSB vMainSB
 SB_SetText("`tClick here to enable Acc path capturing (can't be used with UIA!)")
@@ -74,17 +94,20 @@ MainGuiClose:
 MainGuiSize(GuiHwnd, EventInfo, Width, Height){
 	global splitterW, _minSplitterPosX := 200, _maxSplitterPosX := (Width - SplitterW), _minSplitterPosY := 220, _maxSplitterPosY := (Height - SplitterW - 100)
 
-	GuiControl, -Redraw, MainTreeView
-	GuiControlGet, Pos, Pos , MainTreeView
-	GuiControl, Move, MainTreeView, % "w" Width -Posx-10 " h" Height -Posy-60
+	GuiControl, -Redraw, TabsMain
+	GuiControlGet, Pos, Pos , TabsMain
+	GuiControl, Move, TabsMain, % "w" Width-Posx-10 " h" Height-Posy-25
+	GuiControl, Move, MainTreeView, % "w" Width-Posx-25 " h" Height-Posy-85
+	GuiControl, Move, EditMacroContent, % "w" Width-Posx-30 " h" Height-Posy-210
+	GuiControl, Move, ButRefreshTreeView, % "y" Height-80 " w" Width -Posx-100
 	GuiControl, Move, Splitter1, % "h" Height-60
-	GuiControl, +Redraw, MainTreeView
-	GuiControl, Move, ButRefreshTreeView, % "y" Height -50 " w" Width -Posx-100
+	GuiControl, +Redraw, TabsMain
+
 	GuiControl, -Redraw, TVPatterns
 	GuiControlGet, Pos, Pos , TVPatterns
 	GuiControl, Move, TVPatterns, % " h" Height -Posy-60
 	GuiControl, Move, ButCapture, % "y" Height -50
-	GuiControl, Move, CBDeepSearch, % "y" Height -47
+	GuiControl, Move, CBDeepSearch, % "y" Height -52
 	GuiControl, +Redraw, TVPatterns
 	GuiControlGet, Pos, Pos , GBPatterns
 	GuiControl, Move, GBPatterns, % " h" Height -Posy-55
@@ -149,8 +172,8 @@ TVPatterns:
 				Stored.Element.GetCurrentPatternAs("SelectionItem").Select()
 			} else if (info == "SetValue") {
 				Gui +LastFound +OwnDialogs +AlwaysOnTop
-				InputBox, val, SetValue, Insert value to set
-				Gui +LastFound +OwnDialogs -AlwaysOnTop
+				InputBox, val, SetValue, Insert value to set,, 200, 120
+				Gui Main:+AlwaysOnTop
 				if (val && !ErrorLevel)
 					Stored.Element.GetCurrentPatternAs("Value").SetValue(val)
 			}
@@ -222,7 +245,7 @@ ButCapture:
 				} 
 			}
 
-			Stored.Hwnd := mHwnd, Stored.Element := mEl
+			Stored.Hwnd := mHwnd, Stored.WinTitle := wTitle, Stored.WinClass := wClass, Stored.WinExe := wProc, Stored.Element := mEl
 			Sleep, 200
 		}
 		
@@ -250,6 +273,18 @@ MainTreeView:
 			br := Stored.Treeview[A_EventInfo].CurrentBoundingRectangle
 			SB_SetText(" Path: " GetAccPathTopDown(Stored.Hwnd, "x" br.l " y" br.t " w" (br.r-br.l) " h" (br.b-br.t)), 1)
 		}
+	}
+	return
+
+DDLMacroAction:
+	global DDLMacroActionValue
+	GuiControlGet, action,, DDLMacroAction
+	if (action = "SetValue") {
+		Gui +LastFound +OwnDialogs +AlwaysOnTop
+		InputBox, val, SetValue, Insert value to set,, 200, 120
+		Gui Main:+AlwaysOnTop
+		if !ErrorLevel
+    		DDLMacroActionValue := val
 	}
 	return
 
@@ -289,7 +324,7 @@ DragSplitter1(_controlName) { ; Based on a script by user PhiLho (https://www.au
 	if !GetKeyState("LButton")
 		return
 	GetMouseOffsets(offsetX, offsetY, _controlName)
-	originalSizes := GetControlSizes(_controlName, "LVPropertyIds", "GBWindowInfo", "EditWinTitle", "GBProperties", "GBPatterns", "TVPatterns", "ButCapture", "CBDeepSearch", "EditWinHwnd", "EditWinPosition", "EditWinSize", "TextClassNN", "TextProcess", "TextProcessID", "EditWinClass", "EditWinProcess", "EditWinProcessID", "MainTreeView", "ButRefreshTreeview", "Splitter2")
+	originalSizes := GetControlSizes(_controlName, "LVPropertyIds", "GBWindowInfo", "EditWinTitle", "GBProperties", "GBPatterns", "TVPatterns", "ButCapture", "CBDeepSearch", "EditWinHwnd", "EditWinPosition", "EditWinSize", "TextClassNN", "TextProcess", "TextProcessID", "EditWinClass", "EditWinProcess", "EditWinProcessID", "MainTreeView", "ButRefreshTreeview", "Splitter2", "TabsMain", "EditMacroContent", "DDLMacroMatchMode", "DDLMacroFunction")
 	oldControlPos := originalSizes[_controlName]
 	Loop {
 		if !GetKeyState("LButton")
@@ -309,7 +344,8 @@ DragSplitter1(_controlName) { ; Based on a script by user PhiLho (https://www.au
 		OffsetControls(originalSizes,,, moveX//2,, "EditWinHwnd", "EditWinPosition", "EditWinSize")
 		OffsetControls(originalSizes,moveX//2,, moveX//2,,"EditWinClass", "EditWinProcess", "EditWinProcessID")
 		OffsetControls(originalSizes,moveX//2,,,, "TextClassNN", "TextProcess", "TextProcessID")
-		OffsetControls(originalSizes,moveX,, -moveX,, "MainTreeView", "ButRefreshTreeview")
+		OffsetControls(originalSizes,moveX,, -moveX,, "TabsMain")
+		OffsetControls(originalSizes,,, -moveX,, "ButRefreshTreeview", "MainTreeView", "EditMacroContent", "DDLMacroMatchMode", "DDLMacroFunction")
 		Sleep 100
 	}
 	WinSet, Redraw,, ahk_id %MainGuiHwnd%
@@ -355,7 +391,7 @@ GetControlSizes(ctrls*) {
 OffsetControls(sizes=0, offsetX=0, offsetY=0, offsetW=0, offsetH=0, ctrls*) {
 	for _, ctrl in ctrls {
 		ctrlSize := sizes[ctrl]
-		GuiControl Move, %ctrl%, % "x" (ctrlSize.x+offsetX) " y" (ctrlSize.y+offsetY) " w" (ctrlSize.w+offsetW) " h" (ctrlSize.h+offsetH)
+		GuiControl Move, %ctrl%, % (offsetX?"x" (ctrlSize.x+offsetX):"") (offsetY?" y" (ctrlSize.y+offsetY):"") (offsetW?" w" (ctrlSize.w+offsetW):"") (offsetH?" h" (ctrlSize.h+offsetH):"")
 	}
 }
 
@@ -445,6 +481,7 @@ UpdateElementFields(mEl="") {
 				TV_Add("SetValue()", parent)
 		}
 	}
+	Gui, ListView, LVPropertyIds
 	try LV_Add("", "ControlType", (ctrlType := mEl.CurrentControlType) " (" UIA_Enum.UIA_ControlTypeId(ctrlType) ")")
 	try LV_Add("", "LocalizedControlType", mEl.CurrentLocalizedControlType)
 	try LV_Add("", "Name", mEl.CurrentName)
@@ -668,12 +705,68 @@ RangeTip(x:="", y:="", w:="", h:="", color:="Red", d:=2) ; from the FindText lib
   }
 }
 
+SanitizeInput(inp) {
+	return StrReplace(StrReplace(inp, """", """"""), "'", "\'")
+}
+ReverseContent(inp) {
+	arr := StrSplit(inp, "`n"), len := arr.MaxIndex(), res := ""
+	Loop, % len
+		res .= arr[len-A_Index+1] "`n"
+	return res
+}
+
 #If !IsCapturing
 ~F1::ControlClick, Start capturing (F1), ahk_id %MainGuiHwnd%,,,NA
 ~F2::ControlClick, Construct tree for whole Window (F2), ahk_id %MainGuiHwnd%,,,NA
 
 #If IsCapturing
 Esc::gosub ButCapture
+~PrintScreen::
+	global DDLMacroActionValue
+	Gui Main: Default
+	GuiControlGet, FocusedTab,, TabsMain
+	if (FocusedTab != "Macro creator")
+		return
+	if IsObject(Stored.Element) {
+		GuiControlGet, PreviousContent,, EditMacroContent
+		GuiControlGet, MacroFunction,, DDLMacroFunction
+		GuiControlGet, MacroMatchMode,, DDLMacroMatchMode
+		GuiControlGet, CaseSensitive,, CBMacroCaseSensitive
+		GuiControlGet, MacroElementName,, EditMacroElementName
+		GuiControlGet, MacroTimeout,, EditMacroTimeout
+		GuiControlGet, MacroAction,, DDLMacroAction
+		MacroContent := """ControlType=" UIA_Enum.UIA_ControlTypeId(Stored.Element.CurrentControlType) ((elName := Stored.Element.CurrentName) ? " AND Name='" SanitizeInput(elName) "'" : "") ((elAID := Stored.Element.CurrentAutomationId) ? " AND AutomationId='" SanitizeInput(elAID) "'" : "") """"
+		if (MacroFunction != "No function") {
+			RegexMatch(MacroMatchMode, "\d(?=:)", match)
+			MacroContent .= ",," (match ? (match=3 ? "" : match) : "RegEx") ","
+			MacroContent .= (CaseSensitive ? "" : "False") ","
+			MacroContent .= StrReplace(MacroTimeout, " ") = "10000" ? "" : MacroTimeout ","
+			MacroContent := MacroFunction "(" MacroContent ")"
+			MacroContent := RegexReplace(MacroContent, ",*\)$", ")")
+			if MacroElementName
+				MacroContent := MacroElementName "." MacroContent
+			if (MacroAction = "SetValue")
+				MacroContent .= ".Value := """ DDLMacroActionValue """"
+			else if (MacroAction != "Do nothing")
+				MacroContent .= "." MacroAction (SubStr(MacroAction, 0, 1) = ")" ? "" : "()")
+		}
+		if (Stored.WinClass != "#32768") && !(RegexMatch(ReverseContent(PreviousContent), "m`n)WinExist\(""(.*) ahk_exe (.*) ahk_class (.*)""\)$", match) && (match1 = Stored.WinTitle) && (match2 = Stored.WinExe) && (match3 = Stored.WinClass)) {
+			MacroContent := MacroElementName " := WinExist("""Stored.WinTitle " ahk_exe " Stored.WinExe " ahk_class " Stored.WinClass """)`n"
+			 . "WinActivate, ahk_id %" MacroElementName "%`n"
+			 . "WinWaitActive, ahk_id %" MacroElementName "%`n" 
+			 . MacroElementName " := UIA.ElementFromHandle(" MacroElementName ")`n`n"
+			 . MacroContent
+
+		}
+		GuiControl,, EditMacroContent, % PreviousContent ? PreviousContent "`n`n" MacroContent : MacroContent
+	}
+	return
+~F4::
+	Clipboard=
+	SaveToClipboard=
+	ToolTip, Clipboard cleared!
+	SetTimer, RemoveToolTip, -3000
+	return
 
 ; Base class for all UIA objects (UIA_Interface, UIA_Element etc), that is used to fetch properties from __Properties, and get constants and enumerations from UIA_Enum.
 class UIA_Base {

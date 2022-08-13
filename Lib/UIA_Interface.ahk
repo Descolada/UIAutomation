@@ -427,7 +427,7 @@ class UIA_Interface extends UIA_Base {
 		2) If creating a condition from an expression, propertyOrExpr takes the expression and valueOrFlags the default flags, and flags argument is ignored.
 
 			Similarly to FindFirstBy, the expression takes a value in the form of "PropertyId=propertyValue" to create a property condition for PropertyId with the value propertyValue. PropertyId can be most properties from UIA_Enum.UIA_PropertyId method (for example Name, ControlType, AutomationId etc). 
-			If propertyValue contains any parentheses, then the value needs to be surrounded by single quotes. Escape ' with \, scape \ with \.
+			If propertyValue contains any parentheses, then the value needs to be surrounded by single quotes. Escape ' with \, escape \ with \.
 				"Name=Username:" would create a property condition with UIA_Enum.UIA_NamePropertyId and the value "Username:"
 				"Name='MyTest\''" creates a NameProperty condition for value "MyTest'"
 			
@@ -507,7 +507,8 @@ class UIA_Interface extends UIA_Base {
 					propertyOrExpr := "ControlType"
 				RegexMatch(propertyOrExpr, "i)(?:UIA_)?\K.+?(?=(Id)?PropertyId|$)", propertyOrExpr), propCond := UIA_Enum.UIA_PropertyId(propertyOrExpr), propertyOrExpr := StrReplace(StrReplace(propertyOrExpr, "AnnotationAnnotation", "Annotation"), "StylesStyle", "Style")
 			}	
-			if RegexMatch(valueOrFlags, "^\w+$") {
+			if valueOrFlags is not integer
+			{
 				valueOrFlags := IsFunc("UIA_Enum.UIA_" propertyOrExpr "Id") ? UIA_Enum["UIA_" propertyOrExpr "Id"](valueOrFlags) : IsFunc("UIA_Enum.UIA_" propertyOrExpr) ? UIA_Enum["UIA_" propertyOrExpr](valueOrFlags) : valueOrFlags
 			}
 			if propCond

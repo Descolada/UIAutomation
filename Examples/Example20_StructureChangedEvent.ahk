@@ -18,7 +18,7 @@ OnExit("ExitFunc") ; Set up an OnExit call to clean up the handler when exiting 
 return
 
 StructureChangedEventHandler(sender, changeType, runtimeId) {
-    ToolTip, % "Sender: " sender.Dump() 
+    try ToolTip, % "Sender: " sender.Dump() 
         . "`nChange type: " changeType
         . "`nRuntime Id: " PrintArray(runtimeId)
 	SetTimer, RemoveToolTip, -3000

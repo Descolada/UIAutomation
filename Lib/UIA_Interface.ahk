@@ -2200,13 +2200,13 @@ class _UIA_PropertyChangedEventHandler extends UIA_Base { ; UNTESTED
 	Exposes a method to handle events that occur when the Microsoft UI Automation tree structure is changed.
 	Microsoft documentation: https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationstructurechangedeventhandler
 */
-class _UIA_StructureChangedEventHandler extends UIA_Base { ; UNTESTED
+class _UIA_StructureChangedEventHandler extends UIA_Base {
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/ee696197(v=vs.85).aspx
 	static __IID := "{e81d1b4e-11c5-42f8-9754-e7036c79f054}"
 
 	HandleStructureChangedEvent(sender, changeType, runtimeId) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
-		%funcName%(UIA_Element(sender), changeType, UIA_SafeArrayToAHKArray(ComObj(0x2003,runtimeId,1)))
+		%funcName%(UIA_Element(sender), changeType, UIA_SafeArrayToAHKArray(ComObj(0x2003,runtimeId))) ; ComObj(0x2003,runtimeId,1) crashes the script. Should the SAFEARRAY be released manually?
 		return 0
 	}
 }
@@ -2220,7 +2220,7 @@ class _UIA_TextEditTextChangedEventHandler extends UIA_Base { ; UNTESTED
 
 	HandleTextEditTextChangedEvent(sender, changeType, eventStrings) {
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
-		%funcName%(UIA_Element(sender), changeType, UIA_SafeArrayToAHKArray(ComObj(0x2008,eventStrings,1)))
+		%funcName%(UIA_Element(sender), changeType, UIA_SafeArrayToAHKArray(ComObj(0x2008,eventStrings)))
 		return 0
 	}
 }

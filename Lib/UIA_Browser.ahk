@@ -330,7 +330,7 @@ class UIA_Browser {
 	; Navigates to URL and waits page to load
 	Navigate(url, targetTitle="", waitLoadTimeOut=10000, sleepAfter=500, stopButtonText="Stop") {
 		this.SetURL(url, True)
-		this.WaitPageLoad(targetTitle,waitLoadTimeOut,sleepAfter, stopButtonText="Stop")
+		this.WaitPageLoad(targetTitle,waitLoadTimeOut,sleepAfter, this.CustomNames.stopButtonText ? this.CustomNames.stopButtonText : stopButtonText)
 	}
 	
 	; Presses the New tab button. The button name might differ if the browser language is not set to English and can be specified with butName

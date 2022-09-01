@@ -1648,40 +1648,40 @@ class UIA_Element extends UIA_Base {
 		}
 		return el
 	}
-	; Calls UIA_Element.FindByPath until the element is found and then returns it, with a timeOut of 10000ms (10 seconds). 
-	WaitElementExistByPath(searchPath, c="", timeOut=10000) { 
+	; Calls UIA_Element.FindByPath until the element is found and then returns it. By default waits indefinitely, timeOut can be specified in milliseconds. 
+	WaitElementExistByPath(searchPath, c="", timeOut=-1) { 
 		startTime := A_TickCount
 		while (!IsObject(el := this.FindByPath(searchPath, c)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
-			Sleep, 100
+			Sleep, 40
 		return el
 	}
-	; Calls UIA_Element.FindFirstBy until the element is found and then returns it, with a timeOut of 10000ms (10 seconds). For explanations of the other arguments, see FindFirstBy
-	WaitElementExist(expr, scope=0x4, matchMode=3, caseSensitive=True, timeOut=10000, cacheRequest="") { 
+	; Calls UIA_Element.FindFirstBy until the element is found and then returns it. By default waits indefinitely, timeOut can be specified in milliseconds. For explanations of the other arguments, see FindFirstBy
+	WaitElementExist(expr, scope=0x4, matchMode=3, caseSensitive=True, timeOut=-1, cacheRequest="") { 
 		startTime := A_TickCount
 		while (!IsObject(el := this.FindFirstBy(expr, scope, matchMode, caseSensitive, cacheRequest)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
-			Sleep, 100
+			Sleep, 40
 		return el
 	}
 	; Tries to FindFirstBy the element and if it is found then waits until the element doesn't exist (using WaitNotExist()), with a timeOut of 10000ms (10 seconds). For explanations of the other arguments, see FindFirstBy
-	WaitElementNotExist(expr, scope=0x4, matchMode=3, caseSensitive=True, timeOut=10000) { 
+	WaitElementNotExist(expr, scope=0x4, matchMode=3, caseSensitive=True, timeOut=-1) { 
 		return !IsObject(el := this.FindFirstBy(expr, scope, matchMode, caseSensitive)) || el.WaitNotExist(timeOut)
 	}
-	; Calls UIA_Element.FindFirstByName until the element is found and then returns it, with a timeOut of 10000ms (10 seconds)
-	WaitElementExistByName(name, scope=0x4, matchMode=3, caseSensitive=True, timeOut=10000, cacheRequest="") {
+	; Calls UIA_Element.FindFirstByName until the element is found and then returns it. By default waits indefinitely, timeOut can be specified in milliseconds.
+	WaitElementExistByName(name, scope=0x4, matchMode=3, caseSensitive=True, timeOut=-1, cacheRequest="") {
 		startTime := A_TickCount
 		while (!IsObject(el := this.FindFirstByName(name, scope, matchMode, caseSensitive, cacheRequest)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
-			Sleep, 100
+			Sleep, 40
 		return el
 	}
-	; Calls UIA_Element.FindFirstByType until the element is found and then returns it, with a timeOut of 10000ms (10 seconds)
-	WaitElementExistByType(controlType, scope=0x4, timeOut=10000, cacheRequest="") { 
+	; Calls UIA_Element.FindFirstByType until the element is found and then returns it. By default waits indefinitely, timeOut can be specified in milliseconds.
+	WaitElementExistByType(controlType, scope=0x4, timeOut=-1, cacheRequest="") { 
 		startTime := A_TickCount
 		while (!IsObject(el := this.FindFirstByType(controlType, scope, cacheRequest)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
 			Sleep, 100
 		return el
 	}
-	; Calls UIA_Element.FindFirstByNameAndType until the element is found and then returns it, with a timeOut of 10000ms (10 seconds)
-	WaitElementExistByNameAndType(name, controlType, scope=0x4, matchMode=3, caseSensitive=True, timeOut=10000, cacheRequest="") {
+	; Calls UIA_Element.FindFirstByNameAndType until the element is found and then returns it. By default waits indefinitely, timeOut can be specified in milliseconds.
+	WaitElementExistByNameAndType(name, controlType, scope=0x4, matchMode=3, caseSensitive=True, timeOut=-1, cacheRequest="") {
 		startTime := A_TickCount
 		while (!IsObject(el := (this.FindFirstByNameAndType(name, controlType, scope, matchMode, caseSensitive, cacheRequest))) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut))) {
 			Sleep, 100

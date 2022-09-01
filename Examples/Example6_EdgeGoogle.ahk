@@ -9,18 +9,19 @@ SetTitleMatchMode, 2
 browserExe := "msedge.exe"
 Run, %browserExe% -inprivate --force-renderer-accessibility ; Run in Incognito mode to avoid any extensions interfering. Force accessibility in case its disabled by default.
 WinWaitActive, ahk_exe %browserExe%
+Sleep, 500
 cUIA := new UIA_Browser("ahk_exe " browserExe) ; Initialize UIA_Browser, which also initializes UIA_Interface
-cUIA.WaitPageLoad("New Tab", 5000) ; Wait the New Tab page to load with a timeout of 5 seconds
+cUIA.WaitPageLoad("New tab", 5000) ; Wait the New Tab (case insensitive) page to load with a timeout of 5 seconds
 cUIA.Navigate("google.com") ; Set the URL to google and navigate
-cUIA.WaitPageLoad()
-langBut := cUIA.WaitElementExist("ClassName=neDYw tHlp8d AND ControlType=Button OR ControlType=MenuItem") ; First lets make sure the selected language is correct. The expression is evaluated left to right: finds an element where ClassName is "neDYw tHlp8d" and ControlType is button OR an element with a MenuItem controltype.
 
-expandCollapsePattern := langBut.GetCurrentPatternAs("ExpandCollapse") ; Since this isn't a normal button, we need to get the ExpandCollapse pattern for it and then call the correct method.
-if (expandCollapsePattern.CurrentExpandCollapseState == cUIA.ExpandCollapseState_Collapsed) ; Check that it is collapsed
-	expandCollapsePattern.Expand() ; Expand the menu
-cUIA.WaitElementExist("Name=English AND ControlType=MenuItem").Click() ; Select the English language
+if (langBut := cUIA.WaitElementExist("ClassName=neDYw tHlp8d AND ControlType=Button OR ControlType=MenuItem",,,,2000)) { ; First lets make sure the selected language is correct. The expression is evaluated left to right: finds an element where ClassName is "neDYw tHlp8d" and ControlType is button OR an element with a MenuItem controltype.
+	expandCollapsePattern := langBut.GetCurrentPatternAs("ExpandCollapse") ; Since this isn't a normal button, we need to get the ExpandCollapse pattern for it and then call the correct method.
+	if (expandCollapsePattern.CurrentExpandCollapseState == cUIA.ExpandCollapseState_Collapsed) ; Check that it is collapsed
+		expandCollapsePattern.Expand() ; Expand the menu
+	cUIA.WaitElementExist("Name=English AND ControlType=MenuItem").Click() ; Select the English language
 
-cUIA.WaitElementExist("Name=Accept all OR Name=I agree AND ControlType=Button").Click() ; If the "I agree" or "Accept all" button exists, then click it to get rid of the consent form
+	cUIA.WaitElementExist("Name=Accept all OR Name=I agree AND ControlType=Button").Click() ; If the "I agree" or "Accept all" button exists, then click it to get rid of the consent form
+}
 searchBox := cUIA.WaitElementExist("Name=Searc AND ControlType=ComboBox",,2) ; Looking for a partial name match "Searc" using matchMode=2. FindFirstByNameAndType is not used here, because if the "I agree" button was clicked then this element might not exist right away, so lets first wait for it to exist.
 searchBox.SetValue("autohotkey forums") ; Set the search box text to "autohotkey forums"
 cUIA.FindFirstByName("Google Search").Click() ; Click the search button to search

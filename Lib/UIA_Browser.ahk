@@ -130,15 +130,16 @@ class UIA_Chrome extends UIA_Browser {
 		Loop, 2 
 		{
 			try {
-				if !(this.URLEditElement := this.BrowserElement.FindFirstWithOptions(4, EditControlCondition, 2)) {
+				if !IsObject(this.URLEditElement := this.BrowserElement.FindFirstWithOptions(4, EditControlCondition, 2)) {
 					this.ToolbarElements := this.BrowserElement.FindAll(ToolbarControlCondition), topCoord := 10000000
 					for k, v in this.ToolbarElements {
-						if ((bT := v.CurrentBoundingRectangle.t) && (bt < topCoord))
+						br := v.CurrentBoundingRectangle
+						if (((bT := br.t) < topCoord) && br.r)
 							topCoord := bT, this.NavigationBarElement := v
 					}
 					this.URLEditElement := this.NavigationBarElement.FindFirst(EditControlCondition)
 					if this.URLEditElement.GetChildren().MaxIndex()
-						this.URLEditElement := (el := this.URLEditElement.FindFirst(EditControlCondition)) ? el : this.URLEditElement
+						this.URLEditElement := IsObject(el := this.URLEditElement.FindFirst(EditControlCondition)) ? el : this.URLEditElement
 				} Else {
 					this.NavigationBarElement := this.UIA.CreateTreeWalker(ToolbarControlCondition).GetParentElement(this.URLEditElement)
 				}
@@ -449,7 +450,8 @@ class UIA_Browser {
 			if this.ReloadButton && this.ReloadButton.CurrentName
 				return this.ReloadButton
 		}
-		this.ReloadButton := this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetFirstChildElement(this.NavigationBarElement)))
+		ButtonWalker := this.UIA.CreateTreeWalker(this.ButtonCondition)
+		this.ReloadButton := this.UIA.ButtonWalker.GetNextSiblingElement(this.UIA.ButtonWalker.GetNextSiblingElement(this.UIA.ButtonWalker.GetFirstChildElement(this.NavigationBarElement)))
 		return this.ReloadButton
 	}
 	
@@ -691,7 +693,11 @@ class UIA_Browser {
 	
 	; Presses the New tab button. The button name might differ if the browser language is not set to English and can be specified with butName
 	NewTab() { 
-		this.TabBarElement.FindFirstWithOptions(4,this.ButtonCondition,2).Click()
+		if IsObject(el := this.TabBarElement.FindFirstWithOptions(4,this.ButtonCondition,2))
+			el.Click()
+		else {
+			this.UIA.CreateTreeWalker(this.ButtonCondition).GetLastChildElement(this.TabBarElement).Click()
+		}
 		;newTabBut := this.TabBarElement.FindFirstByNameAndType(this.CustomNames.NewTabButtonName ? this.CustomNames.NewTabButtonName : butName, UIA_Enum.UIA_ButtonControlTypeId,,matchMode,caseSensitive)
 		;newTabBut.Click()
 	}

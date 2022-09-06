@@ -167,8 +167,8 @@ class UIA_Interface extends UIA_Base {
 	ElementFromHandle(hwnd="A", activateChromiumAccessibility=True) { 
 		if hwnd is not integer
 			hwnd := WinExist(hwnd)
-		if (activateChromiumAccessibility && IsObject(retEl := this.ActivateChromiumAccessibility(hwnd)))
-			return retEl
+		if activateChromiumAccessibility
+			this.ActivateChromiumAccessibility(hwnd)
 		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",hwnd, "ptr*",out))? UIA_Element(out):
 	}
 	; Retrieves the UI Automation element at the specified point on the desktop. Additionally activateChromiumAccessibility flag can be set to True to send the WM_GETOBJECT message to Chromium-based apps to activate accessibility if it isn't activated. If Chromium needs to be activated, then activateChromiumAccessibility is set to that windows element.
@@ -195,8 +195,8 @@ class UIA_Interface extends UIA_Base {
 	ElementFromHandleBuildCache(hwnd="A", cacheRequest=0, activateChromiumAccessibility=True) { 
 		if hwnd is not integer
 			hwnd := WinExist(hwnd)
-		if (activateChromiumAccessibility && IsObject(retEl := this.ActivateChromiumAccessibility(hwnd, cacheRequest)))
-			return retEl
+		if activateChromiumAccessibility
+			this.ActivateChromiumAccessibility(hwnd, cacheRequest)
 		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr",hwnd, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	; Retrieves the UI Automation element at the specified point on the desktop, prefetches the requested properties and control patterns, and stores the prefetched items in the cache.
@@ -204,13 +204,13 @@ class UIA_Interface extends UIA_Base {
 		if (x==""||y=="")
 			VarSetCapacity(pt, 8, 0), NumPut(8, pt, "Int"), DllCall("user32.dll\GetCursorPos","UInt",&pt), x :=  NumGet(pt,0,"Int"), y := NumGet(pt,4,"Int")
 		if activateChromiumAccessibility
-			activateChromiumAccessibility := this.ActivateChromiumAccessibility(hwnd)
+			activateChromiumAccessibility := this.ActivateChromiumAccessibility(hwnd, cacheRequest)
 		return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "UInt64",x==""||y==""?pt:x&0xFFFFFFFF|(y&0xFFFFFFFF)<<32, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}	
 	; Retrieves the UI Automation element that has the input focus, prefetches the requested properties and control patterns, and stores the prefetched items in the cache. 
 	GetFocusedElementBuildCache(cacheRequest, ByRef activateChromiumAccessibility=True) { ; UNTESTED. 
 		if activateChromiumAccessibility
-			activateChromiumAccessibility := this.ActivateChromiumAccessibility()
+			activateChromiumAccessibility := this.ActivateChromiumAccessibility(,cacheRequest)
 		return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	; Retrieves a UIA_TreeWalker object that can be used to traverse the Microsoft UI Automation tree.
@@ -571,27 +571,23 @@ class UIA_Interface extends UIA_Base {
 		static activatedHwnds := {}
 		if hwnd is not integer
 			hwnd := WinExist(hwnd)
-		if !activatedHwnds[hwnd] {
-			WinGet, cList, ControlList, ahk_id %hwnd%
-			if !InStr(cList, "Chrome_RenderWidgetHostHWND1")
-				return
-			if cacheRequest
-				try retEl := UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr",hwnd, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out): ; ElementFromHandleBuildCache
-			else
-				try retEl := UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",hwnd, "ptr*",out))? UIA_Element(out): ; ElementFromHandle
-		}
-		if retEl { 
-			SendMessage, WM_GETOBJECT := 0x003D, 0, 1, Chrome_RenderWidgetHostHWND1, ahk_id %hwnd%
-			try {
-				rendererEl := retEl.FindFirstBy("ClassName=Chrome_RenderWidgetHostHWND", 0x5), startTime := A_TickCount
-				if rendererEl {
-					rendererEl.CurrentName ; it doesn't work without calling CurrentName (at least in Skype)
-					while (!rendererEl.CurrentValue && (A_TickCount-startTime < 500))
-						Sleep, 40
-				}
-			}
-			activatedHwnds[hwnd] := 1 ; Shouldn't store the element here, otherwise it can't be released until the program exits
-			return retEl
+		if activatedHwnds[hwnd] 
+			return
+		activatedHwnds[hwnd] := 1 ; Shouldn't store the element here, otherwise it can't be released until the program exits
+		ControlGet, cHwnd, Hwnd ,, Chrome_RenderWidgetHostHWND1, ahk_id %hwnd%
+		if !cHwnd
+			return
+		SendMessage, WM_GETOBJECT := 0x003D, 0, 1, , ahk_id %cHwnd%
+		if cacheRequest
+			try rendererEl := UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr",cHwnd, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out): ; ElementFromHandleBuildCache
+		else
+			try rendererEl := UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",cHwnd, "ptr*",out))? UIA_Element(out): ; ElementFromHandle
+		if rendererEl {
+			rendererEl.CurrentName ; it doesn't work without calling CurrentName (at least in Skype)
+			startTime := A_TickCount
+			while (!rendererEl.CurrentValue && (A_TickCount-startTime < 500))
+				Sleep, 40
+			return rendererEl
 		}
 	}
 }

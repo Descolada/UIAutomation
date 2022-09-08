@@ -451,7 +451,7 @@ class UIA_Browser {
 				return this.ReloadButton
 		}
 		ButtonWalker := this.UIA.CreateTreeWalker(this.ButtonCondition)
-		this.ReloadButton := this.UIA.ButtonWalker.GetNextSiblingElement(this.UIA.ButtonWalker.GetNextSiblingElement(this.UIA.ButtonWalker.GetFirstChildElement(this.NavigationBarElement)))
+		this.ReloadButton := ButtonWalker.GetNextSiblingElement(ButtonWalker.GetNextSiblingElement(ButtonWalker.GetFirstChildElement(this.NavigationBarElement)))
 		return this.ReloadButton
 	}
 	

@@ -129,8 +129,9 @@ class UIA_Chrome extends UIA_Browser {
 		}
 		Loop, 2 
 		{
+			try this.URLEditElement := this.BrowserElement.FindFirstWithOptions(4, EditControlCondition, 2)
 			try {
-				if !IsObject(this.URLEditElement := this.BrowserElement.FindFirstWithOptions(4, EditControlCondition, 2)) {
+				if !(this.URLEditElement) {
 					this.ToolbarElements := this.BrowserElement.FindAll(ToolbarControlCondition), topCoord := 10000000
 					for k, v in this.ToolbarElements {
 						br := v.CurrentBoundingRectangle
@@ -400,8 +401,9 @@ class UIA_Browser {
 		; combination of two, so if finding by name fails, all toolbar elements are evaluated.
 		Loop, 2 
 		{
+			try this.URLEditElement := (this.BrowserType = "Chrome") ? this.BrowserElement.FindFirstWithOptions(4, EditControlCondition, 2) : this.BrowserElement.FindFirst(EditControlCondition)
 			try {
-				if !((this.BrowserType = "Chrome") ? (this.URLEditElement := this.BrowserElement.FindFirstWithOptions(4, EditControlCondition, 2)) : (this.URLEditElement := this.BrowserElement.FindFirst(EditControlCondition))) {
+				if !(this.URLEditElement) {
 					this.ToolbarElements := this.BrowserElement.FindAll(ToolbarControlCondition), topCoord := 10000000
 					for k, v in this.ToolbarElements {
 						if ((bT := v.CurrentBoundingRectangle.t) && (bt < topCoord))
@@ -693,7 +695,8 @@ class UIA_Browser {
 	
 	; Presses the New tab button. The button name might differ if the browser language is not set to English and can be specified with butName
 	NewTab() { 
-		if IsObject(el := this.TabBarElement.FindFirstWithOptions(4,this.ButtonCondition,2))
+		try el := this.TabBarElement.FindFirstWithOptions(4,this.ButtonCondition,2)
+		if el
 			el.Click()
 		else {
 			this.UIA.CreateTreeWalker(this.ButtonCondition).GetLastChildElement(this.TabBarElement).Click()

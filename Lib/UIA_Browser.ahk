@@ -131,19 +131,9 @@ class UIA_Chrome extends UIA_Browser {
 		{
 			try this.URLEditElement := this.BrowserElement.FindFirstWithOptions(4, EditControlCondition, 2)
 			try {
-				if !(this.URLEditElement) {
-					this.ToolbarElements := this.BrowserElement.FindAll(ToolbarControlCondition), topCoord := 10000000
-					for k, v in this.ToolbarElements {
-						br := v.CurrentBoundingRectangle
-						if (((bT := br.t) < topCoord) && br.r)
-							topCoord := bT, this.NavigationBarElement := v
-					}
-					this.URLEditElement := this.NavigationBarElement.FindFirst(EditControlCondition)
-					if this.URLEditElement.GetChildren().MaxIndex()
-						this.URLEditElement := IsObject(el := this.URLEditElement.FindFirst(EditControlCondition)) ? el : this.URLEditElement
-				} Else {
-					this.NavigationBarElement := this.UIA.CreateTreeWalker(ToolbarControlCondition).GetParentElement(this.URLEditElement)
-				}
+				if !this.URLEditElement
+					this.URLEditElement := this.UIA.CreateTreeWalker(EditControlCondition).GetLastChildElement(this.BrowserElement)
+				this.NavigationBarElement := this.UIA.CreateTreeWalker(ToolbarControlCondition).GetParentElement(this.URLEditElement)
 				this.MainPaneElement := this.TWT.GetParentElement(this.NavigationBarElement)
 				if !this.NavigationBarElement
 					this.NavigationBarElement := this.BrowserElement
@@ -234,8 +224,7 @@ class UIA_Mozilla extends UIA_Browser {
 			try {
 				this.TabBarElement := TBTW.GetNextSiblingElement(TBTW.GetFirstChildElement(this.BrowserElement))
 				this.NavigationBarElement := TBTW.GetNextSiblingElement(this.TabBarElement)
-				this.URLEditElement := this.NavigationBarElement.FindFirstByType("Edit")
-
+				this.URLEditElement := this.NavigationBarElement.FindFirst(EditControlCondition)
 				this.MainPaneElement := this.TWT.GetParentElement(this.NavigationBarElement)
 				if !this.NavigationBarElement
 					this.NavigationBarElement := this.BrowserElement
@@ -403,18 +392,9 @@ class UIA_Browser {
 		{
 			try this.URLEditElement := (this.BrowserType = "Chrome") ? this.BrowserElement.FindFirstWithOptions(4, EditControlCondition, 2) : this.BrowserElement.FindFirst(EditControlCondition)
 			try {
-				if !(this.URLEditElement) {
-					this.ToolbarElements := this.BrowserElement.FindAll(ToolbarControlCondition), topCoord := 10000000
-					for k, v in this.ToolbarElements {
-						if ((bT := v.CurrentBoundingRectangle.t) && (bt < topCoord))
-							topCoord := bT, this.NavigationBarElement := v
-					}
-					this.URLEditElement := this.NavigationBarElement.FindFirst(EditControlCondition)
-					if this.URLEditElement.GetChildren().MaxIndex()
-						this.URLEditElement := (el := this.URLEditElement.FindFirst(EditControlCondition)) ? el : this.URLEditElement
-				} Else {
-					this.NavigationBarElement := this.UIA.CreateTreeWalker(ToolbarControlCondition).GetParentElement(this.URLEditElement)
-				}
+				if (this.BrowserType = "Chrome") && !this.URLEditElement
+					this.URLEditElement := this.UIA.CreateTreeWalker(EditControlCondition).GetLastChildElement(this.BrowserElement)
+				this.NavigationBarElement := this.UIA.CreateTreeWalker(ToolbarControlCondition).GetParentElement(this.URLEditElement)
 				this.MainPaneElement := this.TWT.GetParentElement(this.NavigationBarElement)
 				if !this.NavigationBarElement
 					this.NavigationBarElement := this.BrowserElement

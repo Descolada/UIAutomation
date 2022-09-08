@@ -584,8 +584,7 @@ class UIA_Interface extends UIA_Base {
 			try rendererEl := UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",cHwnd, "ptr*",out))? UIA_Element(out): ; ElementFromHandle
 		if rendererEl {
 			rendererEl.CurrentName ; it doesn't work without calling CurrentName (at least in Skype)
-			startTime := A_TickCount
-			while (!rendererEl.CurrentValue && (A_TickCount-startTime < 500))
+			while (!rendererEl.CurrentValue && (A_TickCount-startTime < 500) && (rendererEl.CurrentControlType == 50030))
 				Sleep, 40
 			return rendererEl
 		}

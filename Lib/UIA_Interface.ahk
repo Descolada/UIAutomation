@@ -566,6 +566,23 @@ class UIA_Interface extends UIA_Base {
 		try focusedEl := chromiumTW.NormalizeElement(fromFocused) ; Get the first parent that is a Window element
 		return focusedEl
 	}
+	; Tries to get the Chromium content from Chrome_RenderWidgetHostHWND1 control
+	ElementFromChromium(winTitle="A", activateChromiumAccessibility=True) {
+		ControlGet, cHwnd, Hwnd,, Chrome_RenderWidgetHostHWND1, %winTitle%
+		if !cHwnd
+			return
+		cEl := this.ElementFromHandle(cHwnd,False)
+		if (activateChromiumAccessibility != 0) {
+			SendMessage, WM_GETOBJECT := 0x003D, 0, 1, , ahk_id %cHwnd%
+			try rendererEl := cEl.FindFirst(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_ControlTypePropertyId, UIA_Enum.UIA_DocumentControlTypeId), 0x5)
+			if rendererEl {
+				rendererEl.CurrentName ; it doesn't work without calling CurrentName (at least in Skype)
+				while (!rendererEl.CurrentValue && (A_TickCount-startTime < 500))
+					Sleep, 20
+			}
+		}
+		return cEl
+	}
 	; In some setups Chromium-based renderers don't react to UIA calls by enabling accessibility, so we need to send the WM_GETOBJECT message to the renderer control to enable accessibility. Thanks to users malcev and rommmcek for this tip. Explanation why this works: https://www.chromium.org/developers/design-documents/accessibility/#TOC-How-Chrome-detects-the-presence-of-Assistive-Technology 
 	ActivateChromiumAccessibility(hwnd="A", cacheRequest=0) {
 		static activatedHwnds := {}
@@ -574,22 +591,7 @@ class UIA_Interface extends UIA_Base {
 		if activatedHwnds[hwnd] 
 			return
 		activatedHwnds[hwnd] := 1 ; Shouldn't store the element here, otherwise it can't be released until the program exits
-		ControlGet, cHwnd, Hwnd ,, Chrome_RenderWidgetHostHWND1, ahk_id %hwnd%
-		if !cHwnd
-			return
-		SendMessage, WM_GETOBJECT := 0x003D, 0, 1, , ahk_id %cHwnd%
-		if cacheRequest
-			try retEl := UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr",cHwnd, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out): ; ElementFromHandleBuildCache
-		else
-			try retEl := UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",cHwnd, "ptr*",out))? UIA_Element(out): ; ElementFromHandle
-		; Getting the document element directly from cHwnd doesn't work in some cases (VSCode, Edge)
-		try rendererEl := retEl.FindFirst(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_ControlTypePropertyId, UIA_Enum.UIA_DocumentControlTypeId), 0x5)
-		if rendererEl {
-			rendererEl.CurrentName ; it doesn't work without calling CurrentName (at least in Skype)
-			while (!rendererEl.CurrentValue && (A_TickCount-startTime < 500))
-				Sleep, 20
-			return retEl
-		}
+		return this.ElementFromChromium("ahk_id " hwnd)
 	}
 }
 

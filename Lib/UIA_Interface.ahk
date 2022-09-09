@@ -164,11 +164,11 @@ class UIA_Interface extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	; Retrieves a UI Automation element for the specified window. Additionally activateChromiumAccessibility flag can be set to True to send the WM_GETOBJECT message to Chromium-based apps to activate accessibility if it isn't activated.
-	ElementFromHandle(hwnd="A", activateChromiumAccessibility=True) { 
+	ElementFromHandle(hwnd="A", ByRef activateChromiumAccessibility=True) { 
 		if hwnd is not integer
 			hwnd := WinExist(hwnd)
-		if activateChromiumAccessibility
-			this.ActivateChromiumAccessibility(hwnd)
+		if (activateChromiumAccessibility != 0)
+			activateChromiumAccessibility := this.ActivateChromiumAccessibility(hwnd)
 		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",hwnd, "ptr*",out))? UIA_Element(out):
 	}
 	; Retrieves the UI Automation element at the specified point on the desktop. Additionally activateChromiumAccessibility flag can be set to True to send the WM_GETOBJECT message to Chromium-based apps to activate accessibility if it isn't activated. If Chromium needs to be activated, then activateChromiumAccessibility is set to that windows element.
@@ -176,14 +176,14 @@ class UIA_Interface extends UIA_Base {
 		if (x==""||y=="") {
 			VarSetCapacity(pt, 8, 0), NumPut(8, pt, "Int"), DllCall("user32.dll\GetCursorPos","UInt",&pt), x :=  NumGet(pt,0,"Int"), y := NumGet(pt,4,"Int")
 		}
-		if (activateChromiumAccessibility && (hwnd := DllCall("GetAncestor", "UInt", DllCall("user32.dll\WindowFromPoint", "int64",  y << 32 | x), "UInt", GA_ROOT := 2))) { ; hwnd from point by SKAN
+		if ((activateChromiumAccessibility!=0) && (hwnd := DllCall("GetAncestor", "UInt", DllCall("user32.dll\WindowFromPoint", "int64",  y << 32 | x), "UInt", GA_ROOT := 2))) { ; hwnd from point by SKAN
 			activateChromiumAccessibility := this.ActivateChromiumAccessibility(hwnd)
 		}
 		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "UInt64",x==""||y==""?pt:x&0xFFFFFFFF|(y&0xFFFFFFFF)<<32, "ptr*",out))? UIA_Element(out):
 	}	
 	; Retrieves the UI Automation element that has the input focus. If activateChromiumAccessibility is set to True, and Chromium needs to be activated, then activateChromiumAccessibility is set to that windows element.
 	GetFocusedElement(ByRef activateChromiumAccessibility=True) { 
-		if activateChromiumAccessibility
+		if (activateChromiumAccessibility!=0)
 			activateChromiumAccessibility := this.ActivateChromiumAccessibility()
 		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))? UIA_Element(out):
 	}
@@ -192,24 +192,24 @@ class UIA_Interface extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	; Retrieves a UI Automation element for the specified window, prefetches the requested properties and control patterns, and stores the prefetched items in the cache.
-	ElementFromHandleBuildCache(hwnd="A", cacheRequest=0, activateChromiumAccessibility=True) { 
+	ElementFromHandleBuildCache(hwnd="A", cacheRequest=0, ByRef activateChromiumAccessibility=True) { 
 		if hwnd is not integer
 			hwnd := WinExist(hwnd)
-		if activateChromiumAccessibility
-			this.ActivateChromiumAccessibility(hwnd, cacheRequest)
+		if (activateChromiumAccessibility != 0)
+			activateChromiumAccessibility := this.ActivateChromiumAccessibility(hwnd, cacheRequest)
 		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr",hwnd, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	; Retrieves the UI Automation element at the specified point on the desktop, prefetches the requested properties and control patterns, and stores the prefetched items in the cache.
 	ElementFromPointBuildCache(x="", y="", cacheRequest=0, ByRef activateChromiumAccessibility=True) { 
 		if (x==""||y=="")
 			VarSetCapacity(pt, 8, 0), NumPut(8, pt, "Int"), DllCall("user32.dll\GetCursorPos","UInt",&pt), x :=  NumGet(pt,0,"Int"), y := NumGet(pt,4,"Int")
-		if activateChromiumAccessibility
+		if (activateChromiumAccessibility!=0)
 			activateChromiumAccessibility := this.ActivateChromiumAccessibility(hwnd, cacheRequest)
 		return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "UInt64",x==""||y==""?pt:x&0xFFFFFFFF|(y&0xFFFFFFFF)<<32, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}	
 	; Retrieves the UI Automation element that has the input focus, prefetches the requested properties and control patterns, and stores the prefetched items in the cache. 
 	GetFocusedElementBuildCache(cacheRequest, ByRef activateChromiumAccessibility=True) { ; UNTESTED. 
-		if activateChromiumAccessibility
+		if (activateChromiumAccessibility!=0)
 			activateChromiumAccessibility := this.ActivateChromiumAccessibility(,cacheRequest)
 		return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
 	}
@@ -517,7 +517,7 @@ class UIA_Interface extends UIA_Base {
 	}
 
 	; Gets ElementFromPoint and filters out the smallest subelement that is under the specified point. If windowEl (window under the point) is provided, then a deep search is performed for the smallest element (this might be very slow in large trees).
-	SmallestElementFromPoint(x="", y="", activateChromiumAccessibility=True, windowEl="") { 
+	SmallestElementFromPoint(x="", y="", ByRef activateChromiumAccessibility=True, windowEl="") { 
 		if (x==""||y=="") {
 			VarSetCapacity(pt, 8, 0), NumPut(8, pt, "Int"), DllCall("user32.dll\GetCursorPos","UInt",&pt), x :=  NumGet(pt,0,"Int"), y := NumGet(pt,4,"Int")
 		}
@@ -579,14 +579,16 @@ class UIA_Interface extends UIA_Base {
 			return
 		SendMessage, WM_GETOBJECT := 0x003D, 0, 1, , ahk_id %cHwnd%
 		if cacheRequest
-			try rendererEl := UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr",cHwnd, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out): ; ElementFromHandleBuildCache
+			try retEl := UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr",cHwnd, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out): ; ElementFromHandleBuildCache
 		else
-			try rendererEl := UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",cHwnd, "ptr*",out))? UIA_Element(out): ; ElementFromHandle
+			try retEl := UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",cHwnd, "ptr*",out))? UIA_Element(out): ; ElementFromHandle
+		; Getting the document element directly from cHwnd doesn't work in some cases (VSCode, Edge)
+		try rendererEl := retEl.FindFirst(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_ControlTypePropertyId, UIA_Enum.UIA_DocumentControlTypeId), 0x5)
 		if rendererEl {
 			rendererEl.CurrentName ; it doesn't work without calling CurrentName (at least in Skype)
-			while (!rendererEl.CurrentValue && (A_TickCount-startTime < 500) && (rendererEl.CurrentControlType == 50030))
-				Sleep, 40
-			return rendererEl
+			while (!rendererEl.CurrentValue && (A_TickCount-startTime < 500))
+				Sleep, 20
+			return retEl
 		}
 	}
 }

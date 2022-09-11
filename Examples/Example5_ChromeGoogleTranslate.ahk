@@ -10,11 +10,7 @@ browserExe := "chrome.exe"
 Run, %browserExe% -incognito --force-renderer-accessibility ; Run in Incognito mode to avoid any extensions interfering. Force accessibility in case its disabled by default.
 WinWaitActive, ahk_exe %browserExe%
 cUIA := new UIA_Browser("ahk_exe " browserExe) ; Initialize UIA_Browser, which also initializes UIA_Interface
-
-; Before doing a translate, lets first set Google services language to English to ensure that locale-specific words are in English (if Google is in German for example, "English" would be "Englisch"
-cUIA.WaitPageLoad("New Tab", 5000) ; Wait the New Tab page to load with a timeout of 5 seconds
-cUIA.Navigate("https://www.google.com/preferences#languages") ; Set the URL and navigate to it
-cUIA.WaitPageLoad() ; Wait the page to load
+cUIA.Navigate("https://www.google.com/preferences#languages") ; Set the URL and navigate to it. WaitPageLoad is not necessary with Navigate.
 
 EnglishEl := cUIA.WaitElementExistByName("English") ; Find the English language radiobutton
 EnglishEl.Click() ; Select English
@@ -24,7 +20,6 @@ cUIA.CloseAlert() ; Sometimes a dialog pops up that confirms the save, in that c
 cUIA.WaitPageLoad("Google") ; Wait for Google main page to load, default timeout of 10 seconds
 
 cUIA.Navigate("https://translate.google.com/") ; Navigate to Google Translate
-cUIA.WaitPageLoad()
 cUIA.FindFirstByName("More source languages").Click() ; Click source languages selection
 cUIA.WaitElementExistByName("Spanish").Click(500) ; Select Spanish, Sleep for 500ms
 cUIA.FindFirstByName("More target languages").Click(500) ; Open target languages selection, Sleep for 500ms

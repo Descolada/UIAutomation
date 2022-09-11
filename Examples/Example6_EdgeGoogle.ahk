@@ -9,9 +9,8 @@ SetTitleMatchMode, 2
 browserExe := "msedge.exe"
 Run, %browserExe% -inprivate --force-renderer-accessibility ; Run in Incognito mode to avoid any extensions interfering. Force accessibility in case its disabled by default.
 WinWaitActive, ahk_exe %browserExe%
-Sleep, 500
 cUIA := new UIA_Browser("ahk_exe " browserExe) ; Initialize UIA_Browser, which also initializes UIA_Interface
-cUIA.WaitPageLoad("New tab", 5000) ; Wait the New Tab (case insensitive) page to load with a timeout of 5 seconds
+cUIA.WaitPageLoad("New inprivate tab", 5000) ; Wait the New Tab (case insensitive) page to load with a timeout of 5 seconds
 cUIA.Navigate("google.com") ; Set the URL to google and navigate
 
 if (langBut := cUIA.WaitElementExist("ClassName=neDYw tHlp8d AND ControlType=Button OR ControlType=MenuItem",,,,2000)) { ; First lets make sure the selected language is correct. The expression is evaluated left to right: finds an element where ClassName is "neDYw tHlp8d" and ControlType is button OR an element with a MenuItem controltype.

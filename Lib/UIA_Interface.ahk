@@ -574,11 +574,13 @@ class UIA_Interface extends UIA_Base {
 		cEl := this.ElementFromHandle(cHwnd,False)
 		if (activateChromiumAccessibility != 0) {
 			SendMessage, WM_GETOBJECT := 0x003D, 0, 1, , ahk_id %cHwnd%
-			try rendererEl := cEl.FindFirst(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_ControlTypePropertyId, UIA_Enum.UIA_DocumentControlTypeId), 0x5)
-			if rendererEl {
-				rendererEl.CurrentName ; it doesn't work without calling CurrentName (at least in Skype)
-				while (!rendererEl.CurrentValue && (A_TickCount-startTime < 500))
-					Sleep, 20
+			if cEl {
+				cEl.CurrentName ; it doesn't work without calling CurrentName (at least in Skype)
+				if (cEl.CurrentControlType == 50030) {
+					startTime := A_TickCount
+					while (!cEl.CurrentValue && (A_TickCount-startTime < 500))
+						Sleep, 20
+				}
 			}
 		}
 		return cEl

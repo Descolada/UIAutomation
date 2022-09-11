@@ -127,6 +127,7 @@ class UIA_Chrome extends UIA_Browser {
 			, ToolbarControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.ToolBarControlTypeId)
 			, TabControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.TabControlTypeId)
 		}
+		this.BrowserElement.WaitElementExist("ControlType=Document")
 		Loop, 2 
 		{
 			try this.URLEditElement := this.BrowserElement.FindFirstWithOptions(4, EditControlCondition, 2)
@@ -169,6 +170,7 @@ class UIA_Edge extends UIA_Browser {
 			, ToolbarControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.ToolBarControlTypeId)
 			, TabControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.TabControlTypeId)
 		}
+		this.BrowserElement.WaitElementExist("ControlType=Document")
 		Loop, 2 
 		{
 			try {
@@ -219,6 +221,7 @@ class UIA_Mozilla extends UIA_Browser {
 			, TabControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.TabControlTypeId)
 			, TBTW := this.UIA.CreateTreeWalker(ToolbarControlCondition)
 		}
+		this.BrowserElement.WaitElementExist("AutomationId=panel",2,2)
 		Loop, 2 
 		{
 			try {
@@ -323,7 +326,7 @@ class UIA_Browser {
 		this.CustomNames := (customNames == "") ? {} : customNames
 		this.TextCondition := this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.TextControlTypeId)
 		this.ButtonCondition := this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.ButtonControlTypeId)
-		this.BrowserElement := this.UIA.ElementFromHandle(this.BrowserId, True)
+		this.BrowserElement := this.UIA.ElementFromHandle(this.BrowserId)
 		this.GetCurrentMainPaneElement()
 	}
 	; Initiates UIA and hooks to the browser window specified with wTitle. customNames can be an object that defines custom CurrentName values for locale-specific elements (such as the name of the URL bar): {URLEditName:"My URL Edit name", TabBarName:"Tab bar name", HomeButtonName:"Home button name", StopButtonName:"Stop button", NewTabButtonName:"New tab button name"}. maxVersion specifies the highest UIA version that will be used (default is up to version 7).
@@ -382,6 +385,7 @@ class UIA_Browser {
 			, ToolbarControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.ToolBarControlTypeId)
 			, TabControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.TabControlTypeId)
 		}
+		this.BrowserElement.WaitElementExist("ControlType=Document")
 		; Finding the correct Toolbar ends up to be quite tricky. 
 		; In Chrome the toolbar element is located in the tree after the content element, 
 		; so if the content contains a toolbar then that will be returned. 

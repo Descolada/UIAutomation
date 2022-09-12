@@ -1303,7 +1303,7 @@ class UIA_Element extends UIA_Base {
 	; ControlClicks the element after getting relative coordinates with GetClickablePointRelativeTo("window"). Specifying WinTitle makes the function faster, since it bypasses getting the Hwnd from the element. 
 	; If WinTitle or WinText is a number, then Sleep will be called with that number of milliseconds. Ex: ControlClick(200) will sleep 200ms after clicking. Same for ControlClick("ahk_id 12345", 200)
 	ControlClick(WinTitleOrSleepTime="", WinTextOrSleepTime="", WhichButton="", ClickCount="", Options="", ExcludeTitle="", ExcludeText="") { 
-		this.SetFocus()
+		try this.SetFocus()
 		if (WinTitleOrSleepTime == "")
 			WinTitleOrSleepTime := "ahk_id " this.GetParentHwnd()	
 		if !((pos := this.GetClickablePointRelativeTo("window")).x || pos.y) {

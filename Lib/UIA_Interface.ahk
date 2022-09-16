@@ -1353,7 +1353,7 @@ class UIA_Element extends UIA_Base {
 	}
 	DumpRecursive(maxDepth=20, layer="", useTreeWalker := False, cached := False) { ; This function might hang if the element has thousands of empty custom elements (e.g. complex webpage)
 		StrReplace(layer, ".",, dotcount)
-		if (dotcount > maxDepth)
+		if (dotcount >= maxDepth)
 			return ""
 		if !(children := (cached ? this.GetCachedChildren() : (useTreeWalker ? this.TWGetChildren() : this.GetChildren())))
 			return ""

@@ -568,7 +568,7 @@ class UIA_Interface extends UIA_Base {
 	}
 	; Tries to get the Chromium content from Chrome_RenderWidgetHostHWND1 control
 	ElementFromChromium(winTitle="A", activateChromiumAccessibility=True) {
-		ControlGet, cHwnd, Hwnd,, Chrome_RenderWidgetHostHWND1, %winTitle%
+		try ControlGet, cHwnd, Hwnd,, Chrome_RenderWidgetHostHWND1, %winTitle%
 		if !cHwnd
 			return
 		cEl := this.ElementFromHandle(cHwnd,False)

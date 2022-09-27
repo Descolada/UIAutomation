@@ -1083,13 +1083,13 @@ class UIA_Element extends UIA_Base {
 	; Retrieves the first child or descendant element that matches the specified condition. scope must be one of TreeScope enums (default is TreeScope_Descendants := 0x4). If cacheRequest is specified, then FindFirstBuildCache is used instead.
 	FindFirst(c="", scope=0x4, cacheRequest="") { 
 		if (cacheRequest == "")	
-			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr*",out))&&out? UIA_Element(out):
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr*",out))? UIA_Element(out):
 		return this.FindFirstBuildCache(c, scope, cacheRequest)
 	}
 	; Returns all UI Automation elements that satisfy the specified condition. scope must be one of TreeScope enums (default is TreeScope_Descendants := 0x4). If cacheRequest is specified, then FindAllBuildCache is used instead.
 	FindAll(c="", scope=0x4, cacheRequest="") { 
 		if (cacheRequest == "")
-			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr*",out))&&out? UIA_ElementArray(out):
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr*",out))? UIA_ElementArray(out):
 		return this.FindAllBuildCache(c, scope, cacheRequest)
 	}
 	; Retrieves the first child or descendant element that matches the specified condition, prefetches the requested properties and control patterns, and stores the prefetched items in the cache
@@ -1155,11 +1155,11 @@ class UIA_Element extends UIA_Base {
 	}
 	; Retrieves from the cache the parent of this UI Automation element
 	GetCachedParent() { 
-		return UIA_Hr(DllCall(this.__Vt(18), "ptr",this.__Value, "ptr*",out))&&out? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(18), "ptr",this.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	; Retrieves the cached child elements of this UI Automation element
 	GetCachedChildren() { ; UNTESTED. 
-		return UIA_Hr(DllCall(this.__Vt(19), "ptr",this.__Value, "ptr*",out))&&out? UIA_ElementArray(out):
+		return UIA_Hr(DllCall(this.__Vt(19), "ptr",this.__Value, "ptr*",out))? UIA_ElementArray(out):
 	}
 	; Retrieves the physical screen coordinates of a point on the element that can be clicked
 	GetClickablePoint() { 
@@ -1872,16 +1872,16 @@ class UIA_Element7 extends UIA_Element6 {
 	
 	; Finds the first matching element in the specified order. traversalOptions must be one of TreeTraversalOptions enums. [optional] root is pointer to the element with which to begin the search.
 	FindFirstWithOptions(scope=0x4, c="", traversalOptions=0, root=0) { 
-		return UIA_Hr(DllCall(this.__Vt(110), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out))&&out? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(110), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	FindAllWithOptions(scope=0x4, c="", traversalOptions=0, root=0) {
-		return UIA_Hr(DllCall(this.__Vt(111), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out))&&out? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(111), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	FindFirstWithOptionsBuildCache(scope=0x4, c="", cacheRequest=0, traversalOptions=0, root=0) {
-		return UIA_Hr(DllCall(this.__Vt(112), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr", cacheRequest.__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out))&&out? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(112), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr", cacheRequest.__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	FindAllWithOptionsBuildCache(scope=0x4, c="", cacheRequest=0, traversalOptions=0, root=0) {
-		return UIA_Hr(DllCall(this.__Vt(113), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr", cacheRequest.__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out))&&out? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(113), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr", cacheRequest.__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	GetCurrentMetadataValue(targetId, metadataId) {
 		return UIA_Hr(DllCall(this.__Vt(114), "ptr",this.__Value, "int",targetId, "int", metadataId, "ptr*", UIA_Variant(out)))? UIA_VariantData(out):
@@ -2455,7 +2455,7 @@ class UIA_GridPattern extends UIA_Base {
 	; ---------- UIA_GridPattern methods ----------
 
 	GetItem(row,column) { ; Hr!=0 if no result, or blank output?
-		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "uint",row, "uint",column, "ptr*",out))&&out? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "uint",row, "uint",column, "ptr*",out))? UIA_Element(out):
 	}
 }
 
@@ -2605,7 +2605,7 @@ class UIA_LegacyIAccessiblePattern extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr",&value))
 	}
 	GetCurrentSelection() { ; UNTESTED
-		return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "ptr*",out))&&out? UIA_ElementArray(out):
+		return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "ptr*",out))? UIA_ElementArray(out):
 	}
 	;~ GetCachedSelection	24	IUIAutomationElementArray
 	GetIAccessible() {
@@ -2918,10 +2918,10 @@ class UIA_SelectionPattern extends UIA_Base {
 	; ---------- UIA_SelectionPattern methods ----------
 
 	GetCurrentSelection() { ; Returns an array of selected elements
-		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*", out))&&out?UIA_ElementArray(out):
+		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
 	}
 	GetCachedSelection() {
-		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*", out))&&out?UIA_ElementArray(out):
+		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
 	}
 }
 
@@ -2997,13 +2997,13 @@ class UIA_SpreadsheetItemPattern extends UIA_Base { ; UNTESTED
 	; ---------- UIA_SpreadsheetItemPattern methods ----------
 
 	GetCurrentAnnotationObjects() {
-		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*", out))&&out?UIA_ElementArray(out):
+		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
 	}
 	GetCurrentAnnotationTypes() {
 		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr", UIA_Variant(out)))?UIA_VariantData(out):
 	}
 	GetCachedAnnotationObjects() {
-		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*", out))&&out?UIA_ElementArray(out):
+		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
 	}
 	GetCachedAnnotationTypes() {
 		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr", UIA_Variant(out)))?UIA_VariantData(out):
@@ -3139,16 +3139,16 @@ class UIA_TableItemPattern extends UIA_Base {
 		,	__PatternID := 10013
 
 	GetCurrentRowHeaderItems() {
-		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*", out))&&out?UIA_ElementArray(out):
+		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
 	}
 	GetCurrentColumnHeaderItems() {
-		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*", out))&&out?UIA_ElementArray(out):
+		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
 	}
 	GetCachedRowHeaderItems() {
-		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*", out))&&out?UIA_ElementArray(out):
+		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
 	}
 	GetCachedColumnHeaderItems() {
-		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*", out))&&out?UIA_ElementArray(out):
+		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
 	}
 }
 
@@ -3176,16 +3176,16 @@ class UIA_TablePattern extends UIA_Base {
 	; ---------- UIA_TablePattern methods ----------
 
 	GetCurrentRowHeaders() {
-		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*", out))&&out?UIA_ElementArray(out):
+		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
 	}
 	GetCurrentColumnHeaders() {
-		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*", out))&&out?UIA_ElementArray(out):
+		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
 	}
 	GetCachedRowHeaders() {
-		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*", out))&&out?UIA_ElementArray(out):
+		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
 	}
 	GetCachedColumnHeaders() {
-		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*", out))&&out?UIA_ElementArray(out):
+		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
 	}
 }
 
@@ -3831,7 +3831,7 @@ class UIA_TextRange3 extends UIA_TextRange2 { ; UNTESTED
 		return UIA_Hr(DllCall(this.__Vt(22), "Ptr", this.__Value, "Ptr", cacheRequest.__Value, "Ptr*", out))?UIA_Element(out):
 	}
 	GetChildrenBuildCache(cacheRequest) {
-		return UIA_Hr(DllCall(this.__Vt(23), "Ptr", this.__Value, "Ptr", cacheRequest.__Value, "Ptr*", out))&&out?UIA_ElementArray(out):
+		return UIA_Hr(DllCall(this.__Vt(23), "Ptr", this.__Value, "Ptr", cacheRequest.__Value, "Ptr*", out))?UIA_ElementArray(out):
 	}
 	GetAttributeValues(attributeIds, attributeIdCount) { ; currently returns a AHK array
 		if ComObjValue(attributeIds)&0x2000
@@ -3981,6 +3981,8 @@ class UIA_TextRangeArray extends UIA_Base {
 			return UIA_Enum["UIA_" e]
 	}
 	UIA_ElementArray(p, uia="",flag=1) { ; Should AHK Object be 0 or 1 based? Currently 1 based.
+		if !p
+			return
 		a:=new UIA_ElementArray(p,flag),out:=[]
 		Loop % a.Length
 			out[A_Index]:=a.GetElement(A_Index-1)

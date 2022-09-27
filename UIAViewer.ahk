@@ -522,15 +522,16 @@ RedrawTreeView(el, noAncestors=True) {
 		ancestors := [], parent := el
 		while IsObject(parent) {
 			try {
-				ancestors.Push(parent := UIA.TreeWalkerTrue.GetParentElement(parent))
+				if IsObject(parent := UIA.TreeWalkerTrue.GetParentElement(parent))
+					ancestors.Push(parent)
 			} catch {
 				break
 			}
 		}
-		
+
 		; Loop backwards through ancestors to create the TreeView
-		maxInd := ancestors.MaxIndex(), parent := ""
-		while (--maxInd > 1) {
+		maxInd := ancestors.MaxIndex()+1, parent := ""
+		while (--maxInd > 0) {
 			if !IsObject(ancestors[maxInd])
 				return
 			try {
@@ -542,7 +543,7 @@ RedrawTreeView(el, noAncestors=True) {
 		}
 
 		; Add sibling elements
-		allChildren := ancestors[maxInd].FindAll(UIA.TrueCondition, 0x2)
+		allChildren := ancestors[1].FindAll(UIA.TrueCondition, 0x2)
 		for _, sibling in allChildren {
 			if UIA.CompareElements(sibling,el)
 				ConstructTreeView(el, parent) ; Add child elements to TreeView also
@@ -1861,7 +1862,7 @@ class UIA_TreeWalker extends UIA_Base {
 		,  __properties := "Condition,15,IUIAutomationCondition"
 	
 	GetParentElement(e) {
-		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))&&out? UIA_Element(out):
 	}
 	GetFirstChildElement(e) {
 		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))&&out? UIA_Element(out):
@@ -2899,6 +2900,8 @@ class UIA_TextRangeArray extends UIA_Base {
 	; Used by UIA methods to create new UIA_Element objects of the highest available version. The highest version to try can be changed by modifying UIA_Enum.UIA_CurrentVersion_Element value.
 	UIA_Element(e,flag=1) {
 		static v, previousVersion
+		if !e
+			return
 		if (previousVersion != UIA_Enum.UIA_CurrentVersion_Element) ; Check if the user wants an element with a different version
 			v := ""
 		else if v
@@ -2946,6 +2949,8 @@ class UIA_TextRangeArray extends UIA_Base {
 			return UIA_Enum["UIA_" e]
 	}
 	UIA_ElementArray(p, uia="",flag=1) { ; Should AHK Object be 0 or 1 based? Currently 1 based.
+		if !p
+			return 
 		a:=new UIA_ElementArray(p,flag),out:=[]
 		Loop % a.Length
 			out[A_Index]:=a.GetElement(A_Index-1)

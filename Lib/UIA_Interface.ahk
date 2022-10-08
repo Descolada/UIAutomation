@@ -1586,11 +1586,11 @@ class UIA_Element extends UIA_Base {
 			throw Exception("Invalid control type specified", -1)
 		controlCondition := this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_ControlTypePropertyId, controlType)
 		if (matchMode == 3 || (MatchSubstringSupported && (matchMode == 2))) {
-			nameCondition := this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name, ((matchMode==3)?0:2)|!caseSensitive)
+			nameCondition := this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, ((matchMode==3)?0:2)|!caseSensitive)
 			AndCondition := this.__UIA.CreateAndCondition(nameCondition, controlCondition)
 			return this.FindAll(AndCondition, scope, cacheRequest)
 		}
-		nameCondition := ((matchMode==1) && MatchSubstringSupported)?this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name, , 2|!caseSensitive):this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_NamePropertyId, ""))
+		nameCondition := ((matchMode==1) && MatchSubstringSupported)?this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, 2|!caseSensitive):this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_NamePropertyId, ""))
 		AndCondition := this.__UIA.CreateAndCondition(nameCondition, controlCondition)
 		returnArr := []
 		for k, v in this.FindAll(AndCondition, scope, cacheRequest) {

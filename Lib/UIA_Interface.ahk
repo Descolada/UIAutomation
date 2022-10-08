@@ -4161,8 +4161,8 @@ class UIA_TextRangeArray extends UIA_Base {
 			HandleNotificationEvent(sender, notificationKind, notificationProcessing, displayString, activityId)
 	*/
 	UIA_CreateEventHandler(funcName, handlerType="") { ; Possible handlerType values: empty, FocusChanged, StructureChanged, TextEditTextChanged, Changes, Notification.
-		if !IsFunc(funcName){
-			throw, % funcName "is not a function!"
+		if !(IsFunc(funcName) || IsObject(funcName)) { ; Figuring out if the Object is callable is way too difficult to bother with. 
+			throw Exception(funcName "is not a function!", -1)
 			return
 		}
 		ptr := DllCall("GlobalAlloc", "UInt",0x40, "UInt",A_PtrSize*5, "Ptr" )

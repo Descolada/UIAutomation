@@ -64,12 +64,12 @@
 		Navigates to URL and waits page to load
 	NewTab()
 		Presses the New tab button.
-	GetAllTabs()
-		Gets all tab elements
-	GetAllTabNames()
-		Gets all the titles of tabs
 	GetTab(searchPhrase="", matchMode=3, caseSensitive=True)
 		Returns a tab element with text of searchPhrase, or if empty then the currently selected tab. matchMode follows SetTitleMatchMode scheme: 1=tab name must must start with tabName; 2=can contain anywhere; 3=exact match; RegEx
+	GetTabs(searchPhrase="", matchMode=3, caseSensitive=True)
+		Returns all tab elements with text of searchPhrase, or if empty then all tabs. matchMode follows SetTitleMatchMode scheme: 1=tab name must must start with tabName; 2=can contain anywhere; 3=exact match; RegEx
+	GetAllTabNames()
+		Gets all the titles of tabs
 	SelectTab(tabName, matchMode=3, caseSensitive=True) 
 		Selects a tab with the text of tabName. matchMode follows SetTitleMatchMode scheme: 1=tab name must must start with tabName; 2=can contain anywhere; 3=exact match; RegEx
 	CloseTab(tabElementOrName="", matchMode=3, caseSensitive=True)
@@ -248,7 +248,7 @@ class UIA_Mozilla extends UIA_Browser {
 
 	; Returns the current document/content element of the browser
 	GetCurrentDocumentElement(tabName="", matchMode=3, caseSensitive=True) {
-		for i, el in this.GetAllTabs() {
+		for i, el in this.GetTabs() {
 			if (tabName ? this.__CompareTitles(tabName, el.CurrentName, matchMode, caseSensitive) : el.SelectionItemIsSelected) {
 				this.DocumentPanelElement := this.BrowserElement.FindAllBy("AutomationId=panel",2,2)[i]
 				return this.TWT.GetFirstChildElement(this.TWT.GetFirstChildElement(this.DocumentPanelElement))
@@ -689,16 +689,19 @@ class UIA_Browser {
 		;newTabBut.Click()
 	}
 	
-	; Gets all tab elements
 	GetAllTabs() { 
-		TabItemControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, UIA_Enum.UIA_ControlTypeId("TabItem"))
-		return this.TabBarElement.FindAll(TabItemControlCondition)
+		return this.TabBarElement.FindAll(this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, UIA_Enum.UIA_ControlTypeId("TabItem")))
+	}
+	; Gets all tab elements matching searchPhrase, matchMode and caseSensitive
+	; If searchPhrase is omitted then all tabs will be returned
+	GetTabs(searchPhrase="", matchMode=3, caseSensitive=True) {
+		return (searchPhrase == "") ? this.TabBarElement.FindAll(this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, UIA_Enum.UIA_ControlTypeId("TabItem"))) : this.TabBarElement.FindAllByNameAndType(searchPhrase, "TabItem",, matchMode, caseSensitive)
 	}
 
 	; Gets all the titles of tabs
 	GetAllTabNames() { 
 		names := []
-		for k, v in this.GetAllTabs() {
+		for k, v in this.GetTabs() {
 			names.Push(v.CurrentName)
 		}
 		return names

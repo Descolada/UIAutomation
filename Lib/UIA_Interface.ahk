@@ -1082,13 +1082,13 @@ class UIA_Element extends UIA_Base {
 	}
 	; Retrieves the first child or descendant element that matches the specified condition. scope must be one of TreeScope enums (default is TreeScope_Descendants := 0x4). If cacheRequest is specified, then FindFirstBuildCache is used instead.
 	FindFirst(c="", scope=0x4, cacheRequest="") { 
-		if (cacheRequest == "")	
+		if !cacheRequest	
 			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr*",out))? UIA_Element(out):
 		return this.FindFirstBuildCache(c, scope, cacheRequest)
 	}
 	; Returns all UI Automation elements that satisfy the specified condition. scope must be one of TreeScope enums (default is TreeScope_Descendants := 0x4). If cacheRequest is specified, then FindAllBuildCache is used instead.
 	FindAll(c="", scope=0x4, cacheRequest="") { 
-		if (cacheRequest == "")
+		if !cacheRequest
 			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr*",out))? UIA_ElementArray(out):
 		return this.FindAllBuildCache(c, scope, cacheRequest)
 	}
@@ -1411,7 +1411,7 @@ class UIA_Element extends UIA_Base {
 			If matching for a string, this will specify case-sensitivity.
 
 	*/
-	FindFirstBy(expr, scope=0x4, matchMode=3, caseSensitive=True, cacheRequest="") { 
+	FindFirstBy(expr, scope:=0x4, matchMode:=3, caseSensitive:=True, cacheRequest:="") { 
 		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
 		if ((matchMode == 3) || (matchMode==2 && MatchSubstringSupported)) {
 			return this.FindFirst(this.__UIA.CreateCondition(expr, ((matchMode==2)?2:0)|!caseSensitive), scope, cacheRequest)
@@ -1460,7 +1460,7 @@ class UIA_Element extends UIA_Base {
 		}
 	}
 	; FindFirst using UIA_NamePropertyId. "scope" is search scope, which can be any of UIA_Enum TreeScope values. "MatchMode" has same convention as window TitleMatchMode: 1=needs to start with the specified name, 2=can contain anywhere, 3=exact match, RegEx=regex match. 
-	FindFirstByName(name, scope=0x4, matchMode=3, caseSensitive=True, cacheRequest="") {
+	FindFirstByName(name, scope:=0x4, matchMode:=3, caseSensitive:=True, cacheRequest:="") {
 		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
 		if (matchMode == 3 || (MatchSubstringSupported && (matchMode == 2))) {
 			nameCondition := this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, ((matchMode==3)?0:2)|!caseSensitive)
@@ -1474,7 +1474,7 @@ class UIA_Element extends UIA_Base {
 		}
 	}
 	; FindFirst using UIA_ControlTypeId. controlType can be the ControlTypeId numeric value, or in string form (eg "Button")
-	FindFirstByType(controlType, scope=0x4, cacheRequest="") {
+	FindFirstByType(controlType, scope:=0x4, cacheRequest:="") {
 		if controlType is not integer
 			controlType := UIA_Enum.UIA_ControlTypeId(controlType)
 		if !controlType
@@ -1483,7 +1483,7 @@ class UIA_Element extends UIA_Base {
 		return this.FindFirst(controlCondition, scope, cacheRequest)
 	}
 	; FindFirst using UIA_NamePropertyId and UIA_ControlTypeId. controlType can be the ControlTypeId numeric value, or in string form (eg "Button"). scope is search scope, which can be any of UIA_Enum TreeScope values. matchMode has same convention as window TitleMatchMode: 1=needs to start with the specified name, 2=can contain anywhere, 3=exact match, RegEx=regex match
-	FindFirstByNameAndType(name, controlType, scope=0x4, matchMode=3, caseSensitive=True, cacheRequest="") { 
+	FindFirstByNameAndType(name, controlType, scope:=0x4, matchMode:=3, caseSensitive:=True, cacheRequest:="") { 
 		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
 		if controlType is not integer
 			controlType := UIA_Enum.UIA_ControlTypeId(controlType)
@@ -1504,7 +1504,7 @@ class UIA_Element extends UIA_Base {
 		}
 	}
 	; FindAll using an expression containing the desired conditions. For more information about expr, see FindFirstBy explanation
-	FindAllBy(expr, scope=0x4, matchMode=3, caseSensitive=True, cacheRequest="") {
+	FindAllBy(expr, scope:=0x4, matchMode:=3, caseSensitive:=True, cacheRequest:="") {
 		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
 		if ((matchMode == 3) || (matchMode==2 && MatchSubstringSupported)) 
 			return this.FindAll(this.__UIA.CreateCondition(expr, ((matchMode==2)?2:0)|!caseSensitive), scope, cacheRequest)
@@ -1553,7 +1553,7 @@ class UIA_Element extends UIA_Base {
 		}
 	}
 	; FindAll using UIA_NamePropertyId. scope is search scope, which can be any of UIA_Enum TreeScope values. matchMode has same convention as window TitleMatchMode: 1=needs to start with the specified name, 2=can contain anywhere, 3=exact match, RegEx=regex match
-	FindAllByName(name, scope=0x4, matchMode=3, caseSensitive=True, cacheRequest="") { 
+	FindAllByName(name, scope:=0x4, matchMode:=3, caseSensitive:=True, cacheRequest:="") { 
 		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
 		if (matchMode == 3 || ((matchMode == 2) && MatchSubstringSupported)) {
 			nameCondition := this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, ((matchMode==3)?0:2)|!caseSensitive)
@@ -1569,7 +1569,7 @@ class UIA_Element extends UIA_Base {
 		return retList
 	}
 	; FindAll using UIA_ControlTypeId. controlType can be the ControlTypeId numeric value, or in string form (eg "Button"). scope is search scope, which can be any of UIA_Enum TreeScope values.
-	FindAllByType(controlType, scope=0x4, cacheRequest="") {
+	FindAllByType(controlType, scope:=0x4, cacheRequest:="") {
 		if controlType is not integer
 			controlType := UIA_Enum.UIA_ControlTypeId(controlType)
 		if !controlType
@@ -1578,7 +1578,7 @@ class UIA_Element extends UIA_Base {
 		return this.FindAll(controlCondition, scope, cacheRequest)
 	}
 	; FindAll using UIA_NamePropertyId and UIA_ControlTypeId. controlType can be the ControlTypeId numeric value, or in string form (eg "Button"). scope is search scope, which can be any of UIA_Enum TreeScope values. matchMode has same convention as window TitleMatchMode: 1=needs to start with the specified name, 2=can contain anywhere, 3=exact match, RegEx=regex match
-	FindAllByNameAndType(name, controlType, scope=0x4, matchMode=3, cacheRequest="") { 
+	FindAllByNameAndType(name, controlType, scope:=0x4, matchMode:=3, cacheRequest:="") { 
 		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
 		if controlType is not integer
 			controlType := UIA_Enum.UIA_ControlTypeId(controlType)
@@ -1612,7 +1612,7 @@ class UIA_Element extends UIA_Base {
 		c or condition argument can be used to only filter elements specified by the condition: 
 		UIA_Element.FindByPath("+2", UIA_Interface.CreateCondition("ControlType", "Button")) will only consider "Button" controls and gets the second sibling button.
 	*/
-	FindByPath(searchPath="", c="") { 
+	FindByPath(searchPath:="", c:="") { 
 		el := this, ErrorLevel := 0, PathTW := (c=="" ? this.TreeWalkerTrue : this.__UIA.CreateTreeWalker(c))
 		searchPath := StrReplace(StrReplace(searchPath, " "), ",", ".")
 		Loop, Parse, searchPath, .

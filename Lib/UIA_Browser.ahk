@@ -121,26 +121,20 @@ class UIA_Chrome extends UIA_Browser {
 	}
 	; Refreshes UIA_Browser.MainPaneElement and returns it
 	GetCurrentMainPaneElement() { 
-		static EditControlCondition, ToolbarControlCondition, TabControlCondition
-		if !EditControlCondition {
-			EditControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.EditControlTypeId)
-			, ToolbarControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.ToolBarControlTypeId)
-			, TabControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.TabControlTypeId)
-		}
 		this.BrowserElement.WaitElementExist("ControlType=Document")
 		Loop, 2 
 		{
-			try this.URLEditElement := this.BrowserElement.FindFirstWithOptions(4, EditControlCondition, 2)
+			try this.URLEditElement := this.BrowserElement.FindFirstWithOptions(4, this.EditControlCondition, 2)
 			try {
 				if !this.URLEditElement
-					this.URLEditElement := this.UIA.CreateTreeWalker(EditControlCondition).GetLastChildElement(this.BrowserElement)
-				this.NavigationBarElement := this.UIA.CreateTreeWalker(ToolbarControlCondition).GetParentElement(this.URLEditElement)
+					this.URLEditElement := this.UIA.CreateTreeWalker(this.EditControlCondition).GetLastChildElement(this.BrowserElement)
+				this.NavigationBarElement := this.UIA.CreateTreeWalker(this.ToolbarControlCondition).GetParentElement(this.URLEditElement)
 				this.MainPaneElement := this.TWT.GetParentElement(this.NavigationBarElement)
 				if !this.NavigationBarElement
 					this.NavigationBarElement := this.BrowserElement
 				if !this.MainPaneElement
 					this.MainPaneElement := this.BrowserElement
-				if !(this.TabBarElement := this.CreateTreeWalker(TabControlCondition).GetPreviousSiblingElement(this.NavigationBarElement))
+				if !(this.TabBarElement := this.CreateTreeWalker(this.TabControlCondition).GetPreviousSiblingElement(this.NavigationBarElement))
 					this.TabBarElement := this.MainPaneElement
 				this.ReloadButton := this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetFirstChildElement(this.NavigationBarElement)))
 				this.ReloadButtonDescription := this.ReloadButton.GetCurrentPatternAs("LegacyIAccessible").CurrentDescription
@@ -164,34 +158,28 @@ class UIA_Edge extends UIA_Browser {
 
 	; Refreshes UIA_Browser.MainPaneElement and returns it
 	GetCurrentMainPaneElement() { 
-		static EditControlCondition, ToolbarControlCondition
-		if !EditControlCondition {
-			EditControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.EditControlTypeId)
-			, ToolbarControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.ToolBarControlTypeId)
-			, TabControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.TabControlTypeId)
-		}
 		this.BrowserElement.WaitElementExist("ControlType=Document")
 		Loop, 2 
 		{
 			try {
-				if !(this.URLEditElement := this.BrowserElement.FindFirst(EditControlCondition)) {
-					this.ToolbarElements := this.BrowserElement.FindAll(ToolbarControlCondition), topCoord := 10000000
+				if !(this.URLEditElement := this.BrowserElement.FindFirst(this.EditControlCondition)) {
+					this.ToolbarElements := this.BrowserElement.FindAll(this.ToolbarControlCondition), topCoord := 10000000
 					for k, v in this.ToolbarElements {
 						if ((bT := v.CurrentBoundingRectangle.t) && (bt < topCoord))
 							topCoord := bT, this.NavigationBarElement := v
 					}
-					this.URLEditElement := this.NavigationBarElement.FindFirst(EditControlCondition)
+					this.URLEditElement := this.NavigationBarElement.FindFirst(this.EditControlCondition)
 					if this.URLEditElement.GetChildren().MaxIndex()
-						this.URLEditElement := (el := this.URLEditElement.FindFirst(EditControlCondition)) ? el : this.URLEditElement
+						this.URLEditElement := (el := this.URLEditElement.FindFirst(this.EditControlCondition)) ? el : this.URLEditElement
 				} Else {
-					this.NavigationBarElement := this.UIA.CreateTreeWalker(ToolbarControlCondition).GetParentElement(this.URLEditElement)
+					this.NavigationBarElement := this.UIA.CreateTreeWalker(this.ToolbarControlCondition).GetParentElement(this.URLEditElement)
 				}
 				this.MainPaneElement := this.TWT.GetParentElement(this.NavigationBarElement)
 				if !this.NavigationBarElement
 					this.NavigationBarElement := this.BrowserElement
 				if !this.MainPaneElement
 					this.MainPaneElement := this.BrowserElement
-				if !(this.TabBarElement := this.CreateTreeWalker(TabControlCondition).GetPreviousSiblingElement(this.NavigationBarElement))
+				if !(this.TabBarElement := this.CreateTreeWalker(this.TabControlCondition).GetPreviousSiblingElement(this.NavigationBarElement))
 					this.TabBarElement := this.MainPaneElement
 				this.ReloadButton := this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetFirstChildElement(this.NavigationBarElement)))
 				this.ReloadButtonFullDescription := this.ReloadButton.CurrentFullDescription
@@ -214,20 +202,15 @@ class UIA_Mozilla extends UIA_Browser {
 	}
 	; Refreshes UIA_Browser.MainPaneElement and returns it
 	GetCurrentMainPaneElement() { 
-		static EditControlCondition, ToolbarControlCondition
-		if !EditControlCondition {
-			EditControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.EditControlTypeId)
-			, ToolbarControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.ToolBarControlTypeId)
-			, TabControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.TabControlTypeId)
-			, TBTW := this.UIA.CreateTreeWalker(ToolbarControlCondition)
-		}
 		this.BrowserElement.WaitElementExist("AutomationId=panel",2,2)
 		Loop, 2 
 		{
 			try {
-				this.TabBarElement := TBTW.GetNextSiblingElement(TBTW.GetFirstChildElement(this.BrowserElement))
-				this.NavigationBarElement := TBTW.GetNextSiblingElement(this.TabBarElement)
-				this.URLEditElement := this.NavigationBarElement.FindFirst(EditControlCondition)
+				this.TabBarElement := this.ToolbarTreeWalker.GetNextSiblingElement(this.ToolbarTreeWalker.GetFirstChildElement(this.BrowserElement))
+				OutputDebug, % this.TabBarElement.DumpAll()
+				OutputDebug, % "Reset`n`n"
+				this.NavigationBarElement := this.ToolbarTreeWalker.GetNextSiblingElement(this.TabBarElement)
+				this.URLEditElement := this.NavigationBarElement.FindFirst(this.EditControlCondition)
 				this.MainPaneElement := this.TWT.GetParentElement(this.NavigationBarElement)
 				if !this.NavigationBarElement
 					this.NavigationBarElement := this.BrowserElement
@@ -258,7 +241,7 @@ class UIA_Mozilla extends UIA_Browser {
 
 	; Presses the New tab button. 
 	NewTab() { 
-		this.TabBarElement.FindFirst(this.ButtonCondition,4).Click()
+		this.TabBarElement.FindFirst(this.ButtonControlCondition,4).Click()
 	}
 
 	; Sets the URL bar to newUrl, optionally also navigates to it if navigateToNewUrl=True
@@ -288,9 +271,9 @@ class UIA_Mozilla extends UIA_Browser {
 		this.GetCurrentDocumentElement()
 		startTime := A_TickCount
 		alertEl := this.TWT.GetNextSiblingElement(this.TWT.GetFirstChildElement(this.DocumentPanelElement))
-		while (!(IsObject(dialogEl := alertEl.FindFirst("AutomationId=commonDialogWindow")) && IsObject(OKBut := dialogEl.FindFirst(this.ButtonCondition))) && ((A_tickCount - startTime) < timeOut))
+		while (!(IsObject(dialogEl := alertEl.FindFirst("AutomationId=commonDialogWindow")) && IsObject(OKBut := dialogEl.FindFirst(this.ButtonControlCondition))) && ((A_tickCount - startTime) < timeOut))
 			Sleep, 100
-		try text := dialogEl.FindFirst(this.TextCondition).CurrentName
+		try text := dialogEl.FindFirst(this.TextControlCondition).CurrentName
 		if closeAlert
 			try OKBut.Click()
 		return text
@@ -298,7 +281,7 @@ class UIA_Mozilla extends UIA_Browser {
 
 	CloseAlert() {
 		this.GetCurrentDocumentElement()
-		try this.TWT.GetNextSiblingElement(this.TWT.GetFirstChildElement(this.DocumentPanelElement)).FindFirst("AutomationId=commonDialogWindow").FindFirst(this.ButtonCondition).Click()
+		try this.TWT.GetNextSiblingElement(this.TWT.GetFirstChildElement(this.DocumentPanelElement)).FindFirst("AutomationId=commonDialogWindow").FindFirst(this.ButtonControlCondition).Click()
 	}
 
 	; Close tab by either providing the tab element or the name of the tab. If tabElementOrName is left empty, the current tab will be closed.
@@ -324,8 +307,12 @@ class UIA_Browser {
 		this.UIA := UIA_Interface(maxVersion)
 		this.TWT := this.UIA.TreeWalkerTrue
 		this.CustomNames := (customNames == "") ? {} : customNames
-		this.TextCondition := this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.TextControlTypeId)
-		this.ButtonCondition := this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.ButtonControlTypeId)
+		this.TextControlCondition := this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.TextControlTypeId)
+		this.ButtonControlCondition := this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.ButtonControlTypeId)
+		this.EditControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.EditControlTypeId)
+		this.ToolbarControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.ToolBarControlTypeId)
+		this.TabControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.TabControlTypeId)
+		this.ToolbarTreeWalker := this.UIA.CreateTreeWalker(this.ToolbarControlCondition)
 		this.BrowserElement := this.UIA.ElementFromHandle(this.BrowserId)
 		this.GetCurrentMainPaneElement()
 	}
@@ -379,12 +366,6 @@ class UIA_Browser {
 	
 	; Refreshes UIA_Browser.MainPaneElement and returns it
 	GetCurrentMainPaneElement() { 
-		static EditControlCondition, EditNameCondition, EditAndCondition, ToolbarControlCondition, ToolbarWalker
-		if !EditControlCondition {
-			EditControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.EditControlTypeId)
-			, ToolbarControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.ToolBarControlTypeId)
-			, TabControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.TabControlTypeId)
-		}
 		this.BrowserElement.WaitElementExist("ControlType=Document")
 		; Finding the correct Toolbar ends up to be quite tricky. 
 		; In Chrome the toolbar element is located in the tree after the content element, 
@@ -394,18 +375,18 @@ class UIA_Browser {
 		; combination of two, so if finding by name fails, all toolbar elements are evaluated.
 		Loop, 2 
 		{
-			try this.URLEditElement := (this.BrowserType = "Chrome") ? this.BrowserElement.FindFirstWithOptions(4, EditControlCondition, 2) : this.BrowserElement.FindFirst(EditControlCondition)
+			try this.URLEditElement := (this.BrowserType = "Chrome") ? this.BrowserElement.FindFirstWithOptions(4, this.EditControlCondition, 2) : this.BrowserElement.FindFirst(this.EditControlCondition)
 			try {
 				if (this.BrowserType = "Chrome") && !this.URLEditElement
-					this.URLEditElement := this.UIA.CreateTreeWalker(EditControlCondition).GetLastChildElement(this.BrowserElement)
-				this.NavigationBarElement := this.UIA.CreateTreeWalker(ToolbarControlCondition).GetParentElement(this.URLEditElement)
+					this.URLEditElement := this.UIA.CreateTreeWalker(this.EditControlCondition).GetLastChildElement(this.BrowserElement)
+				this.NavigationBarElement := this.UIA.CreateTreeWalker(this.ToolbarControlCondition).GetParentElement(this.URLEditElement)
 				this.MainPaneElement := this.TWT.GetParentElement(this.NavigationBarElement)
 				if !this.NavigationBarElement
 					this.NavigationBarElement := this.BrowserElement
 				if !this.MainPaneElement
 					this.MainPaneElement := this.BrowserElement
 				;if !(this.TabBarElement := this.BrowserElement.FindFirstByNameAndType(this.CustomNames.TabBarName ? this.CustomNames.TabBarName : "Tab bar", "Tab"))
-				if !(this.TabBarElement := this.CreateTreeWalker(TabControlCondition).GetPreviousSiblingElement(this.NavigationBarElement))
+				if !(this.TabBarElement := this.CreateTreeWalker(this.TabControlCondition).GetPreviousSiblingElement(this.NavigationBarElement))
 					this.TabBarElement := this.MainPaneElement
 				this.GetCurrentReloadButton()
 				this.ReloadButtonFullDescription := this.ReloadButton.FullDescription
@@ -423,12 +404,11 @@ class UIA_Browser {
 	
 	; Returns the current document/content element of the browser
 	GetCurrentDocumentElement() { 
-		static docType
-		if !docType
-			docType := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.DocumentControlTypeId)
+		if !this.DocumentControlType
+			this.DocumentControlType := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.DocumentControlTypeId)
 		if (this.BrowserType = "Mozilla")
 			return (this.CurrentDocumentElement := this.BrowserElement.FindFirstByNameAndType(this.GetTab().CurrentName, "Document"))
-		return (this.CurrentDocumentElement := this.BrowserElement.FindFirst(docType))
+		return (this.CurrentDocumentElement := this.BrowserElement.FindFirst(this.DocumentControlType))
 	}
 
 	GetCurrentReloadButton() {
@@ -436,7 +416,7 @@ class UIA_Browser {
 			if this.ReloadButton && this.ReloadButton.CurrentName
 				return this.ReloadButton
 		}
-		ButtonWalker := this.UIA.CreateTreeWalker(this.ButtonCondition)
+		ButtonWalker := this.UIA.CreateTreeWalker(this.ButtonControlCondition)
 		this.ReloadButton := ButtonWalker.GetNextSiblingElement(ButtonWalker.GetNextSiblingElement(ButtonWalker.GetFirstChildElement(this.NavigationBarElement)))
 		return this.ReloadButton
 	}
@@ -522,14 +502,13 @@ class UIA_Browser {
 	
 	; Gets text from an alert-box created with for example javascript:alert('message')
 	GetAlertText(closeAlert=True, timeOut=3000) {
-		static DialogCondition, DialogTW
-		if !IsObject(DialogCondition)
-			DialogCondition := this.CreateOrCondition(this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.CustomControlTypeId), this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.WindowControlTypeId)), DialogTW := this.UIA.CreateTreeWalker(DialogCondition)
+		if !this.DialogTreeWalker
+			this.DialogTreeWalker := this.UIA.CreateTreeWalker(this.CreateOrCondition(this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.CustomControlTypeId), this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.WindowControlTypeId)))
 		startTime := A_TickCount
-		while (!(IsObject(dialogEl := DialogTW.GetLastChildElement(this.BrowserElement)) && IsObject(OKBut := dialogEl.FindFirst(this.ButtonCondition))) && ((A_tickCount - startTime) < timeOut))
+		while (!(IsObject(dialogEl := this.DialogTreeWalker.GetLastChildElement(this.BrowserElement)) && IsObject(OKBut := dialogEl.FindFirst(this.ButtonControlCondition))) && ((A_tickCount - startTime) < timeOut))
 			Sleep, 100
 		try
-			text := dialogEl.FindFirst(this.TextCondition).CurrentName
+			text := this.BrowserType = "Edge" ? dialogEl.FindFirstWithOptions(4, this.TextControlCondition, 2).CurrentName : dialogEl.FindFirst(this.TextControlCondition).CurrentName
 		if closeAlert {
 			Sleep, 500
 			try OKBut.Click()
@@ -538,12 +517,11 @@ class UIA_Browser {
 	}
 	
 	CloseAlert() {
-		static DialogCondition, DialogTW
-		if !IsObject(DialogCondition)
-			DialogCondition := this.CreateOrCondition(this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.CustomControlTypeId), this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.WindowControlTypeId)), DialogTW := this.UIA.CreateTreeWalker(DialogCondition)
+		if !this.DialogTreeWalker
+			this.DialogTreeWalker := this.UIA.CreateTreeWalker(this.CreateOrCondition(this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.CustomControlTypeId), this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.WindowControlTypeId)))
 		try {
-			dialogEl := DialogTW.GetLastChildElement(this.BrowserElement)
-			OKBut := dialogEl.FindFirst(this.ButtonCondition)
+			dialogEl := this.DialogTreeWalker.GetLastChildElement(this.BrowserElement)
+			OKBut := dialogEl.FindFirst(this.ButtonControlCondition)
 			OKBut.Click()
 		}
 	}
@@ -553,7 +531,7 @@ class UIA_Browser {
 		if !this.IsBrowserVisible()
 			WinActivate, % "ahk_id" this.BrowserId
 			
-		TextArray := this.BrowserElement.FindAll(this.TextCondition)
+		TextArray := this.BrowserElement.FindAll(this.TextControlCondition)
 		Text := ""
 		for k, v in TextArray
 			Text .= v.CurrentName "`n"
@@ -641,7 +619,7 @@ class UIA_Browser {
 		if homeBut := this.TWT.GetNextSiblingElement(this.ReloadButton)
 			return homeBut.Click()
 		;NameCondition := this.UIA.CreatePropertyCondition(this.UIA.NamePropertyId, this.CustomNames.HomeButtonName ? this.CustomNames.HomeButtonName : butName)
-		;this.NavigationBarElement.FindFirst(this.UIA.CreateAndCondition(NameCondition, this.ButtonCondition)).Click()
+		;this.NavigationBarElement.FindFirst(this.UIA.CreateAndCondition(NameCondition, this.ButtonControlCondition)).Click()
 	}
 	
 	; Gets the current URL. fromAddressBar=True gets it straight from the URL bar element, which is not a very good method, because the text might be changed by the user and doesn't start with "http(s)://". Default of fromAddressBar=False will cause the real URL to be fetched, but the browser must be visible for it to work (if is not visible, it will be automatically activated).
@@ -679,11 +657,11 @@ class UIA_Browser {
 	
 	; Presses the New tab button. The button name might differ if the browser language is not set to English and can be specified with butName
 	NewTab() { 
-		try el := this.TabBarElement.FindFirstWithOptions(4,this.ButtonCondition,2)
+		try el := this.TabBarElement.FindFirstWithOptions(4,this.ButtonControlCondition,2)
 		if el
 			el.Click()
 		else {
-			this.UIA.CreateTreeWalker(this.ButtonCondition).GetLastChildElement(this.TabBarElement).Click()
+			this.UIA.CreateTreeWalker(this.ButtonControlCondition).GetLastChildElement(this.TabBarElement).Click()
 		}
 		;newTabBut := this.TabBarElement.FindFirstByNameAndType(this.CustomNames.NewTabButtonName ? this.CustomNames.NewTabButtonName : butName, UIA_Enum.UIA_ButtonControlTypeId,,matchMode,caseSensitive)
 		;newTabBut.Click()

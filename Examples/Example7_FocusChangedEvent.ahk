@@ -1,4 +1,5 @@
 ﻿#SingleInstance, force
+#Warn
 #NoEnv  ; Recommended for performance and compatibility with future AutoHotkey releases.
 SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 SetTitleMatchMode, 2
@@ -10,9 +11,11 @@ SetTitleMatchMode, 2
 
 EventHandler(el) {
 	global cUIA
-	ToolTip, % "Caught event!`nElement name: " el.CurrentName
-	if cUIA.CompareElements(cUIA.URLEditElement, el) ; Check if the focused element is the same as Chrome's address bar element (comparison using == won't work)
-		el.SetValue("") ; If the Address bar was focused, clear it
+	try {
+		ToolTip, % "Caught event!`nElement name: " el.CurrentName
+		if cUIA.CompareElements(cUIA.URLEditElement, el) ; Check if the focused element is the same as Chrome's address bar element (comparison using == won't work)
+			el.SetValue("") ; If the Address bar was focused, clear it
+	}
 }
 
 ExitFunc() {

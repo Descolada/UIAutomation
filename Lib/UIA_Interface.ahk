@@ -43,13 +43,15 @@
 
 ; Base class for all UIA objects (UIA_Interface, UIA_Element etc), that is also used to get constants and enumerations from UIA_Enum.
 class UIA_Base {
-	__New(p="", flag=0, version="") {
+	__New(p:="", flag:=0, version:="") {
 		ObjRawSet(this,"__Type","IUIAutomation" SubStr(this.__Class,5))
 		,ObjRawSet(this,"__Value",p)
 		,ObjRawSet(this,"__Flag",flag)
 		,ObjRawSet(this,"__Version",version)
 	}
 	__Get(member) {
+		local
+		global UIA_Enum
 		if member not in base,__UIA,TreeWalkerTrue,TrueCondition ; These should act as normal
 		{
 			if ObjHasKey(UIA_Enum, member) {
@@ -81,6 +83,8 @@ class UIA_Base {
 		}
 	}
 	__Call(member, params*) {
+		local
+		global UIA_Base
 		if RegexMatch(member, "i)^(?:UIA_)?(PatternId|EventId|PropertyId|AttributeId|ControlTypeId|AnnotationType|StyleId|LandmarkTypeId|HeadingLevel|ChangeId|MetadataId)$", match) {
 			return UIA_Enum["UIA_" match1](params*)
 		} else if !ObjHasKey(UIA_Base,member)&&!ObjHasKey(this,member)&&!"_NewEnum"
@@ -105,47 +109,56 @@ class UIA_Interface extends UIA_Base {
 
 	ControlViewWalker[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "ptr*",out))?new UIA_TreeWalker(out):
+			local out
+			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "ptr*",out:=""))?new UIA_TreeWalker(out):
 		}
 	}
 	ContentViewWalker[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out))?new UIA_TreeWalker(out):
+			local out
+			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out:=""))?new UIA_TreeWalker(out):
 		}
 	}
 	RawViewWalker[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "ptr*",out))?new UIA_TreeWalker(out):
+			local out
+			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "ptr*",out:=""))?new UIA_TreeWalker(out):
 		}
 	}
 	RawViewCondition[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(17), "ptr",this.__Value, "ptr*",out))?new UIA_Condition(out):
+			local out
+			return UIA_Hr(DllCall(this.__Vt(17), "ptr",this.__Value, "ptr*",out:=""))?new UIA_Condition(out):
 		}
 	}
 	ControlViewCondition[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(18), "ptr",this.__Value, "ptr*",out))?new UIA_Condition(out):
+			local out
+			return UIA_Hr(DllCall(this.__Vt(18), "ptr",this.__Value, "ptr*",out:=""))?new UIA_Condition(out):
 		}
 	}
 	ContentViewCondition[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(19), "ptr",this.__Value, "ptr*",out))?new UIA_Condition(out):
+			local out
+			return UIA_Hr(DllCall(this.__Vt(19), "ptr",this.__Value, "ptr*",out:=""))?new UIA_Condition(out):
 		}
 	}
 	ProxyFactoryMapping[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(48), "ptr",this.__Value, "ptr*",out))?new UIA_ProxyFactoryMapping(out):
+			local out
+			return UIA_Hr(DllCall(this.__Vt(48), "ptr",this.__Value, "ptr*",out:=""))?new UIA_ProxyFactoryMapping(out):
 		}
 	}
 	ReservedNotSupportedValue[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(54), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(54), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	ReservedMixedAttributeValue[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(55), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(55), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 
@@ -153,84 +166,100 @@ class UIA_Interface extends UIA_Base {
 		
 	; Compares two UI Automation elements to determine whether they represent the same underlying UI element.
 	CompareElements(e1,e2) { 
-		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",e1.__Value, "ptr",e2.__Value, "int*",out))? out:
+		local
+		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",e1.__Value, "ptr",e2.__Value, "int*",out:=""))? out:
 	}
 	; Compares two integer arrays containing run-time identifiers (IDs) to determine whether their content is the same and they belong to the same UI element. r1 and r2 need to be RuntimeId arrays (returned by GetRuntimeId()), where array.base.__Value contains the corresponding safearray.
 	CompareRuntimeIds(r1,r2) { 
-		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr",ComObjValue(r1.__Value), "ptr",ComObjValue(r2.__Value), "int*",out))? out:
+		local
+		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr",ComObjValue(r1.__Value), "ptr",ComObjValue(r2.__Value), "int*",out:=""))? out:
 	}
 	; Retrieves the UI Automation element that represents the desktop.
 	GetRootElement() { 
-		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))? UIA_Element(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 	; Retrieves a UI Automation element for the specified window. Additionally activateChromiumAccessibility flag can be set to True to send the WM_GETOBJECT message to Chromium-based apps to activate accessibility if it isn't activated.
-	ElementFromHandle(hwnd="A", ByRef activateChromiumAccessibility=True) { 
+	ElementFromHandle(hwnd:="A", ByRef activateChromiumAccessibility:=True) { 
+		local
 		if hwnd is not integer
 			hwnd := WinExist(hwnd)
 		if (activateChromiumAccessibility != 0)
 			activateChromiumAccessibility := this.ActivateChromiumAccessibility(hwnd)
-		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",hwnd, "ptr*",out))? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",hwnd, "ptr*",out:=""))? UIA_Element(out):
 	}
 	; Retrieves the UI Automation element at the specified point on the desktop. Additionally activateChromiumAccessibility flag can be set to True to send the WM_GETOBJECT message to Chromium-based apps to activate accessibility if it isn't activated. If Chromium needs to be activated, then activateChromiumAccessibility is set to that windows element.
-	ElementFromPoint(x="", y="", ByRef activateChromiumAccessibility=True) { 
+	ElementFromPoint(x:="", y:="", ByRef activateChromiumAccessibility:=True) { 
+		local
 		if (x==""||y=="") {
 			VarSetCapacity(pt, 8, 0), NumPut(8, pt, "Int"), DllCall("user32.dll\GetCursorPos","UInt",&pt), x :=  NumGet(pt,0,"Int"), y := NumGet(pt,4,"Int")
 		}
 		if ((activateChromiumAccessibility!=0) && (hwnd := DllCall("GetAncestor", "UInt", DllCall("user32.dll\WindowFromPoint", "int64",  y << 32 | x), "UInt", GA_ROOT := 2))) { ; hwnd from point by SKAN
 			activateChromiumAccessibility := this.ActivateChromiumAccessibility(hwnd)
 		}
-		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "UInt64",x==""||y==""?pt:x&0xFFFFFFFF|(y&0xFFFFFFFF)<<32, "ptr*",out))? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "UInt64",x==""||y==""?pt:x&0xFFFFFFFF|(y&0xFFFFFFFF)<<32, "ptr*",out:=""))? UIA_Element(out):
 	}	
 	; Retrieves the UI Automation element that has the input focus. If activateChromiumAccessibility is set to True, and Chromium needs to be activated, then activateChromiumAccessibility is set to that windows element.
-	GetFocusedElement(ByRef activateChromiumAccessibility=True) { 
+	GetFocusedElement(ByRef activateChromiumAccessibility:=True) { 
+		local
 		if (activateChromiumAccessibility!=0)
 			activateChromiumAccessibility := this.ActivateChromiumAccessibility()
-		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 	; Retrieves the UI Automation element that represents the desktop, prefetches the requested properties and control patterns, and stores the prefetched items in the cache.
 	GetRootElementBuildCache(cacheRequest) { ; UNTESTED. 
-		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr", cacheRequest.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 	; Retrieves a UI Automation element for the specified window, prefetches the requested properties and control patterns, and stores the prefetched items in the cache.
-	ElementFromHandleBuildCache(hwnd="A", cacheRequest=0, ByRef activateChromiumAccessibility=True) { 
+	ElementFromHandleBuildCache(hwnd:="A", cacheRequest:=0, ByRef activateChromiumAccessibility:=True) { 
+		local
 		if hwnd is not integer
 			hwnd := WinExist(hwnd)
 		if (activateChromiumAccessibility != 0)
 			activateChromiumAccessibility := this.ActivateChromiumAccessibility(hwnd, cacheRequest)
-		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr",hwnd, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr",hwnd, "ptr",cacheRequest.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 	; Retrieves the UI Automation element at the specified point on the desktop, prefetches the requested properties and control patterns, and stores the prefetched items in the cache.
-	ElementFromPointBuildCache(x="", y="", cacheRequest=0, ByRef activateChromiumAccessibility=True) { 
+	ElementFromPointBuildCache(x:="", y="", cacheRequest:=0, ByRef activateChromiumAccessibility:=True) {
+		local 
 		if (x==""||y=="")
 			VarSetCapacity(pt, 8, 0), NumPut(8, pt, "Int"), DllCall("user32.dll\GetCursorPos","UInt",&pt), x :=  NumGet(pt,0,"Int"), y := NumGet(pt,4,"Int")
 		if (activateChromiumAccessibility!=0)
 			activateChromiumAccessibility := this.ActivateChromiumAccessibility(hwnd, cacheRequest)
-		return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "UInt64",x==""||y==""?pt:x&0xFFFFFFFF|(y&0xFFFFFFFF)<<32, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "UInt64",x==""||y==""?pt:x&0xFFFFFFFF|(y&0xFFFFFFFF)<<32, "ptr", cacheRequest.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}	
 	; Retrieves the UI Automation element that has the input focus, prefetches the requested properties and control patterns, and stores the prefetched items in the cache. 
-	GetFocusedElementBuildCache(cacheRequest, ByRef activateChromiumAccessibility=True) { ; UNTESTED. 
+	GetFocusedElementBuildCache(cacheRequest, ByRef activateChromiumAccessibility:=True) { ; UNTESTED. 
+		local
 		if (activateChromiumAccessibility!=0)
 			activateChromiumAccessibility := this.ActivateChromiumAccessibility(,cacheRequest)
-		return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr", cacheRequest.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 	; Retrieves a UIA_TreeWalker object that can be used to traverse the Microsoft UI Automation tree.
 	CreateTreeWalker(condition) {
-		return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "ptr",(IsObject(condition)?condition:this.CreateCondition(condition)).__Value, "ptr*",out))? new UIA_TreeWalker(out):
+		local out
+		return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "ptr",(IsObject(condition)?condition:this.CreateCondition(condition)).__Value, "ptr*",out:=""))? new UIA_TreeWalker(out):
 	}
 	CreateCacheRequest() { 
-		return UIA_Hr(DllCall(this.__Vt(20), "ptr",this.__Value, "ptr*",out))? new UIA_CacheRequest(out):
+		local out
+		return UIA_Hr(DllCall(this.__Vt(20), "ptr",this.__Value, "ptr*",out:=""))? new UIA_CacheRequest(out):
 	}
 	; Creates a condition that is always true.
 	CreateTrueCondition() { 
-		return UIA_Hr(DllCall(this.__Vt(21), "ptr",this.__Value, "ptr*",out))? new UIA_BoolCondition(out):
+		local out
+		return UIA_Hr(DllCall(this.__Vt(21), "ptr",this.__Value, "ptr*",out:=""))? new UIA_BoolCondition(out):
 	}
 	; Creates a condition that is always false.
 	CreateFalseCondition() { 
-		return UIA_Hr(DllCall(this.__Vt(22), "ptr",this.__Value, "ptr*",out))? new UIA_BoolCondition(out):
+		local out
+		return UIA_Hr(DllCall(this.__Vt(22), "ptr",this.__Value, "ptr*",out:=""))? new UIA_BoolCondition(out):
 	}
 	; Creates a condition that selects elements that have a property with the specified value. 
 	; If type is specified then a new variant is created with the specified variant type, otherwise the type is fetched from UIA_PropertyVariantType enums (so usually this can be left unchanged).
-	CreatePropertyCondition(propertyId, value, type="Variant") { 
+	CreatePropertyCondition(propertyId, value, type:="Variant") { 
+		local
+		global UIA_Enum, UIA_PropertyCondition
 		if propertyId is not integer
 			propertyId := UIA_Enum.UIA_PropertyId(propertyId)
 		if (type!="Variant")
@@ -238,10 +267,12 @@ class UIA_Interface extends UIA_Base {
 		else if (maybeVar := UIA_Enum.UIA_PropertyVariantType(propertyId)) {
 			UIA_Variant(value,maybeVar,value)
 		}
-		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(23), "ptr",this.__Value, "int",propertyId, "int64", NumGet(value, 0, "int64"), "int64", NumGet(value, 8, "int64"), "ptr*",out) : DllCall(this.__Vt(23), "ptr",this.__Value, "int",propertyId, "ptr",&value, "ptr*",out))? new UIA_PropertyCondition(out):
+		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(23), "ptr",this.__Value, "int",propertyId, "int64", NumGet(value, 0, "int64"), "int64", NumGet(value, 8, "int64"), "ptr*",out:="") : DllCall(this.__Vt(23), "ptr",this.__Value, "int",propertyId, "ptr",&value, "ptr*",out:=""))? new UIA_PropertyCondition(out):
 	}
 	; Creates a condition that selects elements that have a property with the specified value (value), using optional flags. If type is specified then a new variant is created with the specified variant type, otherwise the type is fetched from UIA_PropertyVariantType enums (so usually this can be left unchanged). flags can be one of PropertyConditionFlags, default is PropertyConditionFlags_IgnoreCase = 0x1.
-	CreatePropertyConditionEx(propertyId, value, type="Variant", flags=0x1) { 
+	CreatePropertyConditionEx(propertyId, value, type:="Variant", flags:=0x1) { 
+		local
+		global UIA_Enum, UIA_PropertyCondition
 		if propertyId is not integer
 			propertyId := UIA_Enum.UIA_PropertyId(propertyId)
 		maybeVar := UIA_Enum.UIA_PropertyVariantType(propertyId)
@@ -252,14 +283,17 @@ class UIA_Interface extends UIA_Base {
 		}
 		if (maybeVar != 8) ; Check if the type is not BSTR to remove flags
 			flags := 0
-		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(24), "ptr",this.__Value, "int",propertyId, "int64", NumGet(value, 0, "int64"), "int64", NumGet(value, 8, "int64"), "uint",flags, "ptr*",out) : DllCall(this.__Vt(24), "ptr",this.__Value, "int",propertyId, "ptr",&value, "uint",flags, "ptr*",out))? new UIA_PropertyCondition(out):
+		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(24), "ptr",this.__Value, "int",propertyId, "int64", NumGet(value, 0, "int64"), "int64", NumGet(value, 8, "int64"), "uint",flags, "ptr*",out:="") : DllCall(this.__Vt(24), "ptr",this.__Value, "int",propertyId, "ptr",&value, "uint",flags, "ptr*",out:=""))? new UIA_PropertyCondition(out):
 	}
 	; Creates a condition that selects elements that match both of two conditions.
 	CreateAndCondition(c1,c2) { 
-		return UIA_Hr(DllCall(this.__Vt(25), "ptr",this.__Value, "ptr",c1.__Value, "ptr",c2.__Value, "ptr*",out))? new UIA_AndCondition(out):
+		local out
+		return UIA_Hr(DllCall(this.__Vt(25), "ptr",this.__Value, "ptr",c1.__Value, "ptr",c2.__Value, "ptr*",out:=""))? new UIA_AndCondition(out):
 	}
 	; Creates a condition that selects elements based on multiple conditions, all of which must be true.
 	CreateAndConditionFromArray(array) { 
+		local
+		global UIA_AndCondition
 	;->in: AHK Array or Wrapped SafeArray
 		if ComObjValue(array)&0x2000
 			SafeArray:=array
@@ -268,7 +302,7 @@ class UIA_Interface extends UIA_Base {
 			for i,c in array
 				SafeArray[A_Index-1]:=c.__Value, ObjAddRef(c.__Value) ; AddRef - SafeArrayDestroy will release UIA_Conditions - they also release themselves
 		}
-		return UIA_Hr(DllCall(this.__Vt(26), "ptr",this.__Value, "ptr",ComObjValue(SafeArray), "ptr*",out))? new UIA_AndCondition(out):
+		return UIA_Hr(DllCall(this.__Vt(26), "ptr",this.__Value, "ptr",ComObjValue(SafeArray), "ptr*",out:=""))? new UIA_AndCondition(out):
 	}
 	; Creates a condition that selects elements from a native array, based on multiple conditions that must all be true
 	CreateAndConditionFromNativeArray(conditions, conditionCount) { ; UNTESTED. 
@@ -276,14 +310,17 @@ class UIA_Interface extends UIA_Base {
 			[in]           int conditionCount,
 			[out, retval]  IUIAutomationCondition **newCondition
 		*/
-		return UIA_Hr(DllCall(this.__Vt(27), "ptr",this.__Value, "ptr", conditions, "int", conditionCount, "ptr*",out))? new UIA_AndCondition(out):
+		local out
+		return UIA_Hr(DllCall(this.__Vt(27), "ptr",this.__Value, "ptr", conditions, "int", conditionCount, "ptr*",out:=""))? new UIA_AndCondition(out):
 	}
 	; Creates a combination of two conditions where a match exists if either of the conditions is true.
 	CreateOrCondition(c1,c2) { 
-		return UIA_Hr(DllCall(this.__Vt(28), "ptr",this.__Value, "ptr",c1.__Value, "ptr",c2.__Value, "ptr*",out))? new UIA_OrCondition(out):
+		local out
+		return UIA_Hr(DllCall(this.__Vt(28), "ptr",this.__Value, "ptr",c1.__Value, "ptr",c2.__Value, "ptr*",out:=""))? new UIA_OrCondition(out):
 	}
 	; Creates a combination of two or more conditions where a match exists if any of the conditions is true.
 	CreateOrConditionFromArray(array) { 
+		local SafeArray, i, c, out
 	;->in: AHK Array or Wrapped SafeArray
 		if ComObjValue(array)&0x2000
 			SafeArray:=array
@@ -292,10 +329,11 @@ class UIA_Interface extends UIA_Base {
 			for i,c in array
 				SafeArray[A_Index-1]:=c.__Value, ObjAddRef(c.__Value) ; AddRef - SafeArrayDestroy will release UIA_Conditions - they also release themselves
 		}
-		return UIA_Hr(DllCall(this.__Vt(29), "ptr",this.__Value, "ptr",ComObjValue(SafeArray), "ptr*",out))? new UIA_OrCondition(out):
+		return UIA_Hr(DllCall(this.__Vt(29), "ptr",this.__Value, "ptr",ComObjValue(SafeArray), "ptr*",out:=""))? new UIA_OrCondition(out):
 	}
 	CreateOrConditionFromNativeArray(p*) { ; Not Implemented
-		return UIA_Hr(DllCall(this.__Vt(30), "ptr",this.__Value, "ptr",conditions, "int", conditionCount, "ptr*",out))? new UIA_OrCondition(out):
+		local out
+		return UIA_Hr(DllCall(this.__Vt(30), "ptr",this.__Value, "ptr",conditions, "int", conditionCount, "ptr*",out:=""))? new UIA_OrCondition(out):
 	/*	[in]           IUIAutomationCondition **conditions,
 		[in]           int conditionCount,
 		[out, retval]  IUIAutomationCondition **newCondition
@@ -303,7 +341,8 @@ class UIA_Interface extends UIA_Base {
 	}
 	; Creates a condition that is the negative of a specified condition.
 	CreateNotCondition(c) { 
-		return UIA_Hr(DllCall(this.__Vt(31), "ptr",this.__Value, "ptr",c.__Value, "ptr*",out))? new UIA_NotCondition(out):
+		local out
+		return UIA_Hr(DllCall(this.__Vt(31), "ptr",this.__Value, "ptr",c.__Value, "ptr*",out:=""))? new UIA_NotCondition(out):
 	}
 	; Registers a method that handles Microsoft UI Automation events. eventId must be an EventId enum. scope must be a TreeScope enum. cacheRequest can be specified is caching is used. handler is an event handler object, which can be created with UIA_CreateEventHandler function.
 	AddAutomationEventHandler(eventId, element, scope=0x4, cacheRequest=0, handler="") { 
@@ -317,7 +356,8 @@ class UIA_Interface extends UIA_Base {
 	;~ AddPropertyChangedEventHandlerNativeArray 	34
 	
 	; Registers a method that handles an array of property-changed events
-	AddPropertyChangedEventHandler(element,scope=0x1,cacheRequest=0,handler="",propertyArray="") {
+	AddPropertyChangedEventHandler(element,scope:=0x1,cacheRequest:=0,handler:="",propertyArray:="") {
+		local
 		if !IsObject(propertyArray)
 			propertyArray := [propertyArray] 
 		SafeArray:=ComObjArray(0x3,propertyArray.MaxIndex())
@@ -329,14 +369,14 @@ class UIA_Interface extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(36), "ptr",this.__Value, "ptr",element.__Value, "ptr", handler.__Value))
 	}
 
-	AddStructureChangedEventHandler(element, scope=0x4, cacheRequest=0, handler=0) { 
+	AddStructureChangedEventHandler(element, scope:=0x4, cacheRequest:=0, handler:=0) { 
 		return UIA_Hr(DllCall(this.__Vt(37), "ptr",this.__Value, "ptr",element.__Value, "int", scope, "ptr", cacheRequest.__Value, "ptr",handler.__Value))
 	}
 	RemoveStructureChangedEventHandler(element, handler) { ; UNTESTED
 		return UIA_Hr(DllCall(this.__Vt(38), "ptr",this.__Value, "ptr", element.__Value, "ptr",handler.__Value))
 	}
 	; Registers a method that handles ChangedEvent events. handler is required, cacheRequest can be left to 0
-	AddFocusChangedEventHandler(handler, cacheRequest=0) { 
+	AddFocusChangedEventHandler(handler, cacheRequest:=0) { 
 		return UIA_Hr(DllCall(this.__Vt(39), "ptr",this.__Value, "ptr",cacheRequest.__Value, "ptr",handler.__Value))
 	}
 	RemoveFocusChangedEventHandler(handler) {
@@ -346,12 +386,14 @@ class UIA_Interface extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(41), "ptr",this.__Value))
 	}
 
-	IntNativeArrayToSafeArray(ByRef nArr, n="") { 
-		return UIA_Hr(DllCall(this.__Vt(42), "ptr",this.__Value, "ptr",&nArr, "int",n?n:VarSetCapacity(nArr)/4, "ptr*",out))? ComObj(0x2003,out,1):
+	IntNativeArrayToSafeArray(ByRef nArr, n:="") { 
+		local out
+		return UIA_Hr(DllCall(this.__Vt(42), "ptr",this.__Value, "ptr",&nArr, "int",n?n:VarSetCapacity(nArr)/4, "ptr*",out:=""))? ComObj(0x2003,out,1):
 	}
 	IntSafeArrayToNativeArray(sArr, Byref nArr, Byref arrayCount) { ; NOT WORKING
+		local
 		VarSetCapacity(nArr,(sArr.MaxIndex()+1)*A_PtrSize)
-		return UIA_Hr(DllCall(this.__Vt(43), "ptr",this.__Value, "ptr",ComObjValue(sArr), "ptr*",nArr, "int*",arrayCount))? nArr:
+		return UIA_Hr(DllCall(this.__Vt(43), "ptr",this.__Value, "ptr",ComObjValue(sArr), "ptr*",nArr:="", "int*",arrayCount:=""))? nArr:
 	}
 
 	RectToVariant(ByRef rect, ByRef out="") {	; in:{left,top,right,bottom} ; out:(left,top,width,height)
@@ -363,7 +405,7 @@ class UIA_Interface extends UIA_Base {
 		; in:	VT_VARIANT (SafeArray)
 		; out:	AHK Wrapped RECT Struct & ByRef Struct
 		VarSetCapacity(rect,16)
-		return UIA_Hr(DllCall(this.__Vt(45), "ptr",this.__Value, "ptr",var, "ptr*",rect))? UIA_RectToObject(rect):
+		return UIA_Hr(DllCall(this.__Vt(45), "ptr",this.__Value, "ptr",var, "ptr*",rect:=""))? UIA_RectToObject(rect):
 	}
 
 	;~ SafeArrayToRectNativeArray 	46
@@ -371,25 +413,28 @@ class UIA_Interface extends UIA_Base {
 	
 	; Retrieves the registered programmatic name of a property. Intended for debugging and diagnostic purposes only. The string is not localized.
 	GetPropertyProgrammaticName(Id) { 
-		return UIA_Hr(DllCall(this.__Vt(49), "ptr",this.__Value, "int",Id, "ptr*",out))? UIA_GetBSTRValue(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(49), "ptr",this.__Value, "int",Id, "ptr*",out:=""))? UIA_GetBSTRValue(out):
 	}
 	; Retrieves the registered programmatic name of a control pattern. Intended for debugging and diagnostic purposes only. The string is not localized.
 	GetPatternProgrammaticName(Id) { 
-		return UIA_Hr(DllCall(this.__Vt(50), "ptr",this.__Value, "int",Id, "ptr*",out))? UIA_GetBSTRValue(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(50), "ptr",this.__Value, "int",Id, "ptr*",out:=""))? UIA_GetBSTRValue(out):
 	}
 	; Returns an object where keys are the names and values are the Ids
-	PollForPotentialSupportedPatterns(e, Byref Ids="", Byref Names="") { 
-		return UIA_Hr(DllCall(this.__Vt(51), "ptr",this.__Value, "ptr",e.__Value, "ptr*",Ids, "ptr*",Names))? UIA_SafeArraysToObject(Names:=ComObj(0x2008,Names,1),Ids:=ComObj(0x2003,Ids,1)): ; These SafeArrays are wrapped by ComObj, so they will automatically be released
+	PollForPotentialSupportedPatterns(e, Byref Ids:="", Byref Names:="") { 
+		return UIA_Hr(DllCall(this.__Vt(51), "ptr",this.__Value, "ptr",e.__Value, "ptr*",Ids:="", "ptr*",Names:=""))? UIA_SafeArraysToObject(Names:=ComObj(0x2008,Names,1),Ids:=ComObj(0x2003,Ids,1)): ; These SafeArrays are wrapped by ComObj, so they will automatically be released
 	}
-	PollForPotentialSupportedProperties(e, Byref Ids="", Byref Names="") {
-		return UIA_Hr(DllCall(this.__Vt(52), "ptr",this.__Value, "ptr",e.__Value, "ptr*",Ids, "ptr*",Names))? UIA_SafeArraysToObject(Names:=ComObj(0x2008,Names,1),Ids:=ComObj(0x2003,Ids,1)):
+	PollForPotentialSupportedProperties(e, Byref Ids:="", Byref Names:="") {
+		return UIA_Hr(DllCall(this.__Vt(52), "ptr",this.__Value, "ptr",e.__Value, "ptr*",Ids:="", "ptr*",Names:=""))? UIA_SafeArraysToObject(Names:=ComObj(0x2008,Names,1),Ids:=ComObj(0x2003,Ids,1)):
 	}
 	CheckNotSupported(value) { ; Useless in this Framework???
-	/*	Checks a provided VARIANT to see if it contains the Not Supported identifier.
-		After retrieving a property for a UI Automation element, call this method to determine whether the element supports the 
-		retrieved property. CheckNotSupported is typically called after calling a property retrieving method such as GetCurrentPropertyValue.
-	*/
-		return UIA_Hr(DllCall(this.__Vt(53), "ptr",this.__Value, "ptr",value, "int*",out))? out:
+		/*	Checks a provided VARIANT to see if it contains the Not Supported identifier.
+			After retrieving a property for a UI Automation element, call this method to determine whether the element supports the 
+			retrieved property. CheckNotSupported is typically called after calling a property retrieving method such as GetCurrentPropertyValue.
+		*/
+		local
+		return UIA_Hr(DllCall(this.__Vt(53), "ptr",this.__Value, "ptr",value, "int*",out:=""))? out:
 	}
 	
 	;~ ReservedNotSupportedValue 	54
@@ -402,15 +447,17 @@ class UIA_Interface extends UIA_Base {
 		1) Where the program implements Acc natively. In this case, Acc will be the actual IAccessible object for the implementation.
 		2) The program doesn't implement Acc, but Acc instead creates a proxy object which sends messages to the window and maps Win32 controls to a specific IAccessible method. This would be for most Win32 programs, where for example accName would actually do something similar to ControlGetText and return that value. If ElementFromIAccessible is used with this kind of proxy object, E_INVALIDARG - "One or more arguments are not valid" error is returned.
 	*/
-	ElementFromIAccessible(IAcc, childId=0) {
+	ElementFromIAccessible(IAcc, childId:=0) {
 		/* The method returns E_INVALIDARG - "One or more arguments are not valid" - if the underlying implementation of the
 		Microsoft UI Automation element is not a native Microsoft Active Accessibility server; that is, if a client attempts to retrieve
 		the IAccessible interface for an element originally supported by a proxy object from Oleacc.dll, or by the UIA-to-MSAA Bridge.
 		*/
-		return UIA_Hr(DllCall(this.__Vt(56), "ptr",this.__Value, "ptr",IsObject(IAcc) ? ComObjValue(IAcc) : IAcc, "int",childId, "ptr*",out))? UIA_Element(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(56), "ptr",this.__Value, "ptr",IsObject(IAcc) ? ComObjValue(IAcc) : IAcc, "int",childId, "ptr*",out:=""))? UIA_Element(out):
 	}
-	ElementFromIAccessibleBuildCache(IAcc, childId=0, cacheRequest=0) {
-		return UIA_Hr(DllCall(this.__Vt(57), "ptr",this.__Value, "ptr",IsObject(IAcc) ? ComObjValue(IAcc) : IAcc, "int",childId, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
+	ElementFromIAccessibleBuildCache(IAcc, childId:=0, cacheRequest:=0) {
+		local
+		return UIA_Hr(DllCall(this.__Vt(57), "ptr",this.__Value, "ptr",IsObject(IAcc) ? ComObjValue(IAcc) : IAcc, "int",childId, "ptr", cacheRequest.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 
 	; ------- ONLY CUSTOM FUNCTIONS FROM HERE ON ----------------
@@ -443,7 +490,9 @@ class UIA_Interface extends UIA_Base {
 			
 			Flags: 0=no flags; 1=ignore case (case insensitive); 2=match substring; 3=ignore case and match substring
 	*/
-	CreateCondition(propertyOrExpr, valueOrFlags="", flags=0) {
+	CreateCondition(propertyOrExpr, valueOrFlags:="", flags:=0) {
+		local
+		global UIA_Enum
 		if InStr(propertyOrExpr, "=") { ; Expression
 			match := "", match3 := "", match5 := "", currentCondition := "", fullCondition := "", operator := "",valueOrFlags := (valueOrFlags == "") ? 0 : valueOrFlags, counter := 1, conditions := [], currentExpr := "(" propertyOrExpr ")"
 			; First create all single conditions (not applying AND, OR, NOT)
@@ -517,7 +566,8 @@ class UIA_Interface extends UIA_Base {
 	}
 
 	; Gets ElementFromPoint and filters out the smallest subelement that is under the specified point. If windowEl (window under the point) is provided, then a deep search is performed for the smallest element (this might be very slow in large trees).
-	SmallestElementFromPoint(x="", y="", ByRef activateChromiumAccessibility=True, windowEl="") { 
+	SmallestElementFromPoint(x:="", y:="", ByRef activateChromiumAccessibility:=True, windowEl:="") { 
+		local
 		if (x==""||y=="") {
 			VarSetCapacity(pt, 8, 0), NumPut(8, pt, "Int"), DllCall("user32.dll\GetCursorPos","UInt",&pt), x :=  NumGet(pt,0,"Int"), y := NumGet(pt,4,"Int")
 		}
@@ -554,7 +604,8 @@ class UIA_Interface extends UIA_Base {
 		}
 	}
 	; This can be used when a Chromium apps content isn't accessible by normal methods (ElementFromHandle, GetRootElement etc). fromFocused=True uses the focused element as a reference point, fromFocused=False uses ElementFromPoint
-	GetChromiumContentElement(winTitle="A", ByRef fromFocused=True) {
+	GetChromiumContentElement(winTitle:="A", ByRef fromFocused:=True) {
+		local
 		WinActivate, %winTitle%
 		WinWaitActive, %winTitle%,,1
 		WinGetPos, X, Y, W, H, %winTitle%
@@ -567,7 +618,8 @@ class UIA_Interface extends UIA_Base {
 		return focusedEl
 	}
 	; Tries to get the Chromium content from Chrome_RenderWidgetHostHWND1 control
-	ElementFromChromium(winTitle="A", activateChromiumAccessibility=True) {
+	ElementFromChromium(winTitle:="A", activateChromiumAccessibility:=True) {
+		local
 		try ControlGet, cHwnd, Hwnd,, Chrome_RenderWidgetHostHWND1, %winTitle%
 		if !cHwnd
 			return
@@ -586,7 +638,7 @@ class UIA_Interface extends UIA_Base {
 		return cEl
 	}
 	; In some setups Chromium-based renderers don't react to UIA calls by enabling accessibility, so we need to send the WM_GETOBJECT message to the renderer control to enable accessibility. Thanks to users malcev and rommmcek for this tip. Explanation why this works: https://www.chromium.org/developers/design-documents/accessibility/#TOC-How-Chrome-detects-the-presence-of-Assistive-Technology 
-	ActivateChromiumAccessibility(hwnd="A", cacheRequest=0) {
+	ActivateChromiumAccessibility(hwnd:="A", cacheRequest:=0) {
 		static activatedHwnds := {}
 		if hwnd is not integer
 			hwnd := WinExist(hwnd)
@@ -606,7 +658,8 @@ class UIA_Interface2 extends UIA_Interface {
 	AutoSetFocus[] 
 	{
 		get {
-			return UIA_Hr(DllCall(this.__Vt(58), "ptr",this.__Value, "ptr*", out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(58), "ptr",this.__Value, "ptr*", out:=""))?out:
 		}
 		set {
 			return UIA_Hr(DllCall(this.__Vt(59), "ptr",this.__Value, "int", value))
@@ -616,7 +669,8 @@ class UIA_Interface2 extends UIA_Interface {
 	ConnectionTimeout[] 
 	{
 		get {
-			return UIA_Hr(DllCall(this.__Vt(60), "ptr",this.__Value, "ptr*", out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(60), "ptr",this.__Value, "ptr*", out:=""))?out:
 		}
 		set {
 			return UIA_Hr(DllCall(this.__Vt(61), "ptr",this.__Value, "int", value)) ; Minimum seems to be 50 (ms?)
@@ -626,7 +680,8 @@ class UIA_Interface2 extends UIA_Interface {
 	TransactionTimeout[] 
 	{
 		get {
-			return UIA_Hr(DllCall(this.__Vt(62), "ptr",this.__Value, "ptr*", out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(62), "ptr",this.__Value, "ptr*", out:=""))?out:
 		}
 		set {
 			return UIA_Hr(DllCall(this.__Vt(63), "ptr",this.__Value, "int", value))
@@ -637,7 +692,7 @@ class UIA_Interface2 extends UIA_Interface {
 class UIA_Interface3 extends UIA_Interface2 { ; UNTESTED
 	static __IID := "{73d768da-9b51-4b89-936e-c209290973e7}"
 
-	AddTextEditTextChangedEventHandler(element, scope, textEditChangeType, cacheRequest=0, handler="") {
+	AddTextEditTextChangedEventHandler(element, scope, textEditChangeType, cacheRequest:=0, handler:="") {
 		return UIA_Hr(DllCall(this.__Vt(64), "ptr",this.__Value, "ptr", element.__Value, "int", scope, "int", textEditChangeType, "ptr", cacheRequest.__Value, "ptr", handler.__Value))
 	}
 	RemoveTextEditTextChangedEventHandler(element, handler) {
@@ -648,7 +703,7 @@ class UIA_Interface3 extends UIA_Interface2 { ; UNTESTED
 class UIA_Interface4 extends UIA_Interface3 { ; UNTESTED
 	static __IID := "{1189c02a-05f8-4319-8e21-e817e3db2860}"
 
-	AddChangesEventHandler(element, scope, changeTypes, changesCount, cacheRequest=0, handler="") { ; NOT WORKING. changeTypes should be an array?
+	AddChangesEventHandler(element, scope, changeTypes, changesCount, cacheRequest:=0, handler:="") { ; NOT WORKING. changeTypes should be an array?
 		return UIA_Hr(DllCall(this.__Vt(66), "ptr",this.__Value, "ptr", element.__Value, "int", scope, "int", changeTypes, "int", changesCount, "ptr", cacheRequest.__Value, "ptr", handler.__Value))
 	}
 	RemoveChangesEventHandler(element, handler) {
@@ -658,7 +713,7 @@ class UIA_Interface4 extends UIA_Interface3 { ; UNTESTED
 class UIA_Interface5 extends UIA_Interface4 { ; UNTESTED
 	static __IID := "{25f700c8-d816-4057-a9dc-3cbdee77e256}"
 
-	AddNotificationEventHandler(element, scope=0x4, cacheRequest=0, handler=0) {
+	AddNotificationEventHandler(element, scope:=0x4, cacheRequest:=0, handler:=0) {
 		return UIA_Hr(DllCall(this.__Vt(68), "ptr",this.__Value, "ptr", element.__Value, "uint", scope, "ptr", cacheRequest.__Value, "ptr", handler.__Value))
 	}
 	RemoveNotificationEventHandler(element, handler) {
@@ -674,7 +729,8 @@ class UIA_Interface6 extends UIA_Interface5 { ; UNTESTED
 	ConnectionRecoveryBehavior[] 
 	{
 		get {
-			return UIA_Hr(DllCall(this.__Vt(73), "ptr",this.__Value, "ptr*", out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(73), "ptr",this.__Value, "ptr*", out:=""))?out:
 		}
 		set {
 			return UIA_Hr(DllCall(this.__Vt(74), "ptr",this.__Value, "int", value)) 
@@ -684,7 +740,8 @@ class UIA_Interface6 extends UIA_Interface5 { ; UNTESTED
 	CoalesceEvents[] 
 	{
 		get {
-			return UIA_Hr(DllCall(this.__Vt(75), "ptr",this.__Value, "ptr*", out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(75), "ptr",this.__Value, "ptr*", out:=""))?out:
 		}
 		set {
 			return UIA_Hr(DllCall(this.__Vt(76), "ptr",this.__Value, "int", value))
@@ -695,7 +752,8 @@ class UIA_Interface6 extends UIA_Interface5 { ; UNTESTED
 
 	; Registers one or more event listeners in a single method call.
 	CreateEventHandlerGroup() {
-		return UIA_Hr(DllCall(this.__Vt(70), "ptr",this.__Value, "ptr*", out)) ? new UIA_AutomationEventHandlerGroup(out):
+		local out
+		return UIA_Hr(DllCall(this.__Vt(70), "ptr",this.__Value, "ptr*", out:="")) ? new UIA_AutomationEventHandlerGroup(out):
 	}
 	; Registers a collection of event handler methods specified with the UIA_Interface6 CreateEventHandlerGroup.
 	AddEventHandlerGroup(element, handlerGroup) {
@@ -705,7 +763,7 @@ class UIA_Interface6 extends UIA_Interface5 { ; UNTESTED
 		return UIA_Hr(DllCall(this.__Vt(72), "ptr",this.__Value, "ptr", element.__Value, "ptr", handlerGroup.__Value)) 
 	}
 	; Registers a method that handles when the active text position changes.
-	AddActiveTextPositionChangedEventHandler(element,scope=0x4,cacheRequest=0,handler="") {
+	AddActiveTextPositionChangedEventHandler(element,scope:=0x4,cacheRequest:=0,handler:="") {
 		return UIA_Hr(DllCall(this.__Vt(77), "ptr",this.__Value, "ptr", element.__Value, "int", scope, "ptr", cacheRequest.__Value, "ptr", handler.__Value)) 
 	}
 	RemoveActiveTextPositionChangedEventHandler(element,handler) {
@@ -727,322 +785,386 @@ class UIA_Element extends UIA_Base {
 	; ---------- UIA_Element properties ----------
 	CurrentProcessId[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(20), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(20), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentControlType[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(21), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(21), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentLocalizedControlType[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(22), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(22), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CurrentName[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(23), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(23), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CurrentAcceleratorKey[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(24), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(24), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CurrentAccessKey[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(25), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(25), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CurrentHasKeyboardFocus[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(26), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(26), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentIsKeyboardFocusable[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(27), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(27), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentIsEnabled[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(28), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(28), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentAutomationId[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(29), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(29), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CurrentClassName[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(30), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(30), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CurrentHelpText[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(31), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(31), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CurrentCulture[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(32), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(32), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentIsControlElement[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(33), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(33), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentIsContentElement[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(34), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(34), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentIsPassword[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(35), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(35), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentNativeWindowHandle[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(36), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(36), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentItemType[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(37), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(37), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CurrentIsOffscreen[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(38), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(38), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentOrientation[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(39), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(39), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentFrameworkId[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(40), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(40), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CurrentIsRequiredForForm[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(41), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(41), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentItemStatus[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(42), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(42), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CurrentBoundingRectangle[] {
 		get {
+			local
 			return UIA_Hr(DllCall(this.__Vt(43), "ptr",this.__Value, "ptr",&(rect,VarSetCapacity(rect,16))))?UIA_RectToObject(rect):
 		}
 	}
 	CurrentLabeledBy[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(44), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(44), "ptr",this.__Value, "ptr*",out:=""))?UIA_Element(out):
 		}
 	}
 	CurrentAriaRole[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(45), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(45), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CurrentAriaProperties[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(46), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(46), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CurrentIsDataValidForForm[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(47), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(47), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentControllerFor[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(48), "ptr",this.__Value, "ptr*",out))?UIA_ElementArray(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(48), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 		}
 	}
 	CurrentDescribedBy[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(49), "ptr",this.__Value, "ptr*",out))?UIA_ElementArray(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(49), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 		}
 	}
 	CurrentFlowsTo[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(50), "ptr",this.__Value, "ptr*",out))?UIA_ElementArray(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(50), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 		}
 	}
 	CurrentProviderDescription[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(51), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(51), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedProcessId[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(52), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(52), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedControlType[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(53), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(53), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedLocalizedControlType[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(54), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(54), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedName[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(55), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(55), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedAcceleratorKey[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(56), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(56), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedAccessKey[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(57), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(57), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedHasKeyboardFocus[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(58), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(58), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedIsKeyboardFocusable[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(59), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(59), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedIsEnabled[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(60), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(60), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedAutomationId[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(61), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(61), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedClassName[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(62), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(62), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedHelpText[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(63), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(63), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedCulture[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(64), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(64), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedIsControlElement[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(65), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(65), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedIsContentElement[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(66), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(66), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedIsPassword[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(67), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(67), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedNativeWindowHandle[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(68), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(68), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedItemType[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(69), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(69), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedIsOffscreen[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(70), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(70), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedOrientation[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(71), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(71), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedFrameworkId[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(72), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(72), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedIsRequiredForForm[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(73), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(73), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedItemStatus[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(74), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(74), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedBoundingRectangle[] {
 		get {
+			local
 			return UIA_Hr(DllCall(this.__Vt(75), "ptr",this.__Value, "ptr",&(rect,VarSetCapacity(rect,16))))?UIA_RectToObject(rect):
 		}
 	}
 	CachedLabeledBy[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(76), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(76), "ptr",this.__Value, "ptr*",out:=""))?UIA_Element(out):
 		}
 	}
 	CachedAriaRole[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(77), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(77), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedAriaProperties[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(78), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(78), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedIsDataValidForForm[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(79), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(79), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedControllerFor[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(80), "ptr",this.__Value, "ptr*",out))?UIA_ElementArray(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(80), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 		}
 	}
 	CachedDescribedBy[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(81), "ptr",this.__Value, "ptr*",out))?UIA_ElementArray(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(81), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 		}
 	}
 	CachedFlowsTo[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(82), "ptr",this.__Value, "ptr*",out))?UIA_ElementArray(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(82), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 		}
 	}
 	CachedProviderDescription[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(83), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(83), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	; ---------- Custom UIA_Element properties ----------
@@ -1064,7 +1186,7 @@ class UIA_Element extends UIA_Base {
 	CurrentExists[] {
 		get {
 			try {
-				if ((val := this.CurrentName this.CurrentValue (this.CurrentBoundingRectangle.t ? 1 : "")) == "")
+				if ((this.CurrentName this.CurrentValue (this.CurrentBoundingRectangle.t ? 1 : "")) == "")
 					return 0
 			} 
 			return 1
@@ -1078,105 +1200,120 @@ class UIA_Element extends UIA_Base {
 	}
 	; Retrieves the unique identifier assigned to the UI element. The identifier is only guaranteed to be unique to the UI of the desktop on which it was generated. Identifiers can be reused over time.
 	GetRuntimeId() { 
-		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",sa))? UIA_SafeArrayToAHKArray(ComObj(0x2003,sa,1)):
+		local
+		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",sa:=""))? UIA_SafeArrayToAHKArray(ComObj(0x2003,sa,1)):
 	}
 	; Retrieves the first child or descendant element that matches the specified condition. scope must be one of TreeScope enums (default is TreeScope_Descendants := 0x4). If cacheRequest is specified, then FindFirstBuildCache is used instead.
-	FindFirst(c="", scope=0x4, cacheRequest="") { 
+	FindFirst(c:="", scope:=0x4, cacheRequest:="") { 
+		local
 		if !cacheRequest	
-			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr*",out))? UIA_Element(out):
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr*",out:=""))? UIA_Element(out):
 		return this.FindFirstBuildCache(c, scope, cacheRequest)
 	}
 	; Returns all UI Automation elements that satisfy the specified condition. scope must be one of TreeScope enums (default is TreeScope_Descendants := 0x4). If cacheRequest is specified, then FindAllBuildCache is used instead.
-	FindAll(c="", scope=0x4, cacheRequest="") { 
+	FindAll(c:="", scope:=0x4, cacheRequest:="") { 
+		local
 		if !cacheRequest
-			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr*",out))? UIA_ElementArray(out):
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr*",out:=""))? UIA_ElementArray(out):
 		return this.FindAllBuildCache(c, scope, cacheRequest)
 	}
 	; Retrieves the first child or descendant element that matches the specified condition, prefetches the requested properties and control patterns, and stores the prefetched items in the cache
-	FindFirstBuildCache(c="", scope=0x4, cacheRequest="") { ; UNTESTED. 
-		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
+	FindFirstBuildCache(c:="", scope:=0x4, cacheRequest:="") { ; UNTESTED. 
+		local
+		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr",cacheRequest.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 	; Returns all UI Automation elements that satisfy the specified condition, prefetches the requested properties and control patterns, and stores the prefetched items in the cache.
-	FindAllBuildCache(c="", scope=0x4, cacheRequest="") { ; UNTESTED. 
-		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_ElementArray(out):
+	FindAllBuildCache(c:="", scope:=0x4, cacheRequest:="") { ; UNTESTED. 
+		local
+		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr",cacheRequest.__Value, "ptr*",out:=""))? UIA_ElementArray(out):
 	}
 	; Retrieves a new UI Automation element with an updated cache.
 	BuildUpdatedCache(cacheRequest) { ; UNTESTED. 
-		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr", cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr", cacheRequest.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 	; Retrieves the current value of a property for this element. "out" will be set to the raw variant (generally not used).
-	GetCurrentPropertyValue(propertyId, ByRef out="") { 
+	GetCurrentPropertyValue(propertyId, ByRef out:="") { 
 		if propertyId is not integer
 			propertyId := UIA_Enum.UIA_PropertyId(propertyId)
 		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "uint", propertyId, "ptr",UIA_Variant(out)))? UIA_VariantData(out):
 		
 	}
 	; Retrieves a property value for this element, optionally ignoring any default value. Passing FALSE in the ignoreDefaultValue parameter is equivalent to calling GetCurrentPropertyValue
-	GetCurrentPropertyValueEx(propertyId, ignoreDefaultValue=1, ByRef out="") { 
+	GetCurrentPropertyValueEx(propertyId, ignoreDefaultValue:=1, ByRef out:="") { 
 		if propertyId is not integer
 			propertyId := UIA_Enum.UIA_PropertyId(propertyId)
 		return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "uint",propertyId, "uint",ignoreDefaultValue, "ptr",UIA_Variant(out)))? UIA_VariantData(out):
 	}
 	; Retrieves a property value from the cache for this element.
-	GetCachedPropertyValue(propertyId, ByRef out="") { ; UNTESTED. 
+	GetCachedPropertyValue(propertyId, ByRef out:="") { ; UNTESTED. 
 		if propertyId is not integer
 			propertyId := UIA_Enum.UIA_PropertyId(propertyId)
 		return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "uint",propertyId, "ptr",UIA_Variant(out)))? UIA_VariantData(out):
 	}
 	; Retrieves a property value from the cache for this element, optionally ignoring any default value. Passing FALSE in the ignoreDefaultValue parameter is equivalent to calling GetCachedPropertyValue
-	GetCachedPropertyValueEx(propertyId, ignoreDefaultValue=1, ByRef out="") { 
+	GetCachedPropertyValueEx(propertyId, ignoreDefaultValue:=1, ByRef out:="") { 
 		if propertyId is not integer
 			propertyId := UIA_Enum.UIA_PropertyId(propertyId)
 		return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "uint",propertyId, "uint",ignoreDefaultValue, "ptr",UIA_Variant(out)))? UIA_VariantData(out):
 	}
 	; Retrieves a UIA_Pattern object of the specified control pattern on this element. If a full pattern name is specified then that exact version will be used (eg "TextPattern" will return a UIA_TextPattern object), otherwise the highest version will be used (eg "Text" might return UIA_TextPattern2 if it is available). usedPattern will be set to the actual string used to look for the pattern (used mostly for debugging purposes)
-	GetCurrentPatternAs(pattern, ByRef usedPattern="") { 
+	GetCurrentPatternAs(pattern, ByRef usedPattern:="") { 
+		local riid, out
 		if (usedPattern := InStr(pattern, "Pattern") ? pattern : UIA_Pattern(pattern, this))
-			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "int",UIA_%usedPattern%.__PatternId, "ptr",UIA_GUID(riid,UIA_%usedPattern%.__iid), "ptr*",out)) ? new UIA_%usedPattern%(out,1):
+			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "int",UIA_%usedPattern%.__PatternId, "ptr",UIA_GUID(riid,UIA_%usedPattern%.__iid), "ptr*",out:="")) ? new UIA_%usedPattern%(out,1):
 		throw Exception("Pattern not implemented.",-1, "UIA_" pattern "Pattern")
 	}
 	; Retrieves a UIA_Pattern object of the specified control pattern on this element from the cache of this element. 
-	GetCachedPatternAs(pattern, ByRef usedPattern="") { 
+	GetCachedPatternAs(pattern, ByRef usedPattern:="") { 
+		local riid, out
 		if (usedPattern := InStr(pattern, "Pattern") ? pattern : UIA_Pattern(pattern, this))
-			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "int",UIA_%usedPattern%.__PatternId, "ptr",UIA_GUID(riid,UIA_%usedPattern%.__iid), "ptr*",out)) ? new UIA_%usedPattern%(out,1):
+			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "int",UIA_%usedPattern%.__PatternId, "ptr",UIA_GUID(riid,UIA_%usedPattern%.__iid), "ptr*",out:="")) ? new UIA_%usedPattern%(out,1):
 		throw Exception("Pattern not implemented.",-1, "UIA_" pattern "Pattern")
 	}
-	GetCurrentPattern(pattern, ByRef usedPattern="") {
+	GetCurrentPattern(pattern, ByRef usedPattern:="") {
+		local out
 		; I don't know the difference between this and GetCurrentPatternAs
 		if (usedPattern := InStr(pattern, "Pattern") ? pattern : UIA_Pattern(pattern, this))
-			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "int",UIA_%usedPattern%.__PatternId, "ptr*",out)) ? new UIA_%usedPattern%(out,1):
+			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "int",UIA_%usedPattern%.__PatternId, "ptr*",out:="")) ? new UIA_%usedPattern%(out,1):
 		else throw Exception("Pattern not implemented.",-1, "UIA_" pattern "Pattern")
 	}
-	GetCachedPattern(pattern, ByRef usedPattern="") {
+	GetCachedPattern(pattern, ByRef usedPattern:="") {
+		local out
 		; I don't know the difference between this and GetCachedPatternAs
 		if (usedPattern := InStr(pattern, "Pattern") ? pattern : UIA_Pattern(pattern, this))
-			return UIA_Hr(DllCall(this.__Vt(17), "ptr",this.__Value, "int", UIA_%usedPattern%.__PatternId, "ptr*",out)) ? new UIA_%usedPattern%(out,1):
+			return UIA_Hr(DllCall(this.__Vt(17), "ptr",this.__Value, "int", UIA_%usedPattern%.__PatternId, "ptr*",out:="")) ? new UIA_%usedPattern%(out,1):
 		else throw Exception("Pattern not implemented.",-1, "UIA_" pattern "Pattern")
 	}
 	; Retrieves from the cache the parent of this UI Automation element
 	GetCachedParent() { 
-		return UIA_Hr(DllCall(this.__Vt(18), "ptr",this.__Value, "ptr*",out))? UIA_Element(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(18), "ptr",this.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 	; Retrieves the cached child elements of this UI Automation element
 	GetCachedChildren() { ; UNTESTED. 
-		return UIA_Hr(DllCall(this.__Vt(19), "ptr",this.__Value, "ptr*",out))? UIA_ElementArray(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(19), "ptr",this.__Value, "ptr*",out:=""))? UIA_ElementArray(out):
 	}
 	; Retrieves the physical screen coordinates of a point on the element that can be clicked
 	GetClickablePoint() { 
-		return UIA_Hr(DllCall(this.__Vt(84), "ptr",this.__Value, "ptr", &(point,VarSetCapacity(point,8)), "ptr*", out))&&out? {x:NumGet(point,0,"int"), y:NumGet(point,4,"int")}:
+		local
+		return UIA_Hr(DllCall(this.__Vt(84), "ptr",this.__Value, "ptr", &(point,VarSetCapacity(point,8)), "ptr*",out:=""))&&out? {x:NumGet(point,0,"int"), y:NumGet(point,4,"int")}:
 	}
 	
 	; ---------- Custom UIA_Element methods ----------
 
 	; Wait until the element doesn't exist, with a default timeOut of 10000ms (10 seconds). Returns 1 if the element doesn't exist, otherwise 0.
-	WaitNotExist(timeOut=10000) { 
+	WaitNotExist(timeOut:=10000) { 
+		local
 		startTime := A_TickCount
 		while ((exists := this.CurrentExists) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
 			Sleep, 100
 		return !exists
 	}
 	; Wrapper for GetClickablePoint(), where additionally the coordinates are converted to relative coordinates. relativeTo can be window, screen or client, default is A_CoordModeMouse
-	GetClickablePointRelativeTo(relativeTo="") { 
+	GetClickablePointRelativeTo(relativeTo:="") { 
+		local
 		res := this.GetClickablePoint()
 		relativeTo := (relativeTo == "") ? A_CoordModeMouse : relativeTo
 		StringLower, relativeTo, relativeTo
@@ -1196,9 +1333,8 @@ class UIA_Element extends UIA_Base {
 		}
 	}
 	; Get all available patterns for the element. Use of this should be avoided, since it calls GetCurrentPatternAs for every possible pattern. A better option is PollForPotentialSupportedPatterns.
-	GetSupportedPatterns() { 
-		result := []
-		patterns := "Invoke,Selection,Value,RangeValue,Scroll,ExpandCollapse,Grid,GridItem,MultipleView,Window,SelectionItem,Dock,Table,TableItem,Text,Toggle,Transform,ScrollItem,ItemContainer,VirtualizedItem,SyncronizedInput,LegacyIAccessible"
+	GetSupportedPatterns() {
+		local result := [], patterns := "Invoke,Selection,Value,RangeValue,Scroll,ExpandCollapse,Grid,GridItem,MultipleView,Window,SelectionItem,Dock,Table,TableItem,Text,Toggle,Transform,ScrollItem,ItemContainer,VirtualizedItem,SyncronizedInput,LegacyIAccessible"
 
 		Loop, Parse, patterns, `,
 		{
@@ -1211,7 +1347,8 @@ class UIA_Element extends UIA_Base {
 		return result
 	}
 	; Get the parent window hwnd from the element
-	GetParentHwnd() { 
+	GetParentHwnd() {
+		local TW, hwndNotZeroCond, hwndRoot, hwnd
 		hwndNotZeroCond := this.__UIA.CreateNotCondition(this.__UIA.CreatePropertyCondition(UIA_Enum.UIA_PropertyId("NativeWindowHandle"), 0)) ; create a condition to find NativeWindowHandlePropertyId of not 0
 		TW := this.__UIA.CreateTreeWalker(hwndNotZeroCond)
 		try {
@@ -1222,7 +1359,7 @@ class UIA_Element extends UIA_Base {
 		}
 	}
 	; Set element value using Value pattern, or as a fall-back using LegacyIAccessible pattern. If a pattern is specified then that is used instead. Alternatively CurrentValue property can be used to set the value.
-	SetValue(val, pattern="") { 
+	SetValue(val, pattern:="") { 
 		if !pattern {
 			try {
 				this.GetCurrentPatternAs("Value").SetValue(val)
@@ -1237,7 +1374,9 @@ class UIA_Element extends UIA_Base {
 	; If WhichButton is a number, then Sleep will be called with that number. Eg Click(200) will sleep 200ms after clicking
 	; If ClickCountAndSleepTime is a number >=10, then Sleep will be called with that number. To click 10+ times and sleep after, specify "ClickCount SleepTime". Ex: Click("left", 200) will sleep 200ms after clicking. Ex: Click("left", "20 200") will left-click 20 times and then sleep 200ms.
 	; If Relative is "Rel" or "Relative" then X and Y coordinates are treated as offsets from the current mouse position. Otherwise it expects offset values for both X and Y (eg "-5 10" would offset X by -5 and Y by +10).
-	Click(WhichButtonOrSleepTime="", ClickCountAndSleepTime=1, DownOrUp="", Relative="") {		
+	Click(WhichButtonOrSleepTime:="", ClickCountAndSleepTime:=1, DownOrUp:="", Relative:="") {	
+		local
+		global UIA_Enum
 		if ((WhichButtonOrSleepTime == "") or RegexMatch(WhichButtonOrSleepTime, "^\d+$")) {
 			SleepTime := WhichButtonOrSleepTime ? WhichButtonOrSleepTime : -1
 			if (this.GetCurrentPropertyValue(UIA_Enum.UIA_IsInvokePatternAvailablePropertyId)) {
@@ -1302,7 +1441,8 @@ class UIA_Element extends UIA_Base {
 	}
 	; ControlClicks the element after getting relative coordinates with GetClickablePointRelativeTo("window"). Specifying WinTitle makes the function faster, since it bypasses getting the Hwnd from the element. 
 	; If WinTitle or WinText is a number, then Sleep will be called with that number of milliseconds. Ex: ControlClick(200) will sleep 200ms after clicking. Same for ControlClick("ahk_id 12345", 200)
-	ControlClick(WinTitleOrSleepTime="", WinTextOrSleepTime="", WhichButton="", ClickCount="", Options="", ExcludeTitle="", ExcludeText="") { 
+	ControlClick(WinTitleOrSleepTime:="", WinTextOrSleepTime:="", WhichButton:="", ClickCount:="", Options:="", ExcludeTitle:="", ExcludeText:="") { 
+		local
 		try this.SetFocus()
 		if (WinTitleOrSleepTime == "")
 			WinTitleOrSleepTime := "ahk_id " this.GetParentHwnd()	
@@ -1318,7 +1458,8 @@ class UIA_Element extends UIA_Base {
 			Sleep, %WinTextOrSleepTime%
 	}
 	; Returns an object containing the x, y coordinates and width and height: {x:x coordinate, y:y coordinate, w:width, h:height}. relativeTo can be client, window or screen, default is A_CoordModeMouse.
-	GetCurrentPos(relativeTo="") { 
+	GetCurrentPos(relativeTo:="") { 
+		local
 		relativeTo := (relativeTo == "") ? A_CoordModeMouse : relativeTo
 		StringLower, relativeTo, relativeTo
 		br := this.CurrentBoundingRectangle
@@ -1338,11 +1479,12 @@ class UIA_Element extends UIA_Base {
 		}			
 	}
 	; By default get only direct children (UIA_TreeScope_Children := 0x2)
-	GetChildren(scope=0x2, c="") { 
+	GetChildren(scope:=0x2, c:="") { 
 		return this.FindAll(c=="" ? this.TrueCondition : c, scope)
 	}
 	; Get all child elements using TreeViewer
 	TWGetChildren() { 
+		local
 		arr := []
 		if !IsObject(nextChild := this.TreeWalkerTrue.GetFirstChildElement(this))
 			return 0
@@ -1351,7 +1493,8 @@ class UIA_Element extends UIA_Base {
 			arr.Push(nextChild)
 		return arr
 	}
-	DumpRecursive(maxDepth=20, layer="", useTreeWalker := False, cached := False) { ; This function might hang if the element has thousands of empty custom elements (e.g. complex webpage)
+	DumpRecursive(maxDepth:=20, layer:="", useTreeWalker := False, cached := False) { ; This function might hang if the element has thousands of empty custom elements (e.g. complex webpage)
+		local
 		StrReplace(layer, ".",, dotcount)
 		if (dotcount >= maxDepth)
 			return ""
@@ -1365,17 +1508,21 @@ class UIA_Element extends UIA_Base {
 	}
 	; Returns info about the element: ControlType, Name, Value, LocalizedControlType, AutomationId, AcceleratorKey. 
 	Dump() { 
+		local
+		global UIA_Enum
 		return "Type: " (ctrlType := this.CurrentControlType) " (" UIA_Enum.UIA_ControlTypeId(ctrlType) ")" ((name := this.CurrentName) == "" ? "" : " Name: """ name """") ((val := this.CurrentValue) == "" ? "" : " Value: """ val """") ((lct := this.CurrentLocalizedControlType) == "" ? "" : " LocalizedControlType: """ lct """") ((aid := this.CurrentAutomationId) == "" ? "" : " AutomationId: """ aid """") ((cm := this.CurrentClassName) == "" ? "" : " ClassName: """ cm """") ((ak := this.CurrentAcceleratorKey) == "" ? "" : " AcceleratorKey: """ ak """")
 	}
 	CachedDump() { 
+		local
+		global UIA_Enum
 		return "Type: " (ctrlType := this.CachedControlType) " (" UIA_Enum.UIA_ControlTypeId(ctrlType) ")" ((name := this.CachedName) == "" ? "" : " Name: """ name """") ((val := this.CachedValue) == "" ? "" : " Value: """ val """") ((lct := this.CachedLocalizedControlType) == "" ? "" : " LocalizedControlType: """ lct """") ((aid := this.CachedAutomationId) == "" ? "" : " AutomationId: """ aid """") ((cm := this.CachedClassName) == "" ? "" : " ClassName: """ cm """") ((ak := this.CachedAcceleratorKey) == "" ? "" : " AcceleratorKey: """ ak """")
 	}
 	; Returns info (ControlType, Name etc) for all descendants of the element. maxDepth is the allowed depth of recursion, by default 20 layers. DO NOT call this on the root element!
-	DumpAll(maxDepth=20) { 
+	DumpAll(maxDepth:=20) { 
 		return (this.Dump() .  "`n" . this.DumpRecursive(maxDepth))
 	}
 	; Requires caching for properties ControlType, LocalizedControlType, Name, Value, AutomationId, AcceleratorKey
-	CachedDumpAll(maxDepth=20) { 
+	CachedDumpAll(maxDepth:=20) { 
 		return (this.CachedDump() .  "`n" . this.DumpRecursive(maxDepth,,,True))
 	}
 	/*
@@ -1412,6 +1559,8 @@ class UIA_Element extends UIA_Base {
 
 	*/
 	FindFirstBy(expr, scope:=0x4, matchMode:=3, caseSensitive:=True, cacheRequest:="") { 
+		local
+		global UIA_Enum
 		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
 		if ((matchMode == 3) || (matchMode==2 && MatchSubstringSupported)) {
 			return this.FindFirst(this.__UIA.CreateCondition(expr, ((matchMode==2)?2:0)|!caseSensitive), scope, cacheRequest)
@@ -1461,6 +1610,8 @@ class UIA_Element extends UIA_Base {
 	}
 	; FindFirst using UIA_NamePropertyId. "scope" is search scope, which can be any of UIA_Enum TreeScope values. "MatchMode" has same convention as window TitleMatchMode: 1=needs to start with the specified name, 2=can contain anywhere, 3=exact match, RegEx=regex match. 
 	FindFirstByName(name, scope:=0x4, matchMode:=3, caseSensitive:=True, cacheRequest:="") {
+		local
+		global UIA_Enum
 		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
 		if (matchMode == 3 || (MatchSubstringSupported && (matchMode == 2))) {
 			nameCondition := this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, ((matchMode==3)?0:2)|!caseSensitive)
@@ -1475,6 +1626,8 @@ class UIA_Element extends UIA_Base {
 	}
 	; FindFirst using UIA_ControlTypeId. controlType can be the ControlTypeId numeric value, or in string form (eg "Button")
 	FindFirstByType(controlType, scope:=0x4, cacheRequest:="") {
+		local
+		global UIA_Enum
 		if controlType is not integer
 			controlType := UIA_Enum.UIA_ControlTypeId(controlType)
 		if !controlType
@@ -1484,6 +1637,8 @@ class UIA_Element extends UIA_Base {
 	}
 	; FindFirst using UIA_NamePropertyId and UIA_ControlTypeId. controlType can be the ControlTypeId numeric value, or in string form (eg "Button"). scope is search scope, which can be any of UIA_Enum TreeScope values. matchMode has same convention as window TitleMatchMode: 1=needs to start with the specified name, 2=can contain anywhere, 3=exact match, RegEx=regex match
 	FindFirstByNameAndType(name, controlType, scope:=0x4, matchMode:=3, caseSensitive:=True, cacheRequest:="") { 
+		local
+		global UIA_Enum
 		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
 		if controlType is not integer
 			controlType := UIA_Enum.UIA_ControlTypeId(controlType)
@@ -1505,6 +1660,8 @@ class UIA_Element extends UIA_Base {
 	}
 	; FindAll using an expression containing the desired conditions. For more information about expr, see FindFirstBy explanation
 	FindAllBy(expr, scope:=0x4, matchMode:=3, caseSensitive:=True, cacheRequest:="") {
+		local
+		global UIA_Enum
 		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
 		if ((matchMode == 3) || (matchMode==2 && MatchSubstringSupported)) 
 			return this.FindAll(this.__UIA.CreateCondition(expr, ((matchMode==2)?2:0)|!caseSensitive), scope, cacheRequest)
@@ -1554,6 +1711,8 @@ class UIA_Element extends UIA_Base {
 	}
 	; FindAll using UIA_NamePropertyId. scope is search scope, which can be any of UIA_Enum TreeScope values. matchMode has same convention as window TitleMatchMode: 1=needs to start with the specified name, 2=can contain anywhere, 3=exact match, RegEx=regex match
 	FindAllByName(name, scope:=0x4, matchMode:=3, caseSensitive:=True, cacheRequest:="") { 
+		local
+		global UIA_Enum
 		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
 		if (matchMode == 3 || ((matchMode == 2) && MatchSubstringSupported)) {
 			nameCondition := this.__UIA.CreatePropertyConditionEx(UIA_Enum.UIA_NamePropertyId, name,, ((matchMode==3)?0:2)|!caseSensitive)
@@ -1570,6 +1729,8 @@ class UIA_Element extends UIA_Base {
 	}
 	; FindAll using UIA_ControlTypeId. controlType can be the ControlTypeId numeric value, or in string form (eg "Button"). scope is search scope, which can be any of UIA_Enum TreeScope values.
 	FindAllByType(controlType, scope:=0x4, cacheRequest:="") {
+		local
+		global UIA_Enum
 		if controlType is not integer
 			controlType := UIA_Enum.UIA_ControlTypeId(controlType)
 		if !controlType
@@ -1578,7 +1739,9 @@ class UIA_Element extends UIA_Base {
 		return this.FindAll(controlCondition, scope, cacheRequest)
 	}
 	; FindAll using UIA_NamePropertyId and UIA_ControlTypeId. controlType can be the ControlTypeId numeric value, or in string form (eg "Button"). scope is search scope, which can be any of UIA_Enum TreeScope values. matchMode has same convention as window TitleMatchMode: 1=needs to start with the specified name, 2=can contain anywhere, 3=exact match, RegEx=regex match
-	FindAllByNameAndType(name, controlType, scope:=0x4, matchMode:=3, cacheRequest:="") { 
+	FindAllByNameAndType(name, controlType, scope:=0x4, matchMode:=3, caseSensitive:=True, cacheRequest:="") { 
+		local
+		global UIA_Enum
 		static MatchSubstringSupported := !InStr(A_OSVersion, "WIN") && (StrSplit(A_OSVersion, ".")[3] >= 17763)
 		if controlType is not integer
 			controlType := UIA_Enum.UIA_ControlTypeId(controlType)
@@ -1612,7 +1775,8 @@ class UIA_Element extends UIA_Base {
 		c or condition argument can be used to only filter elements specified by the condition: 
 		UIA_Element.FindByPath("+2", UIA_Interface.CreateCondition("ControlType", "Button")) will only consider "Button" controls and gets the second sibling button.
 	*/
-	FindByPath(searchPath:="", c:="") { 
+	FindByPath(searchPath:="", c:="") {
+		local
 		el := this, ErrorLevel := 0, PathTW := (c=="" ? this.TreeWalkerTrue : this.__UIA.CreateTreeWalker(c))
 		searchPath := StrReplace(StrReplace(searchPath, " "), ",", ".")
 		Loop, Parse, searchPath, .
@@ -1650,39 +1814,45 @@ class UIA_Element extends UIA_Base {
 		return el
 	}
 	; Calls UIA_Element.FindByPath until the element is found and then returns it. By default waits indefinitely, timeOut can be specified in milliseconds. 
-	WaitElementExistByPath(searchPath, c="", timeOut=-1) { 
+	WaitElementExistByPath(searchPath, c:="", timeOut:=-1) { 
+		local
 		startTime := A_TickCount
 		while (!IsObject(el := this.FindByPath(searchPath, c)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
 			Sleep, 40
 		return el
 	}
 	; Calls UIA_Element.FindFirstBy until the element is found and then returns it. By default waits indefinitely, timeOut can be specified in milliseconds. For explanations of the other arguments, see FindFirstBy
-	WaitElementExist(expr, scope=0x4, matchMode=3, caseSensitive=True, timeOut=-1, cacheRequest="") { 
+	WaitElementExist(expr, scope:=0x4, matchMode:=3, caseSensitive:=True, timeOut:=-1, cacheRequest:="") { 
+		local
 		startTime := A_TickCount
 		while (!IsObject(el := this.FindFirstBy(expr, scope, matchMode, caseSensitive, cacheRequest)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
 			Sleep, 40
 		return el
 	}
 	; Tries to FindFirstBy the element and if it is found then waits until the element doesn't exist (using WaitNotExist()), with a timeOut of 10000ms (10 seconds). For explanations of the other arguments, see FindFirstBy
-	WaitElementNotExist(expr, scope=0x4, matchMode=3, caseSensitive=True, timeOut=-1) { 
+	WaitElementNotExist(expr, scope:=0x4, matchMode:=3, caseSensitive:=True, timeOut:=-1) { 
+		local
 		return !IsObject(el := this.FindFirstBy(expr, scope, matchMode, caseSensitive)) || el.WaitNotExist(timeOut)
 	}
 	; Calls UIA_Element.FindFirstByName until the element is found and then returns it. By default waits indefinitely, timeOut can be specified in milliseconds.
-	WaitElementExistByName(name, scope=0x4, matchMode=3, caseSensitive=True, timeOut=-1, cacheRequest="") {
+	WaitElementExistByName(name, scope:=0x4, matchMode:=3, caseSensitive:=True, timeOut:=-1, cacheRequest:="") {
+		local
 		startTime := A_TickCount
 		while (!IsObject(el := this.FindFirstByName(name, scope, matchMode, caseSensitive, cacheRequest)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
 			Sleep, 40
 		return el
 	}
 	; Calls UIA_Element.FindFirstByType until the element is found and then returns it. By default waits indefinitely, timeOut can be specified in milliseconds.
-	WaitElementExistByType(controlType, scope=0x4, timeOut=-1, cacheRequest="") { 
+	WaitElementExistByType(controlType, scope:=0x4, timeOut:=-1, cacheRequest:="") { 
+		local
 		startTime := A_TickCount
 		while (!IsObject(el := this.FindFirstByType(controlType, scope, cacheRequest)) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut)))
 			Sleep, 100
 		return el
 	}
 	; Calls UIA_Element.FindFirstByNameAndType until the element is found and then returns it. By default waits indefinitely, timeOut can be specified in milliseconds.
-	WaitElementExistByNameAndType(name, controlType, scope=0x4, matchMode=3, caseSensitive=True, timeOut=-1, cacheRequest="") {
+	WaitElementExistByNameAndType(name, controlType, scope:=0x4, matchMode:=3, caseSensitive:=True, timeOut:=-1, cacheRequest:="") {
+		local
 		startTime := A_TickCount
 		while (!IsObject(el := (this.FindFirstByNameAndType(name, controlType, scope, matchMode, caseSensitive, cacheRequest))) && ((timeOut < 1) ? 1 : (A_tickCount - startTime < timeOut))) {
 			Sleep, 100
@@ -1691,6 +1861,7 @@ class UIA_Element extends UIA_Base {
 	}
 
 	Highlight(displayTime:=2000, color:="Red", d:=4) { ; Based on FindText().RangeTip from the FindText library, credit goes to feiyue
+		local
 		br := this.CurrentBoundingRectangle, x := br.l, y := br.t, w := br.r-br.l, h := br.b-br.t, d:=Floor(d)
 		Loop 4 {
 			Gui, Range_%A_Index%: +Hwndid +AlwaysOnTop -Caption +ToolWindow -DPIScale +E0x08000000
@@ -1717,32 +1888,38 @@ class UIA_Element2 extends UIA_Element {
 
 	CurrentOptimizeForVisualContent[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(85), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(85), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedOptimizeForVisualContent[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(86), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(86), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentLiveSetting[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(87), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(87), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedLiveSetting[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(88), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(88), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentFlowsFrom[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(89), "ptr",this.__Value, "ptr*",out))?UIA_ElementArray(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(89), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 		}
 	}
 	CachedFlowsFrom[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(90), "ptr",this.__Value, "ptr*",out))?UIA_ElementArray(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(90), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 		}
 	}
 }
@@ -1753,12 +1930,14 @@ class UIA_Element3 extends UIA_Element2 {
 
 	CurrentIsPeripheral[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(92), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(92), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedIsPeripheral[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(93), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(93), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 
@@ -1775,52 +1954,62 @@ class UIA_Element4 extends UIA_Element3 {
 
 	CurrentPositionInSet[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(94), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(94), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentSizeOfSet[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(95), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(95), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentLevel[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(96), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(96), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentAnnotationTypes[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(97), "ptr",this.__Value, "ptr",UIA_Variant(out)))&&out?UIA_VariantData(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(97), "ptr",this.__Value, "ptr",UIA_Variant(out:="")))&&out?UIA_VariantData(out):
 		}
 	}
 	CurrentAnnotationObjects[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(98), "ptr",this.__Value, "ptr*",out))?UIA_ElementArray(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(98), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 		}
 	}
 	CachedPositionInSet[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(99), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(99), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedSizeOfSet[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(100), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(100), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedLevel[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(101), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(101), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedAnnotationTypes[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(102), "ptr",this.__Value, "ptr",UIA_Variant(out)))&&out?UIA_VariantData(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(102), "ptr",this.__Value, "ptr",UIA_Variant(out:="")))&&out?UIA_VariantData(out):
 		}
 	}
 	CachedAnnotationObjects[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(103), "ptr",this.__Value, "ptr*",out))?UIA_ElementArray(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(103), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 		}
 	}
 
@@ -1832,22 +2021,26 @@ class UIA_Element5 extends UIA_Element4 {
 
 	CurrentLandmarkType[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(104), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(104), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentLocalizedLandmarkType[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(105), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(105), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedLandmarkType[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(106), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(106), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedLocalizedLandmarkType[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(107), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(107), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 }
@@ -1858,12 +2051,14 @@ class UIA_Element6 extends UIA_Element5 {
 
 	CurrentFullDescription[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(108), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(108), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedFullDescription[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(109), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(109), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 }
@@ -1871,20 +2066,25 @@ class UIA_Element7 extends UIA_Element6 {
 	static __IID := "{204E8572-CFC3-4C11-B0C8-7DA7420750B7}"
 	
 	; Finds the first matching element in the specified order. traversalOptions must be one of TreeTraversalOptions enums. [optional] root is pointer to the element with which to begin the search.
-	FindFirstWithOptions(scope=0x4, c="", traversalOptions=0, root=0) { 
-		return UIA_Hr(DllCall(this.__Vt(110), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out))? UIA_Element(out):
+	FindFirstWithOptions(scope:=0x4, c:="", traversalOptions:=0, root:=0) { 
+		local
+		return UIA_Hr(DllCall(this.__Vt(110), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
-	FindAllWithOptions(scope=0x4, c="", traversalOptions=0, root=0) {
-		return UIA_Hr(DllCall(this.__Vt(111), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out))? UIA_Element(out):
+	FindAllWithOptions(scope:=0x4, c:="", traversalOptions:=0, root:=0) {
+		local
+		return UIA_Hr(DllCall(this.__Vt(111), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
-	FindFirstWithOptionsBuildCache(scope=0x4, c="", cacheRequest=0, traversalOptions=0, root=0) {
-		return UIA_Hr(DllCall(this.__Vt(112), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr", cacheRequest.__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out))? UIA_Element(out):
+	FindFirstWithOptionsBuildCache(scope:=0x4, c:="", cacheRequest:=0, traversalOptions:=0, root:=0) {
+		local
+		return UIA_Hr(DllCall(this.__Vt(112), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr", cacheRequest.__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
-	FindAllWithOptionsBuildCache(scope=0x4, c="", cacheRequest=0, traversalOptions=0, root=0) {
-		return UIA_Hr(DllCall(this.__Vt(113), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr", cacheRequest.__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out))? UIA_Element(out):
+	FindAllWithOptionsBuildCache(scope:=0x4, c:="", cacheRequest:=0, traversalOptions:=0, root:=0) {
+		local
+		return UIA_Hr(DllCall(this.__Vt(113), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr", cacheRequest.__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 	GetCurrentMetadataValue(targetId, metadataId) {
-		return UIA_Hr(DllCall(this.__Vt(114), "ptr",this.__Value, "int",targetId, "int", metadataId, "ptr*", UIA_Variant(out)))? UIA_VariantData(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(114), "ptr",this.__Value, "int",targetId, "int", metadataId, "ptr*", UIA_Variant(out:="")))? UIA_VariantData(out):
 	}
 }
 
@@ -1895,14 +2095,16 @@ class UIA_ElementArray extends UIA_Base {
 
 	Length[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 
 	; ---------- UIA_ElementArray methods ----------
 	
 	GetElement(i) {
-		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "int",i, "ptr*",out))? UIA_Element(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "int",i, "ptr*",out:=""))? UIA_Element(out):
 	}
 }
 /*
@@ -1917,47 +2119,60 @@ class UIA_TreeWalker extends UIA_Base {
 
 	Condition[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out))?new UIA_Condition(out):
+			local out
+			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out:=""))?new UIA_Condition(out):
 		}
 	}
 
 	; ---------- UIA_TreeWalker methods ----------
 
 	GetParentElement(e) {
-		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))? UIA_Element(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 	GetFirstChildElement(e) {
-		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))? UIA_Element(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 	GetLastChildElement(e) {
-		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))? UIA_Element(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 	GetNextSiblingElement(e) {
-		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))? UIA_Element(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 	GetPreviousSiblingElement(e) {
-		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))? UIA_Element(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 	NormalizeElement(e) {
-		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))? UIA_Element(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 	GetParentElementBuildCache(e, cacheRequest) {
-		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr",e.__Value, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr",e.__Value, "ptr",cacheRequest.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 	GetFirstChildElementBuildCache(e, cacheRequest) {
-		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr",e.__Value, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr",e.__Value, "ptr",cacheRequest.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 	GetLastChildElementBuildCache(e, cacheRequest) {
-		return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr",e.__Value, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr",e.__Value, "ptr",cacheRequest.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 	GetNextSiblingElementBuildCache(e, cacheRequest) {
-		return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr",e.__Value, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr",e.__Value, "ptr",cacheRequest.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 	GetPreviousSiblingElementBuildCache(e, cacheRequest) {
-		return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "ptr",e.__Value, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "ptr",e.__Value, "ptr",cacheRequest.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 	NormalizeElementBuildCache(e, cacheRequest) {
-		return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "ptr",e.__Value, "ptr",cacheRequest.__Value, "ptr*",out))? UIA_Element(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "ptr",e.__Value, "ptr",cacheRequest.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 }
 
@@ -1981,17 +2196,20 @@ class UIA_PropertyCondition extends UIA_Condition {
 
 	PropertyId[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	PropertyValue[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr",UIA_Variant(out)))&&out?UIA_VariantData(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr",UIA_Variant(out:="")))&&out?UIA_VariantData(out):
 		}
 	}
 	PropertyConditionFlags[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 }
@@ -2007,13 +2225,16 @@ class UIA_AndCondition extends UIA_Condition {
 
 	ChildCount[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?out:
+			local out
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 
 	;~ GetChildrenAsNativeArray	4	IUIAutomationCondition ***childArray
 	GetChildren() { ; Returns a native AHK array containing all the conditions (already subtyped to AndCondition, OrCondition etc)
-		ret := UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out)), arr := []
+		local
+		global UIA_AndCondition, UIA_OrCondition, UIA_BoolCondition, UIA_NotCondition, UIA_PropertyCondition
+		ret := UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out:="")), arr := []
 		if (out && (safeArray := ComObj(0x2003,out,1))) {
 			for k in safeArray {
 				obj := ComObject(9, k, 1), ObjAddRef(k)
@@ -2042,7 +2263,8 @@ class UIA_OrCondition extends UIA_Condition {
 
 	ChildCount[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 
@@ -2050,7 +2272,9 @@ class UIA_OrCondition extends UIA_Condition {
 
 	;~ GetChildrenAsNativeArray	4	IUIAutomationCondition ***childArray
 	GetChildren() {
-		ret := UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out)), arr := []
+		local
+		global UIA_AndCondition, UIA_OrCondition, UIA_BoolCondition, UIA_NotCondition, UIA_PropertyCondition
+		ret := UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out:="")), arr := []
 		if (out && (safeArray := ComObject(0x2003,out,1))) {
 			for k in safeArray {
 				obj := ComObject(9, k, 1) ; ObjAddRef and ObjRelease probably aren't needed here, since ref count won't fall to 0
@@ -2078,7 +2302,8 @@ class UIA_BoolCondition extends UIA_Condition {
 
 	BooleanValue[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 }
@@ -2091,7 +2316,9 @@ class UIA_NotCondition extends UIA_Condition {
 	static __IID := "{f528b657-847b-498c-8896-d52b565407a1}"
 
 	GetChild() { ; Type of the received condition can be determined with out.__Class
-		ret := UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out)), obj := ComObject(9, out, 1)
+		local
+		global UIA_AndCondition, UIA_OrCondition, UIA_BoolCondition, UIA_NotCondition, UIA_PropertyCondition
+		ret := UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out:="")), obj := ComObject(9, out, 1)
 		for k, v in ["Bool", "Property", "And", "Or", "Not"] {
 			if ComObjQuery(obj, UIA_%v%Condition.__IID)
 				return ret?new UIA_%v%Condition(out):
@@ -2116,7 +2343,8 @@ class UIA_CacheRequest extends UIA_Base {
 
 	TreeScope[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 		set {
 			UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr", value))
@@ -2124,7 +2352,8 @@ class UIA_CacheRequest extends UIA_Base {
 	}
 	TreeFilter[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 		set {
 			UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr",value.__Value))
@@ -2132,7 +2361,8 @@ class UIA_CacheRequest extends UIA_Base {
 	}
 	AutomationElementMode[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 		set {
 			UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr",value))
@@ -2142,7 +2372,8 @@ class UIA_CacheRequest extends UIA_Base {
 	; ---------- UIA_CacheRequest methods ----------
 
 	Clone() {
-		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr",out)) ? new UIA_CacheRequest(out):
+		local out
+		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out:="")) ? new UIA_CacheRequest(out):
 	}	
 	AddProperty(property) {
 		if property is not integer
@@ -2165,6 +2396,7 @@ class _UIA_EventHandler extends UIA_Base {
 	static __IID := "{146c3c17-f12e-4e22-8c27-f894b9b79c69}"
 
 	HandleAutomationEvent(sender, eventId) {
+		local param1, funcName
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
 		%funcName%(UIA_Element(sender), eventId)
 		return 0
@@ -2179,6 +2411,7 @@ class _UIA_FocusChangedEventHandler extends UIA_Base {
 	static __IID := "{c270f6b5-5c69-4290-9745-7a7f97169468}"
 
 	HandleFocusChangedEvent(sender) {
+		local param1, funcName
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
 		%funcName%(UIA_Element(sender))
 		return 0
@@ -2193,6 +2426,7 @@ class _UIA_PropertyChangedEventHandler extends UIA_Base { ; UNTESTED
 	static __IID := "{40cd37d4-c756-4b0c-8c6f-bddfeeb13b50}"
 
 	HandlePropertyChangedEvent(sender, propertyId, newValue) {
+		local param1, funcName
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
 		%funcName%(UIA_Element(sender), propertyId, UIA_VariantData(newValue,0))
 		return 0
@@ -2207,6 +2441,7 @@ class _UIA_StructureChangedEventHandler extends UIA_Base {
 	static __IID := "{e81d1b4e-11c5-42f8-9754-e7036c79f054}"
 
 	HandleStructureChangedEvent(sender, changeType, runtimeId) {
+		local param1, funcName
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
 		%funcName%(UIA_Element(sender), changeType, UIA_SafeArrayToAHKArray(ComObj(0x2003,runtimeId))) ; ComObj(0x2003,runtimeId,1) crashes the script. Should the SAFEARRAY be released manually?
 		return 0
@@ -2221,6 +2456,7 @@ class _UIA_TextEditTextChangedEventHandler extends UIA_Base { ; UNTESTED
 	static __IID := "{92FAA680-E704-4156-931A-E32D5BB38F3F}"
 
 	HandleTextEditTextChangedEvent(sender, changeType, eventStrings) {
+		local param1, funcName
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
 		%funcName%(UIA_Element(sender), changeType, UIA_SafeArrayToAHKArray(ComObj(0x2008,eventStrings)))
 		return 0
@@ -2234,6 +2470,7 @@ class _UIA_ChangesEventHandler extends UIA_Base { ; UNTESTED
 	static __IID := "{58EDCA55-2C3E-4980-B1B9-56C17F27A2A0}"
 
 	HandleChangesEvent(sender, uiaChanges, changesCount) {
+		local param1, funcName, changes
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version, changes := {}
 		changes.uiaId := NumGet(uiaChanges,, 0), changes.payload := UIA_VariantData(uiaChanges,, 8), changes.extraInfo := UIA_VariantData(uiaChanges,,16+2*A_PtrSize)
 		
@@ -2249,6 +2486,7 @@ class _UIA_NotificationEventHandler extends UIA_Base {
 	static __IID := "{C7CB2637-E6C2-4D0C-85DE-4948C02175C7}"
 
 	HandleNotificationEvent(sender, notificationKind, notificationProcessing, displayString, activityId) {
+		local param1, funcName
 		param1 := this, this := Object(A_EventInfo), funcName := this.__Version
 		%funcName%(UIA_Element(sender), notificationKind, notificationProcessing, StrGet(displayString), StrGet(activityId))
 		DllCall("oleaut32\SysFreeString", "ptr", displayString), DllCall("oleaut32\SysFreeString", "ptr", activityId)
@@ -2259,28 +2497,29 @@ class _UIA_NotificationEventHandler extends UIA_Base {
 class UIA_AutomationEventHandlerGroup extends UIA_Base {
 	static __IID := "{C9EE12F2-C13B-4408-997C-639914377F4E}"
 
-	AddActiveTextPositionChangedEventHandler(scope=0x4, cacheRequest=0, handler="") {
-		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "int", scope, "int", cacheRequest.__Value, "ptr",out))
+	AddActiveTextPositionChangedEventHandler(scope:=0x4, cacheRequest:=0, handler:="") {
+		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "int", scope, "int", cacheRequest.__Value, "ptr", handler.__Value))
 	}
-	AddAutomationEventHandler(eventId, scope=0x4, cacheRequest=0, handler="") {
+	AddAutomationEventHandler(eventId, scope:=0x4, cacheRequest:=0, handler:="") {
 		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "uint", eventId, "uint", scope, "ptr",cacheRequest.__Value,"ptr", handler.__Value))
 	}
-	AddChangesEventHandler(scope, changeTypes, changesCount, cacheRequest=0, handler="") {
+	AddChangesEventHandler(scope, changeTypes, changesCount, cacheRequest:=0, handler:="") {
 		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "int", scope, "int", changeTypes, "int", changesCount, "ptr", cacheRequest.__Value, "ptr", handler.__Value))
 	}
-	AddNotificationEventHandler(scope=0x4, cacheRequest=0, handler="") {
-		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "int", scope, "int", cacheRequest.__Value, "ptr", handler.__Value, "ptr",out))
+	AddNotificationEventHandler(scope:=0x4, cacheRequest:=0, handler:="") {
+		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "int", scope, "int", cacheRequest.__Value, "ptr", handler.__Value))
 	}
-	AddPropertyChangedEventHandler(scope=0x1,cacheRequest=0,handler="",propertyArray="") { 
+	AddPropertyChangedEventHandler(scope:=0x1,cacheRequest:=0,handler:="",propertyArray:="") {
+		local
 		SafeArray:=ComObjArray(0x3,propertyArray.MaxIndex())
 		for i,propertyId in propertyArray
 			SafeArray[i-1]:=propertyId
 		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "int",scope, "ptr",cacheRequest.__Value,"ptr",handler.__Value,"ptr",ComObjValue(SafeArray)))
 	}
-	AddStructureChangedEventHandler(scope=0x4, cacheRequest=0, handler="") { ; UNTESTED. 
+	AddStructureChangedEventHandler(scope:=0x4, cacheRequest:=0, handler:="") { ; UNTESTED. 
 		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "int", scope, "ptr",cacheRequest.__Value, "ptr", handler.__Value))
 	}
-	AddTextEditTextChangedEventHandler(scope, textEditChangeType, cacheRequest=0, handler="") {
+	AddTextEditTextChangedEventHandler(scope, textEditChangeType, cacheRequest:=0, handler:="") {
 		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "int", scope, "int", textEditChangeType, "ptr", cacheRequest.__Value, "ptr", handler.__Value))
 	}
 }
@@ -2298,12 +2537,14 @@ class UIA_DockPattern extends UIA_Base {
 
 	CurrentDockPosition[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedDockPosition[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 
@@ -2333,12 +2574,14 @@ class UIA_ExpandCollapsePattern extends UIA_Base {
 
 	CachedExpandCollapseState[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentExpandCollapseState[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 
@@ -2370,52 +2613,62 @@ class UIA_GridItemPattern extends UIA_Base {
 
 	CurrentContainingGrid[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out:=""))?UIA_Element(out):
 		}
 	}
 	CurrentRow[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentColumn[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentRowSpan[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentColumnSpan[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedContainingGrid[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out:=""))?UIA_Element(out):
 		}
 	}
 	CachedRow[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedColumn[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedRowSpan[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedColumnSpan[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 }
@@ -2433,29 +2686,34 @@ class UIA_GridPattern extends UIA_Base {
 
 	CurrentRowCount[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentColumnCount[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedRowCount[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedColumnCount[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 
 	; ---------- UIA_GridPattern methods ----------
 
 	GetItem(row,column) { ; Hr!=0 if no result, or blank output?
-		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "uint",row, "uint",column, "ptr*",out))? UIA_Element(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "uint",row, "uint",column, "ptr*",out:=""))? UIA_Element(out):
 	}
 }
 
@@ -2482,10 +2740,11 @@ class UIA_ItemContainerPattern extends UIA_Base {
 	static	__IID := "{c690fdb2-27a8-423c-812d-429773c9084e}"
 		,	__PatternID := 10019
 
-	FindItemByProperty(startAfter, propertyId, ByRef value, type=8) {	; Hr!=0 if no result, or blank output?
+	FindItemByProperty(startAfter, propertyId, ByRef value, type:=8) {	; Hr!=0 if no result, or blank output?
+		local
 		if (type!="Variant")
 			UIA_Variant(value,type,value)
-		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",startAfter.__Value, "int",propertyId, "int64",NumGet(value, 0, "int64"),"int64",NumGet(value, 8, "int64"), "ptr*",out) : DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",startAfter.__Value, "int",propertyId, "ptr",&value, "ptr*",out))? UIA_Element(out):
+		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",startAfter.__Value, "int",propertyId, "int64",NumGet(value, 0, "int64"),"int64",NumGet(value, 8, "int64"), "ptr*",out:="") : DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",startAfter.__Value, "int",propertyId, "ptr",&value, "ptr*",out:=""))? UIA_Element(out):
 	}
 }
 
@@ -2501,17 +2760,20 @@ class UIA_LegacyIAccessiblePattern extends UIA_Base {
 
 	CurrentChildId[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentName[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CurrentValue[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 		set {
 			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr",&value))
@@ -2519,83 +2781,98 @@ class UIA_LegacyIAccessiblePattern extends UIA_Base {
 	}
 	CurrentDescription[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CurrentRole[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentState[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentHelp[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CurrentKeyboardShortcut[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CurrentDefaultAction[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedChildId[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedName[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(17), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(17), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedValue[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(18), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(18), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedDescription[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(19), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(19), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedRole[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(20), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(20), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedState[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(21), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(21), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedHelp[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(22), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(22), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedKeyboardShortcut[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(23), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(23), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedDefaultAction[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(25), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(25), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 
 	; ---------- UIA_LegacyIAccessiblePattern methods ----------
 
-	Select(flags=3) {
+	Select(flags:=3) {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "int",flags))
 	}
 	DoDefaultAction() {
@@ -2605,7 +2882,8 @@ class UIA_LegacyIAccessiblePattern extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr",&value))
 	}
 	GetCurrentSelection() { ; UNTESTED
-		return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "ptr*",out))? UIA_ElementArray(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "ptr*",out:=""))? UIA_ElementArray(out):
 	}
 	;~ GetCachedSelection	24	IUIAutomationElementArray
 	GetIAccessible() {
@@ -2613,7 +2891,8 @@ class UIA_LegacyIAccessiblePattern extends UIA_Base {
 	Microsoft Active Accessibility server; that is, if a client attempts to retrieve the IAccessible interface 
 	for an element originally supported by a proxy object from OLEACC.dll, or by the UIA-to-MSAA Bridge.
 	*/
-		return UIA_Hr(DllCall(this.__Vt(26), "ptr",this.__Value, "ptr*",pacc))&&pacc? ComObj(9,pacc,1):
+		local
+		return UIA_Hr(DllCall(this.__Vt(26), "ptr",this.__Value, "ptr*",pacc:=""))&&pacc? ComObj(9,pacc,1):
 	}
 }
 
@@ -2630,28 +2909,33 @@ class UIA_MultipleViewPattern extends UIA_Base {
 
 	CurrentCurrentView[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedCurrentView[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 
 	; ---------- UIA_MultipleViewPattern methods ----------
 
 	GetViewName(view) { ; need to release BSTR?
-		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "int",view, "ptr*",name))? StrGet(name) (DllCall("oleaut32\SysFreeString", "ptr", name)?"":""):
+		local
+		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "int",view, "ptr*",out:=""))? StrGet(out) (DllCall("oleaut32\SysFreeString", "ptr", out)?"":""):
 	}
 	SetCurrentView(view) {
 		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "int",view))
 	}
 	GetCurrentSupportedViews() {
-		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))? UIA_SafeArrayToAHKArray(ComObj(0x2003,out,1)):
+		local
+		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out:=""))? UIA_SafeArrayToAHKArray(ComObj(0x2003,out,1)):
 	}
 	GetCachedSupportedViews() {
-		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))? UIA_SafeArrayToAHKArray(ComObj(0x2003,out,1)):
+		local
+		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out:=""))? UIA_SafeArrayToAHKArray(ComObj(0x2003,out,1)):
 	}
 }
 
@@ -2668,7 +2952,8 @@ class UIA_RangeValuePattern extends UIA_Base {
 
 	CurrentValue[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "Double*",out:=""))?out:
 		}
 		set {
 			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "double",value))
@@ -2676,57 +2961,68 @@ class UIA_RangeValuePattern extends UIA_Base {
 	}
 	CurrentIsReadOnly[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentMaximum[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "Double*",out:=""))?out:
 		}
 	}
 	CurrentMinimum[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "double*",out:=""))?out:
 		}
 	}
 	CurrentLargeChange[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "double*",out:=""))?out:
 		}
 	}
 	CurrentSmallChange[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "double*",out:=""))?out:
 		}
 	}
 	CachedValue[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "double*",out:=""))?out:
 		}
 	}
 	CachedIsReadOnly[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedMaximum[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "double*",out:=""))?out:
 		}
 	}
 	CachedMinimum[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "double*",out:=""))?out:
 		}
 	}
 	CachedLargeChange[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "double*",out:=""))?out:
 		}
 	}
 	CachedSmallChange[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "double*",out:=""))?out:
 		}
 	}
 
@@ -2764,71 +3060,83 @@ class UIA_ScrollPattern extends UIA_Base {
 
 	CurrentHorizontalScrollPercent[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "double*",out:=""))?out:
 		}
 	}
 	CurrentVerticalScrollPercent[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "double*",out:=""))?out:
 		}
 	}
 	CurrentHorizontalViewSize[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "double*",out:=""))?out:
 		}
 	}
 	CurrentVerticalViewSize[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "double*",out:=""))?out:
 		}
 	}
 	CurrentHorizontallyScrollable[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentVerticallyScrollable[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedHorizontalScrollPercent[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "double*",out:=""))?out:
 		}
 	}
 	CachedVerticalScrollPercent[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "double*",out:=""))?out:
 		}
 	}
 	CachedHorizontalViewSize[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "double*",out:=""))?out:
 		}
 	}
 	CachedVerticalViewSize[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "double*",out:=""))?out:
 		}
 	}
 	CachedHorizontallyScrollable[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedVerticallyScrollable[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 
 	; ---------- UIA_ScrollPattern methods ----------
 		
-	Scroll(horizontal=-1, vertical=-1) { ; Default is ScrollAmount_NoAmount
+	Scroll(horizontal:=-1, vertical:=-1) { ; Default is ScrollAmount_NoAmount
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "uint",horizontal, "uint",vertical))
 	}
-	SetScrollPercent(horizontal=-1, vertical=-1) { ; Default is ScrollAmount_NoAmount
+	SetScrollPercent(horizontal:=-1, vertical:=-1) { ; Default is ScrollAmount_NoAmount
 		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "double",horizontal, "double",vertical))
 	}
 	/*	UIA_ScrollPatternNoScroll	=	-1
@@ -2852,22 +3160,26 @@ class UIA_SelectionItemPattern extends UIA_Base { ; UNTESTED
 
 	CurrentIsSelected[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentSelectionContainer[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out:=""))?UIA_Element(out):
 		}
 	}
 	CachedIsSelected[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedSelectionContainer[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out:=""))?UIA_Element(out):
 		}
 	}
 
@@ -2896,32 +3208,38 @@ class UIA_SelectionPattern extends UIA_Base {
 
 	CurrentCanSelectMultiple[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentIsSelectionRequired[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedCanSelectMultiple[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedIsSelectionRequired[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 
 	; ---------- UIA_SelectionPattern methods ----------
 
 	GetCurrentSelection() { ; Returns an array of selected elements
-		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 	}
 	GetCachedSelection() {
-		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 	}
 }
 
@@ -2933,42 +3251,50 @@ class UIA_SelectionPattern2 extends UIA_SelectionPattern { ; UNTESTED
 
 	CurrentFirstSelectedItem[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out:=""))?UIA_Element(out):
 		}
 	}
 	CurrentLastSelectedItem[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out:=""))?UIA_Element(out):
 		}
 	}
 	CurrentCurrentSelectedItem[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out:=""))?UIA_Element(out):
 		}
 	}
 	CurrentItemCount[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedFirstSelectedItem[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "ptr*",out:=""))?UIA_Element(out):
 		}
 	}
 	CachedLastSelectedItem[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "ptr*",out:=""))?UIA_Element(out):
 		}
 	}
 	CachedCurrentSelectedItem[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out:=""))?UIA_Element(out):
 		}
 	}
 	CachedItemCount[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 }
@@ -2985,28 +3311,34 @@ class UIA_SpreadsheetItemPattern extends UIA_Base { ; UNTESTED
 
 	CurrentFormula[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedFormula[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 
 	; ---------- UIA_SpreadsheetItemPattern methods ----------
 
 	GetCurrentAnnotationObjects() {
-		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 	}
 	GetCurrentAnnotationTypes() {
-		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr", UIA_Variant(out)))?UIA_VariantData(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr", UIA_Variant(out:="")))?UIA_VariantData(out):
 	}
 	GetCachedAnnotationObjects() {
-		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 	}
 	GetCachedAnnotationTypes() {
-		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr", UIA_Variant(out)))?UIA_VariantData(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr", UIA_Variant(out:="")))?UIA_VariantData(out):
 	}
 }
 
@@ -3019,7 +3351,8 @@ class UIA_SpreadsheetPattern extends UIA_Base { ; UNTESTED
 		,	__PatternID := 10026
 
 	GetItemByName(name) {
-		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr", &name, "ptr*", out))? UIA_Element(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr", &name, "ptr*",out:=""))? UIA_Element(out):
 	}
 }
 
@@ -3035,82 +3368,98 @@ class UIA_StylesPattern extends UIA_Base { ; UNTESTED
 
 	CurrentStyleId[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentStyleName[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentFillColor[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentFillPatternStyle[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentShape[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentFillPatternColor[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentExtendedProperties[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedStyleId[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedStyleName[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedFillColor[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedFillPatternStyle[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedShape[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedFillPatternColor[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedExtendedProperties[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(17), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(17), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 
 	; ---------- UIA_StylesPattern methods ----------
 
 	GetCurrentExtendedPropertiesAsArray(byref propertyCount) {
-		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*", propertyArray, "int*", propertyCount))?UIA_SafeArrayToAHKArray(ComObj(0x2003,propertyArray,1)):
+		local
+		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*", propertyArray:="", "int*", propertyCount:=""))?UIA_SafeArrayToAHKArray(ComObj(0x2003,propertyArray,1)):
 	}
 	GetCachedExtendedPropertiesAsArray(byref propertyCount) {
-		return UIA_Hr(DllCall(this.__Vt(18), "ptr",this.__Value, "ptr*", propertyArray, "int*", propertyCount))?UIA_SafeArrayToAHKArray(ComObj(0x2003,propertyArray,1)):
+		local
+		return UIA_Hr(DllCall(this.__Vt(18), "ptr",this.__Value, "ptr*", propertyArray:="", "int*", propertyCount:=""))?UIA_SafeArrayToAHKArray(ComObj(0x2003,propertyArray,1)):
 	}
 }
 
@@ -3139,16 +3488,20 @@ class UIA_TableItemPattern extends UIA_Base {
 		,	__PatternID := 10013
 
 	GetCurrentRowHeaderItems() {
-		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 	}
 	GetCurrentColumnHeaderItems() {
-		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 	}
 	GetCachedRowHeaderItems() {
-		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 	}
 	GetCachedColumnHeaderItems() {
-		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 	}
 }
 
@@ -3164,28 +3517,34 @@ class UIA_TablePattern extends UIA_Base {
 
 	CurrentRowOrColumnMajor[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedRowOrColumnMajor[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 
 	; ---------- UIA_TablePattern methods ----------
 
 	GetCurrentRowHeaders() {
-		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 	}
 	GetCurrentColumnHeaders() {
-		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 	}
 	GetCachedRowHeaders() {
-		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 	}
 	GetCachedColumnHeaders() {
-		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 	}
 }
 
@@ -3202,12 +3561,14 @@ class UIA_TextPattern extends UIA_Base {
 	; DocumentRange returns a TextRange that encloses the main text of a document.
 	DocumentRange[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?UIA_TextRange(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out:=""))?UIA_TextRange(out):
 		}
 	}
 	SupportedTextSelection[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 
@@ -3215,19 +3576,23 @@ class UIA_TextPattern extends UIA_Base {
 
 	; Retrieves an empty TextRange nearest to the specified screen coordinates
 	RangeFromPoint(x, y) { 
-		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "int64",x&0xFFFFFFFF|y<<32, "ptr*",out))?UIA_TextRange(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "int64",x&0xFFFFFFFF|y<<32, "ptr*",out:=""))?UIA_TextRange(out):
 	}
 	; Retrieves a text range enclosing a child element such as an image, hyperlink, Microsoft Excel spreadsheet, or other embedded object.
 	RangeFromChild(child) { 
-		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr",child.__Value, "ptr*",out))?UIA_TextRange(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr",child.__Value, "ptr*",out:=""))?UIA_TextRange(out):
 	}
 	; Returns the currently selected text
 	GetSelection() { 
-		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?UIA_TextRangeArray(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out:=""))?UIA_TextRangeArray(out):
 	}
 	; Retrieves an array of disjoint text ranges from a text-based control where each text range represents a contiguous span of visible text
 	GetVisibleRanges() { 
-		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?UIA_TextRangeArray(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out:=""))?UIA_TextRangeArray(out):
 	}
 }
 
@@ -3236,10 +3601,12 @@ class UIA_TextPattern2 extends UIA_TextPattern {
 		,	__PatternID := 10024
 
 	RangeFromAnnotation(annotation) {
-		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr", annotation.__Value, "ptr*",out))?UIA_TextRange(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr", annotation.__Value, "ptr*",out:=""))?UIA_TextRange(out):
 	}
-	GetCaretRange(ByRef isActive="") {
-		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*", isActive, "ptr*",out))?UIA_TextRange(out):
+	GetCaretRange(ByRef isActive:="") {
+		local
+		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*", isActive, "ptr*",out:=""))?UIA_TextRange(out):
 	}
 }
 
@@ -3252,10 +3619,12 @@ class UIA_TextEditPattern extends UIA_TextPattern { ; UNTESTED
 		,	__PatternID := 10032
 
 	GetActiveComposition() {
-		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*", out))?UIA_TextRange(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out:=""))?UIA_TextRange(out):
 	}
 	GetConversionTarget() {
-		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*", out))?UIA_TextRange(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out:=""))?UIA_TextRange(out):
 	}
 }
 
@@ -3271,12 +3640,14 @@ class UIA_TextChildPattern extends UIA_Base { ; UNTESTED
 
 	TextContainer[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out:=""))?UIA_Element(out):
 		}
 	}
 	TextRange[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out))?UIA_TextRange(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out:=""))?UIA_TextRange(out):
 		}
 	}
 }
@@ -3295,23 +3666,25 @@ class UIA_TogglePattern extends UIA_Base
 
 	CurrentToggleState[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 		set { ; Custom
-			if ((currentState := this.CurrentToggleState) != value)
+			if (this.CurrentToggleState != value)
 				this.Toggle()
 		}
 	}
 	CachedToggleState[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 
 	; ---------- UIA_TogglePattern methods ----------
 
     Toggle() {
-      return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value))
+		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value))
     }
 }
 
@@ -3327,32 +3700,38 @@ class UIA_TransformPattern extends UIA_Base {
 
 	CurrentCanMove[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentCanResize[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentCanRotate[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedCanMove[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedCanResize[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedCanRotate[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 
@@ -3377,42 +3756,50 @@ class UIA_TransformPattern2 extends UIA_TransformPattern { ; UNTESTED
 
 	CurrentCanZoom[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedCanZoom[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentZoomLevel[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "double*",out:=""))?out:
 		}
 	}
 	CachedZoomLevel[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(17), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(17), "ptr",this.__Value, "double*",out:=""))?out:
 		}
 	}
 	CurrentZoomMinimum[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(18), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(18), "ptr",this.__Value, "double*",out:=""))?out:
 		}
 	}
 	CachedZoomMinimum[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(19), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(19), "ptr",this.__Value, "double*",out:=""))?out:
 		}
 	}
 	CurrentZoomMaximum[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(20), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(20), "ptr",this.__Value, "double*",out:=""))?out:
 		}
 	}
 	CachedZoomMaximum[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(21), "ptr",this.__Value, "Double*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(21), "ptr",this.__Value, "double*",out:=""))?out:
 		}
 	}
 
@@ -3438,7 +3825,8 @@ class UIA_ValuePattern extends UIA_Base {
 
 	CurrentValue[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 		set {
 			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",&value))
@@ -3446,17 +3834,20 @@ class UIA_ValuePattern extends UIA_Base {
 	}
 	CurrentIsReadOnly[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedValue[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedIsReadOnly[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 
@@ -3492,62 +3883,74 @@ class UIA_WindowPattern extends UIA_Base {
 
 	CurrentCanMaximize[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentCanMinimize[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentIsModal[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentIsTopmost[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentWindowVisualState[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentWindowInteractionState[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedCanMaximize[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedCanMinimize[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedIsModal[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedIsTopmost[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedWindowVisualState[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(16), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedWindowInteractionState[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(17), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(17), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 
@@ -3557,7 +3960,8 @@ class UIA_WindowPattern extends UIA_Base {
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value))
 	}
 	WaitForInputIdle(milliseconds) {
-		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "int",milliseconds, "Int*", out))?out:
+		local
+		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "int",milliseconds, "Int*", out:=""))?out:
 	}
 	SetWindowVisualState(state) {
 		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "int",state))
@@ -3576,52 +3980,62 @@ class UIA_AnnotationPattern extends UIA_Base {
 
 	CurrentAnnotationTypeId[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentAnnotationTypeName[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CurrentAuthor[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CurrentDateTime[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CurrentTarget[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr*",out:=""))?UIA_Element(out):
 		}
 	}
 	CachedAnnotationTypeId[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedAnnotationTypeName[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedAuthor[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedDateTime[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedTarget[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr*",out))?UIA_Element(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "ptr*",out:=""))?UIA_Element(out):
 		}
 	}
 }
@@ -3638,42 +4052,50 @@ class UIA_DragPattern extends UIA_Base { ; UNTESTED, couldn't find a window that
 
 	CurrentIsGrabbed[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CachedIsGrabbed[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 	CurrentDropEffect[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedDropEffect[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CurrentDropEffects[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr",UIA_Variant(out)))&&out?UIA_VariantData(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr",UIA_Variant(out:="")))&&out?UIA_VariantData(out):
 		}
 	}
 	CachedDropEffects[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr",UIA_Variant(out)))&&out?UIA_VariantData(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr",UIA_Variant(out:="")))&&out?UIA_VariantData(out):
 		}
 	}
 
 	; ---------- UIA_GrabPattern methods ----------
 
 	GetCurrentGrabbedItems() {
-		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 	}
 	GetCachedGrabbedItems() {
-		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*", out))?UIA_ElementArray(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 	}
 }
 
@@ -3689,22 +4111,26 @@ class UIA_DropTargetPattern extends UIA_Base { ; UNTESTED
 
 	CurrentDropTargetEffect[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CachedDropTargetEffect[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out))?UIA_GetBSTRValue(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr*",out:=""))?UIA_GetBSTRValue(out):
 		}
 	}
 	CurrentDropTargetEffects[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr",UIA_Variant(out)))&&out?UIA_VariantData(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr",UIA_Variant(out:="")))&&out?UIA_VariantData(out):
 		}
 	}
 	CachedDropTargetEffects[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",UIA_Variant(out)))&&out?UIA_VariantData(out):
+			local
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",UIA_Variant(out:="")))&&out?UIA_VariantData(out):
 		}
 	}
 }
@@ -3719,7 +4145,8 @@ class UIA_ObjectModelPattern extends UIA_Base {			; Windows 8 [desktop apps only
 		,	__PatternID := 10022
 	
 	GetUnderlyingObjectModel() { ; UNTESTED. Returns IUnknown interface used to access the underlying object model of the provider.
-		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*", out))?out:
+		local
+		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out:=""))?out:
 	}
 }
 
@@ -3735,40 +4162,47 @@ class UIA_TextRange extends UIA_Base {
 
 	; Returns a copy of the TextRange (retrieves a new IUIAutomationTextRange identical to the original and inheriting all properties of the original).
 	Clone() { 
-		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?UIA_TextRange(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out:=""))?UIA_TextRange(out):
 	}
 	; Compares whether this TextRange has the same endpoints as comparisonTextRange
 	Compare(comparisonTextRange) { 
-		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value,"ptr",comparisonTextRange.__Value, "ptr*",out))?out:
+		local
+		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value,"ptr",comparisonTextRange.__Value, "ptr*",out:=""))?out:
 	}
 	; Retrieves a value that specifies whether the start or end endpoint of this text range is the same as the start or end endpoint of comparisonTextRange. Returns a negative value if the caller's endpoint occurs earlier in the text than the target endpoint; 0 if the caller's endpoint is at the same location as the target endpoint; or a positive value if the caller's endpoint occurs later in the text than the target endpoint. srcEndPoint and targetEndPoint need to be TextPatternRangeEndpoint enums.
 	CompareEndPoints(srcEndPoint, comparisonTextRange, targetEndPoint) { 
-		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value,"int", srcEndPoint,"ptr",comparisonTextRange.__Value, "int", targetEndPoint,"ptr*",out))?out:
+		local
+		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value,"int", srcEndPoint,"ptr",comparisonTextRange.__Value, "int", targetEndPoint,"ptr*",out:=""))?out:
 	}
 	; Normalizes the text range by the specified text unit. The range is expanded if it is smaller than the specified unit, or shortened if it is longer than the specified unit. unit needs to be a TextUnit enum (default is TextUnit_Document == 6)
-	ExpandToEnclosingUnit(unit=6) { 
+	ExpandToEnclosingUnit(unit:=6) { 
 		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value,"int",unit))
 	}
 	; Retrieves a text range subset that has the specified text attribute value. attr needs to be a UIA_TextAttributeId enum, and val the desired value (some can be strings, others text attribute enums such as BulletStyle enum)
-	FindAttribute(attr, val, backward=False) { 
+	FindAttribute(attr, val, backward:=False) { 
+		local var, out
 		if attr is not integer
 			attr := UIA_Enum.UIA_AttributeId(attr)
-		UIA_Variant(var, UIA_Enum.UIA_AttributeVariantType(attr), val)
-		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(7), "ptr",this.__Value,"int",attr,"int64",NumGet(var, 0, "int64"),"int64",NumGet(var, 8, "int64"),"int",backward, "ptr*",out) : DllCall(this.__Vt(7), "ptr",this.__Value,"int",attr,"ptr",&var,"int",backward,"ptr*",out))?UIA_TextRange(out):
+		UIA_Variant(var:="", UIA_Enum.UIA_AttributeVariantType(attr), val)
+		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(7), "ptr",this.__Value,"int",attr,"int64",NumGet(var, 0, "int64"),"int64",NumGet(var, 8, "int64"),"int",backward, "ptr*",out:="") : DllCall(this.__Vt(7), "ptr",this.__Value,"int",attr,"ptr",&var,"int",backward,"ptr*",out:=""))?UIA_TextRange(out):
 	}
 	; Retrieves a text range subset that contains the specified text.
-	FindText(text, backward=False, ignoreCase=False) { 
-		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value,"ptr", &text,"int",backward, "int", ignoreCase,"ptr*",out))?UIA_TextRange(out):
+	FindText(text, backward:=False, ignoreCase:=False) { 
+		local
+		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value,"ptr", &text,"int",backward, "int", ignoreCase,"ptr*",out:=""))?UIA_TextRange(out):
 	}					
 	; Retrieves the value of the specified text attribute across the entire text range. attr needs to be a UIA_TextAttributeId enum.
 	GetAttributeValue(attr) { 
-		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value,"int", attr,"ptr",UIA_Variant(out)))?UIA_VariantData(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value,"int", attr,"ptr",UIA_Variant(out:="")))?UIA_VariantData(out):
 	}
 	; Returns an array of bounding rectangle objects {x:top left X-coord,y:top left Y-coord,w:width,h:height} for each fully or partially visible line of text in a text range.
 	GetBoundingRectangles() { 
+		local
 		static b:={__Class:"object",__Type:"RECT",Struct:Func("UIA_RectStructure")}
-		if UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value,"ptr*",out)) {
-			DllCall("oleaut32\SafeArrayGetVartype", "ptr", out, "ushort*", baseType)
+		if UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value,"ptr*",out:="")) {
+			DllCall("oleaut32\SafeArrayGetVartype", "ptr", out, "ushort*", baseType:="")
 			sa := UIA_GetSafeArrayValue(out, baseType), retArr := []
 			Loop, % sa.MaxIndex() / 4
 				retArr.Push({x:Floor(sa[4*(A_Index-1)+1]),y:Floor(sa[4*(A_Index-1)+2]),w:Floor(sa[4*(A_Index-1)+3]),h:Floor(sa[4*(A_Index-1)+4]),base:b})
@@ -3777,23 +4211,28 @@ class UIA_TextRange extends UIA_Base {
 	}
 	; Returns the innermost UI Automation element that encloses the text range.
 	GetEnclosingElement() { 
-		return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value,"ptr*",out))?UIA_Element(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value,"ptr*",out:=""))?UIA_Element(out):
 	}
 	; Returns the plain text of the text range. maxLength is the maximum length of the string to return, or -1 if no limit is required.
-	GetText(maxLength=-1) { 
-		return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value,"int", maxLength,"ptr*",out))?StrGet(out) (DllCall("oleaut32\SysFreeString", "ptr", out)?"":""):
+	GetText(maxLength:=-1) { 
+		local
+		return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value,"int", maxLength,"ptr*",out:=""))?StrGet(out) (DllCall("oleaut32\SysFreeString", "ptr", out)?"":""):
 	}
 	; Moves the text range forward or backward by the specified number of text units. unit needs to be a TextUnit enum.
 	Move(unit, count) { 
-		return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value,"int", unit,"int",count, "ptr*",out))?out:
+		local
+		return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value,"int", unit,"int",count, "ptr*",out:=""))?out:
 	}
 	; Moves one endpoint of the text range the specified number of text units within the document range. endpoint needs to be TextPatternRangeEndpoint enum. unit needs to be a TextUnit enum.
 	MoveEndpointByUnit(endpoint, unit, count) { 
-		return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value,"int", endpoint,"int", unit, "int", count, "ptr*",out))?out:
+		local
+		return UIA_Hr(DllCall(this.__Vt(14), "ptr",this.__Value,"int", endpoint,"int", unit, "int", count, "ptr*",out:=""))?out:
 	}
 	; Moves one endpoint of the current text range to the specified endpoint of a second text range. srcEndPoint and targetEndPoint need to be TextPatternRangeEndpoint enums.
 	MoveEndpointByRange(srcEndPoint, range, targetEndPoint) { 
-		return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value,"int", srcEndPoint,"ptr",range.__Value, "int", targetEndPoint,"ptr*",out))
+		local
+		return UIA_Hr(DllCall(this.__Vt(15), "ptr",this.__Value,"int", srcEndPoint,"ptr",range.__Value, "int", targetEndPoint,"ptr*",out:=""))
 	}
 	; Selects the span of text that corresponds to this text range, and removes any previous selection.
 	Select() { 
@@ -3809,11 +4248,13 @@ class UIA_TextRange extends UIA_Base {
 	}
 	; Causes the text control to scroll until the text range is visible in the viewport. alignToTop is a boolean value.
 	ScrollIntoView(alignToTop) { 
+		local
 		return UIA_Hr(DllCall(this.__Vt(19), "ptr",this.__Value,"int", alignToTop))
 	}
 	; Retrieves a collection of all embedded objects that fall within the text range.
 	GetChildren() { 
-		return UIA_Hr(DllCall(this.__Vt(20), "ptr",this.__Value,"ptr*",out))?UIA_ElementArray(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(20), "ptr",this.__Value,"ptr*",out:=""))?UIA_ElementArray(out):
 	}
 }
 
@@ -3821,19 +4262,23 @@ class UIA_TextRange2 extends UIA_TextRange {
 	static __IID := "{BB9B40E0-5E04-46BD-9BE0-4B601B9AFAD4}"
 
 	ShowContextMenu() {
-		return UIA_Hr(DllCall(this.__Vt(21), "ptr",this.__Value,"ptr*",out))
+		local
+		return UIA_Hr(DllCall(this.__Vt(21), "ptr",this.__Value,"ptr*",out:=""))
 	}
 }
 class UIA_TextRange3 extends UIA_TextRange2 { ; UNTESTED
 	static __IID := "{6A315D69-5512-4C2E-85F0-53FCE6DD4BC2}"
 
 	GetEnclosingElementBuildCache(cacheRequest) {
-		return UIA_Hr(DllCall(this.__Vt(22), "Ptr", this.__Value, "Ptr", cacheRequest.__Value, "Ptr*", out))?UIA_Element(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(22), "Ptr", this.__Value, "Ptr", cacheRequest.__Value, "ptr*",out:=""))?UIA_Element(out):
 	}
 	GetChildrenBuildCache(cacheRequest) {
-		return UIA_Hr(DllCall(this.__Vt(23), "Ptr", this.__Value, "Ptr", cacheRequest.__Value, "Ptr*", out))?UIA_ElementArray(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(23), "Ptr", this.__Value, "Ptr", cacheRequest.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
 	}
 	GetAttributeValues(attributeIds, attributeIdCount) { ; currently returns a AHK array
+		local
 		if ComObjValue(attributeIds)&0x2000
 			SafeArray:=attributeIds
 		else {
@@ -3841,7 +4286,7 @@ class UIA_TextRange3 extends UIA_TextRange2 { ; UNTESTED
 			for i,c in attributeIds
 				SafeArray[A_Index-1]:=c.__Value, ObjAddRef(c.__Value) ; AddRef - SafeArrayDestroy will release UIA_Conditions - they also release themselves
 		}
-		return UIA_Hr(DllCall(this.__Vt(24), "ptr",this.__Value, "ptr", ComObjValue(SafeArray), "int", attributeIdCount, "ptr*",out))? UIA_SafeArrayToAHKArray(ComObj(0x2003,out,1)):
+		return UIA_Hr(DllCall(this.__Vt(24), "ptr",this.__Value, "ptr", ComObjValue(SafeArray), "int", attributeIdCount, "ptr*",out:=""))? UIA_SafeArrayToAHKArray(ComObj(0x2003,out,1)):
 	}
 }
 
@@ -3856,14 +4301,16 @@ class UIA_TextRangeArray extends UIA_Base {
 
 	Length[] {
 		get {
-			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out))?out:
+			local
+			return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out:=""))?out:
 		}
 	}
 
 	; ---------- UIA_TextRangeArray methods ----------
 	
 	GetElement(i) {
-		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "int",i, "ptr*",out))?UIA_TextRange(out):
+		local
+		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "int",i, "ptr*",out:=""))?UIA_TextRange(out):
 	}
 }
 
@@ -3879,8 +4326,9 @@ class UIA_TextRangeArray extends UIA_Base {
 		On subsequent calls of UIA_Interface(), the previously created UIA interface object is returned to avoid multiple connections being made. To bypass this, specify a maxVersion
 		Note that a new UIA_Interface object can't be created with the "new" keyword. 
 	*/
-	UIA_Interface(maxVersion="") {
-		static uia
+	UIA_Interface(maxVersion:="") {
+		local screenreader := "", max, uiaBase, e
+		static uia := ""
 		if (IsObject(uia) && (maxVersion == ""))
 			return uia
 		; enable screenreader flag if disabled
@@ -3914,6 +4362,7 @@ class UIA_TextRangeArray extends UIA_Base {
 	}
 	; Converts an error code to the corresponding error message
 	UIA_Hr(hr) {
+		local
 		;~ http://blogs.msdn.com/b/eldar/archive/2007/04/03/a-lot-of-hresult-codes.aspx
 		static err:={0x8000FFFF:"Catastrophic failure.",0x80004001:"Not implemented.",0x8007000E:"Out of memory.",0x80070057:"One or more arguments are not valid.",0x80004002:"Interface not supported.",0x80004003:"Pointer not valid.",0x80070006:"Handle not valid.",0x80004004:"Operation aborted.",0x80004005:"Unspecified error.",0x80070005:"General access denied.",0x800401E5:"The object identified by this moniker could not be found.",0x80040201:"UIA_E_ELEMENTNOTAVAILABLE",0x80040200:"UIA_E_ELEMENTNOTENABLED",0x80131509:"UIA_E_INVALIDOPERATION",0x80040202:"UIA_E_NOCLICKABLEPOINT",0x80040204:"UIA_E_NOTSUPPORTED",0x80040203:"UIA_E_PROXYASSEMBLYNOTLOADED",0x80131505:"COR_E_TIMEOUT"} ; //not completed
 		if hr&&(hr&=0xFFFFFFFF) {
@@ -3923,12 +4372,14 @@ class UIA_TextRangeArray extends UIA_Base {
 		return !hr
 	}
 	UIA_NotImplemented() {
+		local
 		RegExMatch(Exception("",-2).What,"(\D+)\.(\D+)",m)
 		MsgBox, 262192, UIA Message, Class:`t%m1%`nMember:`t%m2%`n`nMethod has not been implemented yet.
 	}
 	; Used by UIA methods to create new UIA_Element objects of the highest available version. The highest version to try can be changed by modifying UIA_Enum.UIA_CurrentVersion_Element value.
-	UIA_Element(e,flag=1) {
-		static v, previousVersion
+	UIA_Element(e,flag:=1) {
+		local max, riid
+		static v := "", previousVersion := ""
 		if !e
 			return
 		if (previousVersion != UIA_Enum.UIA_CurrentVersion_Element) ; Check if the user wants an element with a different version
@@ -3943,8 +4394,9 @@ class UIA_TextRangeArray extends UIA_Base {
 		return new UIA_Element(e,flag,v:=1)
 	}
 	; Used by UIA methods to create new UIA_TextRange objects of the highest available version. The highest version to try can be changed by modifying UIA_Enum.UIA_CurrentVersion_TextRange value.
-	UIA_TextRange(e,flag=1) {
-		static v, previousVersion
+	UIA_TextRange(e,flag:=1) {
+		local max, riid
+		static v := "", previousVersion := ""
 		if (previousVersion != UIA_Enum.UIA_CurrentVersion_TextRange) ; Check if the user wants an element with a different version
 			v := ""
 		else if v
@@ -3958,13 +4410,14 @@ class UIA_TextRangeArray extends UIA_Base {
 	}
 	; Used by UIA methods to create new Pattern objects of the highest available version for a given pattern.
 	UIA_Pattern(p, el) {
+		local i, patternName, patternAvailableId
 		if p is integer 
 			return patternName := UIA_Enum.UIA_Pattern(p)
 		else
 			patternName := InStr(p, "Pattern") ? p : p "Pattern", i:=1
 		Loop {
 			i++
-			if !(IsObject(UIA_%patternName%%i%) && UIA_%patternName%%i%.__iid && UIA_%patternName%%i%.__PatternID)
+			if !(VarSetCapacity(UIA_%patternName%%i%) && IsObject(UIA_%patternName%%i%) && UIA_%patternName%%i%.__iid && UIA_%patternName%%i%.__PatternID)
 				break
 		}
 		While (--i > 1) {
@@ -3980,7 +4433,9 @@ class UIA_TextRangeArray extends UIA_Base {
 		else if ObjHasKey(UIA_Enum, "UIA_" e)
 			return UIA_Enum["UIA_" e]
 	}
-	UIA_ElementArray(p, uia="",flag=1) { ; Should AHK Object be 0 or 1 based? Currently 1 based.
+	UIA_ElementArray(p, uia:="",flag:=1) { ; Should AHK Object be 0 or 1 based? Currently 1 based.
+		local
+		global UIA_ElementArray
 		if !p
 			return
 		a:=new UIA_ElementArray(p,flag),out:=[]
@@ -3988,7 +4443,9 @@ class UIA_TextRangeArray extends UIA_Base {
 			out[A_Index]:=a.GetElement(A_Index-1)
 		return out, out.base:={UIA_ElementArray:a}
 	}
-	UIA_TextRangeArray(p, uia="") { ; Should AHK Object be 0 or 1 based? Currently 1 based.
+	UIA_TextRangeArray(p, uia:="",flag:=1) { ; Should AHK Object be 0 or 1 based? Currently 1 based.
+		local
+		global UIA_TextRangeArray
 		a:=new UIA_TextRangeArray(p,flag),out:=[]
 		Loop % a.Length
 			out[A_Index]:=a.GetElement(A_Index-1)
@@ -4005,6 +4462,7 @@ class UIA_TextRangeArray extends UIA_Base {
 			NumPut(this[A_LoopField],r,(A_Index-1)*4,"Int")
 	}
 	UIA_SafeArrayToAHKArray(safearray) {
+		local
 		b:={__Class:"object",__Type:"SafeArray",__Value:safearray}
 		out := []
 		for k in safearray
@@ -4013,12 +4471,14 @@ class UIA_TextRangeArray extends UIA_Base {
 	}
 	UIA_SafeArraysToObject(keys,values) {
 	;~	1 dim safearrays w/ same # of elements
+		local
 		out:={}
 		for key in keys
 			out[key]:=values[A_Index-1]
 		return out
 	}
 	UIA_Hex(p) {
+		local
 		setting:=A_FormatInteger
 		SetFormat,IntegerFast,H
 		out:=p+0 ""
@@ -4031,7 +4491,7 @@ class UIA_TextRangeArray extends UIA_Base {
 		VarSetCapacity(GUID,16,0)
 		return DllCall("ole32\CLSIDFromString", "wstr",sGUID, "ptr",&GUID)>=0?&GUID:""
 	}
-	UIA_Variant(ByRef var,type=0,val=0) {
+	UIA_Variant(ByRef var,type:=0,val:=0) {
 		; https://www.autohotkey.com/boards/viewtopic.php?t=6979
 		static SIZEOF_VARIANT := 8 + (2 * A_PtrSize)
 		VarSetCapacity(var, SIZEOF_VARIANT), ComObject(0x400C, &var)[] := type&&(type!=8)?ComObject(type,type=0xB?(!val?0:-1):val):val
@@ -4039,7 +4499,8 @@ class UIA_TextRangeArray extends UIA_Base {
 		; Old implementation:
 		; return (VarSetCapacity(var,8+2*A_PtrSize)+NumPut(type,var,0,"short")+NumPut(type=8? DllCall("oleaut32\SysAllocString", "ptr",&val):val,var,8,"ptr"))*0+&var
 	}
-	UIA_IsVariant(ByRef vt, ByRef type="", offset=0, flag=1) {
+	UIA_IsVariant(ByRef vt, ByRef type:="", offset:=0, flag:=1) {
+		local
 		size:=VarSetCapacity(vt),type:=NumGet(vt,offset,"UShort")
 		return size>=16&&size<=24&&type>=0&&(type<=23||type|0x2000)
 	}
@@ -4058,7 +4519,8 @@ class UIA_TextRangeArray extends UIA_Base {
 		,0x15:[8,"uint64"]}
 		return _.haskey(type)?_[type]:[A_PtrSize,"ptr"]
 	}
-	UIA_VariantData(ByRef p, flag=1, offset=0) {
+	UIA_VariantData(ByRef p, flag:=1, offset:=0) {
+		local
 		if flag {
 			var := !UIA_IsVariant(p,vt, offset)?"Invalid Variant":ComObject(0x400C, &p)[] ; https://www.autohotkey.com/boards/viewtopic.php?t=6979
 			UIA_VariantClear(&p) ; Clears variant, except if it contains a pointer to an object (eg IDispatch). BSTR is automatically freed.
@@ -4126,13 +4588,14 @@ class UIA_TextRangeArray extends UIA_Base {
 		);
 	*/
 	}
-	UIA_VariantChangeType(pvarDst, pvarSrc, vt=8) { ; written by Sean
+	UIA_VariantChangeType(pvarDst, pvarSrc, vt:=8) { ; written by Sean
 		return DllCall("oleaut32\VariantChangeTypeEx", "ptr",pvarDst, "ptr",pvarSrc, "Uint",1024, "Ushort",0, "Ushort",vt)
 	}
 	UIA_VariantClear(pvar) { ; Written by Sean
 		DllCall("oleaut32\VariantClear", "ptr",pvar)
 	}
-	UIA_GetSafeArrayValue(p,type,flag=1){ ; Credit: https://github.com/neptercn/UIAutomation/blob/master/UIA.ahk
+	UIA_GetSafeArrayValue(p,type,flag:=1){ ; Credit: https://github.com/neptercn/UIAutomation/blob/master/UIA.ahk
+		local
 		t:=UIA_VariantType(type),item:={},pv:=NumGet(p+8+A_PtrSize,"ptr")
 		loop % NumGet(p+8+2*A_PtrSize,"uint") {
 			item.Insert((type=8)?StrGet(NumGet(pv+(A_Index-1)*t.1,t.2),"utf-16"):NumGet(pv+(A_Index-1)*t.1,t.2))
@@ -4142,6 +4605,7 @@ class UIA_TextRangeArray extends UIA_Base {
 		return item
 	}
 	UIA_GetBSTRValue(ByRef bstr) {
+		local
 		val := StrGet(bstr)
 		DllCall("oleaut32\SysFreeString", "ptr", bstr)
 		return val
@@ -4160,11 +4624,10 @@ class UIA_TextRangeArray extends UIA_Base {
 			HandleChangesEvent(sender, uiaChanges, changesCount)
 			HandleNotificationEvent(sender, notificationKind, notificationProcessing, displayString, activityId)
 	*/
-	UIA_CreateEventHandler(funcName, handlerType="") { ; Possible handlerType values: empty, FocusChanged, StructureChanged, TextEditTextChanged, Changes, Notification.
-		if !(IsFunc(funcName) || IsObject(funcName)) { ; Figuring out if the Object is callable is way too difficult to bother with. 
+	UIA_CreateEventHandler(funcName, handlerType:="") { ; Possible handlerType values: empty, FocusChanged, StructureChanged, TextEditTextChanged, Changes, Notification.
+		local handler, ptr
+		if !(IsFunc(funcName) || IsObject(funcName)) ; Figuring out if the Object is callable is way too difficult to bother with. 
 			throw Exception(funcName "is not a function!", -1)
-			return
-		}
 		ptr := DllCall("GlobalAlloc", "UInt",0x40, "UInt",A_PtrSize*5, "Ptr" )
 		handler := new _UIA_%handlerType%EventHandler(ptr,2,funcName) ; deref will be done on destruction of EventHandler. Function name piggybacks on the __Version property
 		,NumPut(ptr+A_PtrSize,ptr+0)
@@ -4175,7 +4638,8 @@ class UIA_TextRangeArray extends UIA_Base {
 		return handler
 	}
 	_UIA_QueryInterface(pSelf, pRIID, pObj){ ; Credit: https://github.com/neptercn/UIAutomation/blob/master/UIA.ahk
-		DllCall("ole32\StringFromIID","ptr",pRIID,"ptr*",sz),str:=StrGet(sz) ; sz should not be freed here
+		local
+		DllCall("ole32\StringFromIID","ptr",pRIID,"ptr*",sz:=""),str:=StrGet(sz) ; sz should not be freed here
 		return (str="{00000000-0000-0000-C000-000000000046}")||(str="{146c3c17-f12e-4e22-8c27-f894b9b79c69}")||(str="{40cd37d4-c756-4b0c-8c6f-bddfeeb13b50}")||(str="{e81d1b4e-11c5-42f8-9754-e7036c79f054}")||(str="{c270f6b5-5c69-4290-9745-7a7f97169468}")||(str="{92FAA680-E704-4156-931A-E32D5BB38F3F}")||(str="{58EDCA55-2C3E-4980-B1B9-56C17F27A2A0}")||(str="{C7CB2637-E6C2-4D0C-85DE-4948C02175C7}")?NumPut(pSelf,pObj+0)*0:0x80004002 ; E_NOINTERFACE
 	}
 	_UIA_AddRef(pSelf){
@@ -4275,7 +4739,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static UIA_CustomNavigationPatternId := 10033
 	static UIA_SelectionPattern2Id := 10034 
 
-	UIA_PatternId(n="") {
+	UIA_PatternId(n:="") {
 		static name:={10000:"InvokePattern",10001:"SelectionPattern",10002:"ValuePattern",10003:"RangeValuePattern",10004:"ScrollPattern",10005:"ExpandCollapsePattern",10006:"GridPattern",10007:"GridItemPattern",10008:"MultipleViewPattern",10009:"WindowPattern",10010:"SelectionItemPattern",10011:"DockPattern",10012:"TablePattern",10013:"TableItemPattern",10014:"TextPattern",10015:"TogglePattern",10016:"TransformPattern",10017:"ScrollItemPattern",10018:"LegacyIAccessiblePattern",10019:"ItemContainerPattern",10020:"VirtualizedItemPattern",10021:"SynchronizedInputPattern",10022:"ObjectModelPattern",10023:"AnnotationPattern",10024:"TextPattern2",10025:"StylesPattern",10026:"SpreadsheetPattern",10027:"SpreadsheetItemPattern",10028:"TransformPattern2",10029:"TextChildPattern",10030:"DragPattern",10031:"DropTargetPattern",10032:"TextEditPattern",10033:"CustomNavigationPattern",10034:"SelectionPattern2"}, id:={InvokePattern:10000,SelectionPattern:10001,ValuePattern:10002,RangeValuePattern:10003,ScrollPattern:10004,ExpandCollapsePattern:10005,GridPattern:10006,GridItemPattern:10007,MultipleViewPattern:10008,WindowPattern:10009,SelectionItemPattern:10010,DockPattern:10011,TablePattern:10012,TableItemPattern:10013,TextPattern:10014,TogglePattern:10015,TransformPattern:10016,ScrollItemPattern:10017,LegacyIAccessiblePattern:10018,ItemContainerPattern:10019,VirtualizedItemPattern:10020,SynchronizedInputPattern:10021,ObjectModelPattern:10022,AnnotationPattern:10023,TextPattern2:10024,StylesPattern:10025,SpreadsheetPattern:10026,SpreadsheetItemPattern:10027,TransformPattern2:10028,TextChildPattern:10029,DragPattern:10030,DropTargetPattern:10031,TextEditPattern:10032,CustomNavigationPattern:10033,SelectionPattern2:10034}
 		if !n
 			return id
@@ -4327,7 +4791,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static UIA_NotificationEventId := 20035
 	static UIA_ActiveTextPositionChangedEventId := 20036
 
-	UIA_EventId(n="") {
+	UIA_EventId(n:="") {
 		static id:={ToolTipOpened:20000,ToolTipClosed:20001,StructureChanged:20002,MenuOpened:20003,AutomationPropertyChanged:20004,AutomationFocusChanged:20005,AsyncContentLoaded:20006,MenuClosed:20007,LayoutInvalidated:20008,Invoke_Invoked:20009,SelectionItem_ElementAddedToSelection:20010,SelectionItem_ElementRemovedFromSelection:20011,SelectionItem_ElementSelected:20012,Selection_Invalidated:20013,Text_TextSelectionChanged:20014,Text_TextChanged:20015,Window_WindowOpened:20016,Window_WindowClosed:20017,MenuModeStart:20018,MenuModeEnd:20019,InputReachedTarget:20020,InputReachedOtherElement:20021,InputDiscarded:20022,SystemAlert:20023,LiveRegionChanged:20024,HostedFragmentRootsInvalidated:20025,Drag_DragStart:20026,Drag_DragCancel:20027,Drag_DragComplete:20028,DropTarget_DragEnter:20029,DropTarget_DragLeave:20030,DropTarget_Dropped:20031,TextEdit_TextChanged:20032,TextEdit_ConversionTargetChanged:20033,Changes:20034,Notification:20035,ActiveTextPositionChanged:20036}, name:={20000:"ToolTipOpened",20001:"ToolTipClosed",20002:"StructureChanged",20003:"MenuOpened",20004:"AutomationPropertyChanged",20005:"AutomationFocusChanged",20006:"AsyncContentLoaded",20007:"MenuClosed",20008:"LayoutInvalidated",20009:"Invoke_Invoked",20010:"SelectionItem_ElementAddedToSelection",20011:"SelectionItem_ElementRemovedFromSelection",20012:"SelectionItem_ElementSelected",20013:"Selection_Invalidated",20014:"Text_TextSelectionChanged",20015:"Text_TextChanged",20016:"Window_WindowOpened",20017:"Window_WindowClosed",20018:"MenuModeStart",20019:"MenuModeEnd",20020:"InputReachedTarget",20021:"InputReachedOtherElement",20022:"InputDiscarded",20023:"SystemAlert",20024:"LiveRegionChanged",20025:"HostedFragmentRootsInvalidated",20026:"Drag_DragStart",20027:"Drag_DragCancel",20028:"Drag_DragComplete",20029:"DropTarget_DragEnter",20030:"DropTarget_DragLeave",20031:"DropTarget_Dropped",20032:"TextEdit_TextChanged",20033:"TextEdit_ConversionTargetChanged",20034:"Changes",20035:"Notification",20036:"ActiveTextPositionChanged"}
 		if !n
 			return id
@@ -4515,7 +4979,8 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static UIA_HeadingLevelPropertyId := 30173
 	static UIA_IsDialogPropertyId := 30174
 
-	UIA_PropertyId(n="") {
+	UIA_PropertyId(n:="") {
+		local
 		static ids:="RuntimeId:30000,BoundingRectangle:30001,ProcessId:30002,ControlType:30003,LocalizedControlType:30004,Name:30005,AcceleratorKey:30006,AccessKey:30007,HasKeyboardFocus:30008,IsKeyboardFocusable:30009,IsEnabled:30010,AutomationId:30011,ClassName:30012,HelpText:30013,ClickablePoint:30014,Culture:30015,IsControlElement:30016,IsContentElement:30017,LabeledBy:30018,IsPassword:30019,NativeWindowHandle:30020,ItemType:30021,IsOffscreen:30022,Orientation:30023,FrameworkId:30024,IsRequiredForForm:30025,ItemStatus:30026,IsDockPatternAvailable:30027,IsExpandCollapsePatternAvailable:30028,IsGridItemPatternAvailable:30029,IsGridPatternAvailable:30030,IsInvokePatternAvailable:30031,IsMultipleViewPatternAvailable:30032,IsRangeValuePatternAvailable:30033,IsScrollPatternAvailable:30034,IsScrollItemPatternAvailable:30035,IsSelectionItemPatternAvailable:30036,IsSelectionPatternAvailable:30037,IsTablePatternAvailable:30038,IsTableItemPatternAvailable:30039,IsTextPatternAvailable:30040,IsTogglePatternAvailable:30041,IsTransformPatternAvailable:30042,IsValuePatternAvailable:30043,IsWindowPatternAvailable:30044,ValueValue:30045,ValueIsReadOnly:30046,RangeValueValue:30047,RangeValueIsReadOnly:30048,RangeValueMinimum:30049,RangeValueMaximum:30050,RangeValueLargeChange:30051,RangeValueSmallChange:30052,ScrollHorizontalScrollPercent:30053,ScrollHorizontalViewSize:30054,ScrollVerticalScrollPercent:30055,ScrollVerticalViewSize:30056,ScrollHorizontallyScrollable:30057,ScrollVerticallyScrollable:30058,SelectionSelection:30059,SelectionCanSelectMultiple:30060,SelectionIsSelectionRequired:30061,GridRowCount:30062,GridColumnCount:30063,GridItemRow:30064,GridItemColumn:30065,GridItemRowSpan:30066,GridItemColumnSpan:30067,GridItemContainingGrid:30068,DockDockPosition:30069,ExpandCollapseExpandCollapseState:30070,MultipleViewCurrentView:30071,MultipleViewSupportedViews:30072,WindowCanMaximize:30073,WindowCanMinimize:30074,WindowWindowVisualState:30075,WindowWindowInteractionState:30076,WindowIsModal:30077,WindowIsTopmost:30078,SelectionItemIsSelected:30079,SelectionItemSelectionContainer:30080,TableRowHeaders:30081,TableColumnHeaders:30082,TableRowOrColumnMajor:30083,TableItemRowHeaderItems:30084,TableItemColumnHeaderItems:30085,ToggleToggleState:30086,TransformCanMove:30087,TransformCanResize:30088,TransformCanRotate:30089,IsLegacyIAccessiblePatternAvailable:30090,LegacyIAccessibleChildId:30091,LegacyIAccessibleName:30092,LegacyIAccessibleValue:30093,LegacyIAccessibleDescription:30094,LegacyIAccessibleRole:30095,LegacyIAccessibleState:30096,LegacyIAccessibleHelp:30097,LegacyIAccessibleKeyboardShortcut:30098,LegacyIAccessibleSelection:30099,LegacyIAccessibleDefaultAction:30100,AriaRole:30101,AriaProperties:30102,IsDataValidForForm:30103,ControllerFor:30104,DescribedBy:30105,FlowsTo:30106,ProviderDescription:30107,IsItemContainerPatternAvailable:30108,IsVirtualizedItemPatternAvailable:30109,IsSynchronizedInputPatternAvailable:30110,OptimizeForVisualContent:30111,IsObjectModelPatternAvailable:30112,AnnotationAnnotationTypeId:30113,AnnotationAnnotationTypeName:30114,AnnotationAuthor:30115,AnnotationDateTime:30116,AnnotationTarget:30117,IsAnnotationPatternAvailable:30118,IsTextPattern2Available:30119,StylesStyleId:30120,StylesStyleName:30121,StylesFillColor:30122,StylesFillPatternStyle:30123,StylesShape:30124,StylesFillPatternColor:30125,StylesExtendedProperties:30126,IsStylesPatternAvailable:30127,IsSpreadsheetPatternAvailable:30128,SpreadsheetItemFormula:30129,SpreadsheetItemAnnotationObjects:30130,SpreadsheetItemAnnotationTypes:30131,IsSpreadsheetItemPatternAvailable:30132,Transform2CanZoom:30133,IsTransformPattern2Available:30134,LiveSetting:30135,IsTextChildPatternAvailable:30136,IsDragPatternAvailable:30137,DragIsGrabbed:30138,DragDropEffect:30139,DragDropEffects:30140,IsDropTargetPatternAvailable:30141,DropTargetDropTargetEffect:30142,DropTargetDropTargetEffects:30143,DragGrabbedItems:30144,Transform2ZoomLevel:30145,Transform2ZoomMinimum:30146,Transform2ZoomMaximum:30147,FlowsFrom:30148,IsTextEditPatternAvailable:30149,IsPeripheral:30150,IsCustomNavigationPatternAvailable:30151,PositionInSet:30152,SizeOfSet:30153,Level:30154,AnnotationTypes:30155,AnnotationObjects:30156,LandmarkType:30157,LocalizedLandmarkType:30158,FullDescription:30159,FillColor:30160,OutlineColor:30161,FillType:30162,VisualEffects:30163,OutlineThickness:30164,CenterPoint:30165,Rotation:30166,Size:30167,IsSelectionPattern2Available:30168,Selection2FirstSelectedItem:30169,Selection2LastSelectedItem:30170,Selection2CurrentSelectedItem:30171,Selection2ItemCount:30173,IsDialog:30174"
 		if !n
 			return ids		
@@ -4585,7 +5050,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static UIA_AfterParagraphSpacingAttributeId := 40042
 	static UIA_SayAsInterpretAsAttributeId := 40043
 
-	UIA_AttributeId(n="") {
+	UIA_AttributeId(n:="") {
 		static id:={AnimationStyle:40000,BackgroundColor:40001,BulletStyle:40002,CapStyle:40003,Culture:40004,FontName:40005,FontSize:40006,FontWeight:40007,ForegroundColor:40008,HorizontalTextAlignment:40009,IndentationFirstLine:40010,IndentationLeading:40011,IndentationTrailing:40012,IsHidden:40013,IsItalic:40014,IsReadOnly:40015,IsSubscript:40016,IsSuperscript:40017,MarginBottom:40018,MarginLeading:40019,MarginTop:40020,MarginTrailing:40021,OutlineStyles:40022,OverlineColor:40023,OverlineStyle:40024,StrikethroughColor:40025,StrikethroughStyle:40026,Tabs:40027,TextFlowDirections:40028,UnderlineColor:40029,UnderlineStyle:40030,AnnotationTypes:40031,AnnotationObjects:40032,StyleName:40033,StyleId:40034,Link:40035,IsActive:40036,SelectionActiveEnd:40037,CaretPosition:40038,CaretBidiMode:40039,LineSpacing:40040,BeforeParagraphSpacing:40041,AfterParagraphSpacing:40042,SayAsInterpretAs:40043}, name:={40000:"AnimationStyle",40001:"BackgroundColor",40002:"BulletStyle",40003:"CapStyle",40004:"Culture",40005:"FontName",40006:"FontSize",40007:"FontWeight",40008:"ForegroundColor",40009:"HorizontalTextAlignment",40010:"IndentationFirstLine",40011:"IndentationLeading",40012:"IndentationTrailing",40013:"IsHidden",40014:"IsItalic",40015:"IsReadOnly",40016:"IsSubscript",40017:"IsSuperscript",40018:"MarginBottom",40019:"MarginLeading",40020:"MarginTop",40021:"MarginTrailing",40022:"OutlineStyles",40023:"OverlineColor",40024:"OverlineStyle",40025:"StrikethroughColor",40026:"StrikethroughStyle",40027:"Tabs",40028:"TextFlowDirections",40029:"UnderlineColor",40030:"UnderlineStyle",40031:"AnnotationTypes",40032:"AnnotationObjects",40033:"StyleName",40034:"StyleId",40035:"Link",40036:"IsActive",40037:"SelectionActiveEnd",40038:"CaretPosition",40039:"CaretBidiMode",40040:"LineSpacing",40041:"BeforeParagraphSpacing",40042:"AfterParagraphSpacing",40043:"SayAsInterpretAs"}
 		if !n
 			return id
@@ -4644,7 +5109,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static UIA_SemanticZoomControlTypeId := 50039
 	static UIA_AppBarControlTypeId := 50040
 
-	UIA_ControlTypeId(n="") {
+	UIA_ControlTypeId(n:="") {
 		static id:={Button:50000,Calendar:50001,CheckBox:50002,ComboBox:50003,Edit:50004,Hyperlink:50005,Image:50006,ListItem:50007,List:50008,Menu:50009,MenuBar:50010,MenuItem:50011,ProgressBar:50012,RadioButton:50013,ScrollBar:50014,Slider:50015,Spinner:50016,StatusBar:50017,Tab:50018,TabItem:50019,Text:50020,ToolBar:50021,ToolTip:50022,Tree:50023,TreeItem:50024,Custom:50025,Group:50026,Thumb:50027,DataGrid:50028,DataItem:50029,Document:50030,SplitButton:50031,Window:50032,Pane:50033,Header:50034,HeaderItem:50035,Table:50036,TitleBar:50037,Separator:50038,SemanticZoom:50039,AppBar:50040}, name:={50000:"Button",50001:"Calendar",50002:"CheckBox",50003:"ComboBox",50004:"Edit",50005:"Hyperlink",50006:"Image",50007:"ListItem",50008:"List",50009:"Menu",50010:"MenuBar",50011:"MenuItem",50012:"ProgressBar",50013:"RadioButton",50014:"ScrollBar",50015:"Slider",50016:"Spinner",50017:"StatusBar",50018:"Tab",50019:"TabItem",50020:"Text",50021:"ToolBar",50022:"ToolTip",50023:"Tree",50024:"TreeItem",50025:"Custom",50026:"Group",50027:"Thumb",50028:"DataGrid",50029:"DataItem",50030:"Document",50031:"SplitButton",50032:"Window",50033:"Pane",50034:"Header",50035:"HeaderItem",50036:"Table",50037:"TitleBar",50038:"Separator",50039:"SemanticZoom",50040:"AppBar"}
 		if !n
 			return id
@@ -4681,7 +5146,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static UIA_AnnotationType_CircularReferenceError := 60022
 	static UIA_AnnotationType_Mathematics := 60023
 
-	UIA_AnnotationType(n="") {
+	UIA_AnnotationType(n:="") {
 		static id:={Unknown:60000,SpellingError:60001,GrammarError:60002,Comment:60003,FormulaError:60004,TrackChanges:60005,Header:60006,Footer:60007,Highlighted:60008,Endnote:60009,Footnote:60010,InsertionChange:60011,DeletionChange:60012,MoveChange:60013,FormatChange:60014,UnsyncedChange:60015,EditingLockedChange:60016,ExternalChange:60017,ConflictingChange:60018,Author:60019,AdvancedProofingIssue:60020,DataValidationError:60021,CircularReferenceError:60022,Mathematics:60023}, name:={60000:"Unknown",60001:"SpellingError",60002:"GrammarError",60003:"Comment",60004:"FormulaError",60005:"TrackChanges",60006:"Header",60007:"Footer",60008:"Highlighted",60009:"Endnote",60010:"Footnote",60011:"InsertionChange",60012:"DeletionChange",60013:"MoveChange",60014:"FormatChange",60015:"UnsyncedChange",60016:"EditingLockedChange",60017:"ExternalChange",60018:"ConflictingChange",60019:"Author",60020:"AdvancedProofingIssue",60021:"DataValidationError",60022:"CircularReferenceError",60023:"Mathematics"}
 		if !n
 			return id
@@ -4711,7 +5176,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static UIA_StyleId_BulletedList := 70015
 	static UIA_StyleId_NumberedList := 70016
 
-	UIA_StyleId(n="") {
+	UIA_StyleId(n:="") {
 		static id:={Custom:70000,Heading1:70001,Heading2:70002,Heading3:70003,Heading4:70004,Heading5:70005,Heading6:70006,Heading7:70007,Heading8:70008,Heading9:70009,Title:70010,Subtitle:70011,Normal:70012,Emphasis:70013,Quote:70014,BulletedList:70015,NumberedList:70016}, name:={70000:"Custom",70001:"Heading1",70002:"Heading2",70003:"Heading3",70004:"Heading4",70005:"Heading5",70006:"Heading6",70007:"Heading7",70008:"Heading8",70009:"Heading9",70010:"Title",70011:"Subtitle",70012:"Normal",70013:"Emphasis",70014:"Quote",70015:"BulletedList",70016:"NumberedList"}
 		if !n
 			return id
@@ -4729,7 +5194,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static UIA_NavigationLandmarkTypeId := 80003
 	static UIA_SearchLandmarkTypeId := 80004
 	
-	UIA_LandmarkTypeId(n="") {
+	UIA_LandmarkTypeId(n:="") {
 		static id:={Custom:80000,Form:80001,Main:80002,Navigation:80003,Search:80004}, name:={80000:"Custom",80001:"Form",80002:"Main",80003:"Navigation",80004:"Search"}
 		if !n
 			return id
@@ -4752,7 +5217,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static UIA_HeadingLevel8 := 80058
 	static UIA_HeadingLevel9 := 80059
 
-	UIA_HeadingLevel(n="") {
+	UIA_HeadingLevel(n:="") {
 		static id:={None:80050, 1:80051, 2:80052, 3:80053, 4:80054, 5:80055, 6:80056, 7:80057, 8:80058, 9:80059}, name:={80050:"None", 80051:"1", 80052:"2", 80053:"3", 80054:"4", 80055:"5", 80056:"6", 80057:"7", 80058:"8", 80059:"9"}
 		if !n
 			return id
@@ -4766,7 +5231,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	; module ChangeIds
 	static UIA_SummaryChangeId := 90000
 	
-	UIA_ChangeId(n="") {
+	UIA_ChangeId(n:="") {
 		static id:={Summary:90000}, name:={90000:"Summary"}
 		if !n
 			return id
@@ -4780,7 +5245,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	; module MetadataIds
 	static UIA_SayAsInterpretAsMetadataId := 100000
 	
-	UIA_MetadataId(n="") {
+	UIA_MetadataId(n:="") {
 		static id:={SayAsInterpretAs:100000}, name:={100000:"SayAsInterpretAs"}
 		if !n
 			return id
@@ -4798,7 +5263,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static AsyncContentLoadedState_Progress := 1
 	static AsyncContentLoadedState_Completed := 2
 	
-	AsyncContentLoadedState(Value="") {
+	AsyncContentLoadedState(Value:="") {
 		static v1:={0:"Beginning", 1:"Progress", 2:"Completed"}
 		if Value is not integer
 			return this["AsyncContentLoadedState_" Value]
@@ -4816,7 +5281,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static AutomationIdentifierType_Changes := 7
 	static AutomationIdentifierType_Style := 8
 
-	AutomationIdentifierType(Value="") {
+	AutomationIdentifierType(Value:="") {
 		static v1:={0:"Property", 1:"Pattern", 2:"Event", 3:"ControlType", 4:"TextAttribute", 5:"LandmarkType", 6:"Annotation", 7:"Changes", 8:"Style"}
 		if Value is not integer
 			return this["AutomationIdentifierType_" Value]
@@ -4831,7 +5296,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static ConditionType_Or := 4
 	static ConditionType_Not := 5
 
-	ConditionType(Value="") {
+	ConditionType(Value:="") {
 		static v1:={0:"True", 1:"False", 2:"Property", 3:"And", 4:"Or", 5:"Not"}
 		if Value is not integer
 			return this["ConditionType_" Value]
@@ -4850,7 +5315,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static EventArgsType_ActiveTextPositionChanged := 8
 	static EventArgsType_StructuredMarkup := 9
 
-	EventArgsType(Value="") {
+	EventArgsType(Value:="") {
 		static v1:={0:"Simple", 1:"PropertyChanged", 2:"StructureChanged", 3:"AsyncContentLoaded", 4:"WindowClosed", 5:"TextEditTextChanged", 6:"Changes", 7:"Notification", 8:"ActiveTextPositionChanged", 9:"StructuredMarkup"}
 		if Value is not integer
 			return this["EventArgsType_" Value]
@@ -4863,7 +5328,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static AutomationElementMode_None := 0x0
 	static AutomationElementMode_Full := 0x1
 
-	AutomationElementMode(Value="") {
+	AutomationElementMode(Value:="") {
 		static v1:={0x0:"None", 0x1:"Full"}
 		if Value is not integer
 			return this["AutomationElementMode_" Value]
@@ -4874,7 +5339,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static CoalesceEventsOptions_Disabled := 0x0
 	static CoalesceEventsOptions_Enabled := 0x1
 
-	CoalesceEventsOptions(Value="") {
+	CoalesceEventsOptions(Value:="") {
 		static v1:={0x0:"Disabled", 0x1:"Enabled"}
 		if Value is not integer
 			return this["CoalesceEventsOptions_" Value]
@@ -4885,7 +5350,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static ConnectionRecoveryBehaviorOptions_Disabled := 0
 	static ConnectionRecoveryBehaviorOptions_Enabled := 0x1
 
-	ConnectionRecoveryBehaviorOptions(Value="") {
+	ConnectionRecoveryBehaviorOptions(Value:="") {
 		static v1:={0x0:"Disabled", 0x1:"Enabled"}
 		if Value is not integer
 			return this["ConnectionRecoveryBehaviorOptions_" Value]
@@ -4897,7 +5362,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static PropertyConditionFlags_IgnoreCase := 0x1
 	static PropertyConditionFlags_MatchSubstring = 0x2
 
-	PropertyConditionFlags(Value="") {
+	PropertyConditionFlags(Value:="") {
 		static v1:={0x0:"None", 0x1:"IgnoreCase", 0x2:"MatchSubstring"}
 		if Value is not integer
 			return this["PropertyConditionFlags_" Value]
@@ -4913,7 +5378,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static TreeScope_Ancestors := 0x10
 	static TreeScope_Subtree := 0x7
 
-	TreeScope(Value="") {
+	TreeScope(Value:="") {
 		static v1:={0x0:"None", 0x1:"Element", 0x2:"Children", 0x4:"Descendants", 0x8:"Parent", 0x10:"Ancestors", 0x7:"Subtree"}
 		if Value is not integer
 			return this["TreeScope_" Value]
@@ -4925,7 +5390,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static TreeTraversalOptions_PostOrder := 0x1
 	static TreeTraversalOptions_LastToFirstOrder := 0x2
 
-	TreeTraversalOptions(Value="") {
+	TreeTraversalOptions(Value:="") {
 		static v1:={0x0:"Default", 0x1:"PostOrder", 0x2:"LastToFirstOrder"}
 		if Value is not integer
 			return this["TreeTraversalOptions_" Value]
@@ -4939,7 +5404,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static ActiveEnd_Start := 1
 	static ActiveEnd_End := 2
 
-	ActiveEnd(Value="") {
+	ActiveEnd(Value:="") {
 		static v1:={0x0:"None", 0x1:"Start", 0x2:"End"}
 		if Value is not integer
 			return this["ActiveEnd_" Value]
@@ -4956,7 +5421,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static AnimationStyle_Shimmer := 6
 	static AnimationStyle_Other := -1
 
-	AnimationStyle(Value="") {
+	AnimationStyle(Value:="") {
 		static v1:={0:"None", 1:"LasVegasLights",2:"BlinkingBackground", 3:"SparkleText",4:"MarchingBlackAnts", 5:"MarchingRedAnts", 6:"Shimmer", -1:"Other"}
 		if Value is not integer
 			return this["AnimationStyle_" Value]
@@ -4972,7 +5437,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static BulletStyle_DashBullet := 5
 	static BulletStyle_Other := -1
 
-	BulletStyle(Value="") {
+	BulletStyle(Value:="") {
 		static v1:={0:"None", 1:"HollowRoundBullet",2:"FilledRoundBullet", 3:"HollowSquareBullet",4:"FilledSquareBullet", 5:"DashBullet", -1:"Other"}
 		if Value is not integer
 			return this["BulletStyle_" Value]
@@ -4989,7 +5454,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static CapStyle_Titling := 6
 	static CapStyle_Other := -1
 	
-	CapStyle(Value="") {
+	CapStyle(Value:="") {
 		static v1:={0:"None", 1:"SmallCap",2:"AllCap", 3:"AllPetiteCaps",4:"PetiteCaps", 5:"Unicase",6:"Titling", -1:"Other"}
 		if Value is not integer
 			return this["CapStyle_" Value]
@@ -5000,7 +5465,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static CaretBidiMode_LTR := 0
 	static CaretBidiMode_RTL := 1
 
-	CaretBidiMode(Value="") {
+	CaretBidiMode(Value:="") {
 		static v1:={0:"LTR", 1:"RTL"}
 		if Value is not integer
 			return this["CaretBidiMode_" Value]
@@ -5012,7 +5477,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static CaretPosition_EndOfLine := 1
 	static CaretPosition_BeginningOfLine := 2
 	
-	CaretPosition(Value="") {
+	CaretPosition(Value:="") {
 		static v1:={0:"Unknown", 1:"EndOfLine", 2:"BeginningOfLine"}
 		if Value is not integer
 			return this["CaretPosition_" Value]
@@ -5027,7 +5492,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static DockPosition_Fill := 0x4
 	static DockPosition_None := 0x5
 
-	DockPosition(Value="") {
+	DockPosition(Value:="") {
 		static v1:={0x0:"Top", 0x1:"Left", 0x2:"Bottom", 0x3:"Right", 0x4:"Fill", 0x5:"None"}
 		if Value is not integer
 			return this["DockPosition_" Value]
@@ -5040,7 +5505,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static ExpandCollapseState_PartiallyExpanded := 0x2
 	static ExpandCollapseState_LeafNode := 0x3
 
-	ExpandCollapseState(Value="") {
+	ExpandCollapseState(Value:="") {
 		static v1:={0x0:"Collapsed", 0x1:"Expanded", 0x2:"PartiallyExpanded", 0x3:"LeafNode"}
 		if Value is not integer
 			return this["ExpandCollapseState_" Value]
@@ -5054,7 +5519,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static FillType_Picture := 3
 	static FillType_Pattern := 4
 
-	FillType(Value="") {
+	FillType(Value:="") {
 		static v1:={0x0:"None", 0x1:"Color", 0x2:"Gradient", 0x3:"Picture", 0x4:"Pattern"}
 		if Value is not integer
 			return this["FillType_" Value]
@@ -5067,7 +5532,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static FlowDirections_BottomToTop := 0x2
 	static FlowDirections_Vertical := 0x4
 
-	FlowDirection(Value="") {
+	FlowDirection(Value:="") {
 		static v1:={0x0:"Default", 0x1:"RightToLeft", 0x2:"BottomToTop", 0x4:"Vertical"}
 		if Value is not integer
 			return this["FlowDirection_" Value]
@@ -5079,7 +5544,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static LiveSetting_Polite := 0x1
 	static LiveSetting_Assertive := 0x2
 
-	LiveSetting(Value="") {
+	LiveSetting(Value:="") {
 		static v1:={0x0:"Off", 0x1:"Polite", 0x2:"Assertive"}
 		if Value is not integer
 			return this["LiveSetting_" Value]
@@ -5093,7 +5558,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static NavigateDirection_FirstChild := 0x3
 	static NavigateDirection_LastChild := 0x4
 
-	NavigateDirection(Value="") {
+	NavigateDirection(Value:="") {
 		static v1:={0x0:"Parent", 0x1:"NextSibling", 0x2:"PreviousSibling", 0x3:"FirstChild", 0x4:"LastChild"}
 		if Value is not integer
 			return this["NavigateDirection_" Value]
@@ -5107,7 +5572,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static NotificationKind_ActionAborted := 3
 	static NotificationKind_Other := 4
 	
-	NotificationKind(Value="") {
+	NotificationKind(Value:="") {
 		static v1:={0x0:"ItemAdded", 0x1:"ItemRemoved", 0x2:"ActionCompleted", 0x3:"ActionAborted", 0x4:"Other"}
 		if Value is not integer
 			return this["NotificationKind_" Value]
@@ -5121,7 +5586,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static NotificationProcessing_MostRecent := 3
 	static NotificationProcessing_CurrentThenMostRecent := 4
 
-	NotificationProcessing(Value="") {
+	NotificationProcessing(Value:="") {
 		static v1:={0x0:"ImportantAll", 0x1:"ImportantMostRecent", 0x2:"All", 0x3:"MostRecent", 0x4:"CurrentThenMostRecent"}
 		if Value is not integer
 			return this["NotificationProcessing_" Value]
@@ -5133,7 +5598,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static OrientationType_Horizontal := 0x1
 	static OrientationType_Vertical := 0x2
 
-	OrientationType(Value="") {
+	OrientationType(Value:="") {
 		static v1:={0x0:"None", 0x1:"Horizontal", 0x2:"Vertical"}
 		if Value is not integer
 			return this["OrientationType_" Value]
@@ -5147,7 +5612,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static OutlineStyles_Engraved := 4
 	static OutlineStyles_Embossed := 8
 	
-	OutlineStyles(Value="") {
+	OutlineStyles(Value:="") {
 		static v1:={0:"None", 1:"Outline", 2:"Shadow", 4:"Engraved", 8:"Embossed"}
 		if Value is not integer
 			return this["OutlineStyles_" Value]
@@ -5165,7 +5630,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static ProviderOptions_HasNativeIAccessible := 0x80
 	static ProviderOptions_UseClientCoordinates := 0x100
 
-	ProviderOptions(Value="") {
+	ProviderOptions(Value:="") {
 		static v1:={0x1:"ClientSideProvider", 0x2:"ServerSideProvider", 0x4:"NonClientAreaProvider", 0x8:"OverrideProvider", 0x10:"ProviderOwnsSetFocus", 0x20:"UseComThreading", 0x40:"RefuseNonClientSupport", 0x80:"HasNativeIAccessible", 0x100:"UseClientCoordinates"}
 		if Value is not integer
 			return this["ProviderOptions_" Value]
@@ -5177,7 +5642,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static RowOrColumnMajor_ColumnMajor := 0x1
 	static RowOrColumnMajor_Indeterminate := 0x2
 
-	RowOrColumnMajor(Value="") {
+	RowOrColumnMajor(Value:="") {
 		static v1:={0x0:"RowMajor", 0x1:"ColumnMajor", 0x2:"Indeterminate"}
 		if Value is not integer
 			return this["RowOrColumnMajor_" Value]
@@ -5213,7 +5678,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static SayAsInterpretAs_Time_HoursMinutesSeconds24 := 25
 	static SayAsInterpretAs_Time_HoursMinutes24 := 26
 	
-	SayAsInterpretAs(Value="") {
+	SayAsInterpretAs(Value:="") {
 		static v1:={0:"None", 1:"Spell", 2:"Cardinal", 3:"Ordinal", 4:"Number", 5:"Date", 6:"Time", 7:"Telephone", 8:"Currency", 9:"Net", 10:"Url", 11:"Address", 13:"Name", 14:"Media", 15:"Date_MonthDayYear", 16:"Date_DayMonthYear", 17:"Date_YearMonthDay", 18:"Date_YearMonth", 19:"Date_MonthYear", 20:"Date_DayMonth", 21:"Date_MonthDay", 22:"Date_Year", 23:"Time_HoursMinutesSeconds12", 24:"Time_HoursMinutes12", 25:"Time_HoursMinutesSeconds24", 26:"Time_HoursMinutes24"}
 		if Value is not integer
 			return this["SayAsInterpretAs_" Value]
@@ -5227,7 +5692,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static ScrollAmount_LargeIncrement := 0x3
 	static ScrollAmount_SmallIncrement := 0x4
 
-	ScrollAmount(Value="") {
+	ScrollAmount(Value:="") {
 		static v1:={0x0:"LargeDecrement", 0x1:"SmallDecrement", 0x2:"NoAmount", 0x3:"LargeIncrement", 0x4:"SmallIncrement"}
 		if Value is not integer
 			return this["ScrollAmount_" Value]
@@ -5242,7 +5707,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static StructureChangeType_ChildrenBulkRemoved := 0x4
 	static StructureChangeType_ChildrenReordered := 0x5
 
-	StructureChangeType(Value="") {
+	StructureChangeType(Value:="") {
 		static v1:={0x0:"ChildAdded", 0x1:"ChildRemoved", 0x2:"ChildrenInvalidated", 0x3:"ChildrenBulkAdded", 0x4:"ChildrenBulkRemoved", 0x5:"ChildrenReordered"}
 		if Value is not integer
 			return this["StructureChangeType_" Value]
@@ -5254,7 +5719,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static SupportedTextSelection_Single := 0x1
 	static SupportedTextSelection_Multiple := 0x2
 
-	SupportedTextSelection(Value="") {
+	SupportedTextSelection(Value:="") {
 		static v1:={0x0:"None", 0x1:"Single", 0x2:"Multiple"}
 		if Value is not integer
 			return this["SupportedTextSelection_" Value]
@@ -5269,7 +5734,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static SynchronizedInputType_RightMouseUp := 0x10
 	static SynchronizedInputType_RightMouseDown := 0x20
 
-	SynchronizedInputType(Value="") {
+	SynchronizedInputType(Value:="") {
 		static v1:={0x1:"KeyUp", 0x2:"KeyDown", 0x4:"LeftMouseUp", 0x8:"LeftMouseDown", 0x10:"RightMouseUp", 0x20:"RightMouseDown"}
 		if Value is not integer
 			return this["SynchronizedInputType_" Value]
@@ -5297,6 +5762,13 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static TextDecorationLineStyle_ThickLongDash := 18
 	static TextDecorationLineStyle_Other := -1
 
+	TextDecorationLineStyle(Value:="") {
+		static v1:={0:"None", 1:"Single", 2:"WordsOnly", 3:"Double", 4:"Dot", 5:"Dash", 6:"DashDot", 7:"DashDotDot", 8:"Wavy", 9:"ThickSingle", 11:"DoubleWavy", 12:"ThickWavy", 13:"LongDash", 14:"ThickDash", 15:"ThickDashDot", 16:"ThickDashDotDot", 17:"ThickDot", 18:"ThickLongDash", -1:"Other"}
+		if Value is not integer
+			return this["TextDecorationLineStyle_" Value]
+		return (Value=="")?v1:v1[Value]
+	}
+
 	; enum TextEditChangeType Describes the text editing change being performed by controls when text-edit events are raised or handled.
 	static TextEditChangeType_None := 0x0
 	static TextEditChangeType_AutoCorrect := 0x1
@@ -5304,7 +5776,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static TextEditChangeType_CompositionFinalized := 0x3
 	static TextEditChangeType_AutoComplete := 0x4
 
-	TextEditChangeType(Value="") {
+	TextEditChangeType(Value:="") {
 		static v1:={0x0:"None", 0x1:"AutoCorrect", 0x2:"Composition", 0x3:"CompositionFinalized", 0x4:"AutoComplete"}
 		if Value is not integer
 			return this["TextEditChangeType_" Value]
@@ -5315,7 +5787,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static TextPatternRangeEndpoint_Start := 0x0
 	static TextPatternRangeEndpoint_End := 0x1
 
-	TextPatternRangeEndpoint(Value="") {
+	TextPatternRangeEndpoint(Value:="") {
 		static v1:={0x0:"Start", 0x1:"End"}
 		if Value is not integer
 			return this["TextPatternRangeEndpoint_" Value]
@@ -5331,7 +5803,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static TextUnit_Page := 0x5
 	static TextUnit_Document := 0x6
 
-	TextUnit(Value="") {
+	TextUnit(Value:="") {
 		static v1:={0x0:"Character", 0x1:"Format", 0x2:"Word", 0x3:"Line", 0x4:"Paragraph", 0x5:"Page", 0x6:"Document"}
 		if Value is not integer
 			return this["TextUnit_" Value]
@@ -5343,7 +5815,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static ToggleState_On := 0x1
 	static ToggleState_Indeterminate := 0x2
 
-	ToggleState(Value="") {
+	ToggleState(Value:="") {
 		static v1:={0x0:"Off", 0x1:"On", 0x2:"Indeterminate"}
 		if Value is not integer
 			return this["ToggleState_" Value]
@@ -5357,7 +5829,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static ZoomUnit_LargeIncrement := 0x3
 	static ZoomUnit_SmallIncrement := 0x4
 
-	ZoomUnit(Value="") {
+	ZoomUnit(Value:="") {
 		static v1:={0x0:"NoAmount", 0x1:"LargeDecrement", 0x2:"SmallDecrement", 0x3:"LargeIncrement", 0x4:"SmallIncrement"}
 		if Value is not integer
 			return this["ZoomUnit_" Value]
@@ -5369,7 +5841,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static WindowVisualState_Maximized := 0x1
 	static WindowVisualState_Minimized := 0x2
 
-	WindowVisualState(Value="") {
+	WindowVisualState(Value:="") {
 		static v1:={0x0:"Normal", 0x1:"Maximized", 0x2:"Minimized"}
 		if Value is not integer
 			return this["WindowVisualState_" Value]
@@ -5383,7 +5855,7 @@ class UIA_Enum { ; main source: https://github.com/Ixiko/AHK-libs-and-classes-co
 	static WindowInteractionState_BlockedByModalWindow := 0x3
 	static WindowInteractionState_NotResponding := 0x4
 
-	WindowInteractionState(Value="") {
+	WindowInteractionState(Value:="") {
 		static v1:={0x0:"Running", 0x1:"Closing", 0x2:"ReadyForUserInteraction", 0x3:"BlockedByModalWindow", 0x4:"NotResponding"}
 		if Value is not integer
 			return this["WindowInteractionState_" Value]

@@ -1,4 +1,5 @@
 ﻿#NoEnv
+#Warn
 #SingleInstance force
 SetTitleMatchMode, 2
 
@@ -7,8 +8,9 @@ SetTitleMatchMode, 2
 
 Run, calc.exe
 UIA := UIA_Interface() ; Initialize UIA interface
-WinWaitActive, Calculator
-cEl := UIA.ElementFromHandle("Calculator")
+winTitle := "Calculator"
+WinWaitActive, %winTitle%
+cEl := UIA.ElementFromHandle(winTitle)
 
 ehGroup := UIA.CreateEventHandlerGroup()
 h1 := UIA_CreateEventHandler("AutomationEventHandler")

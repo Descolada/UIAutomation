@@ -1,9 +1,12 @@
 ﻿#NoEnv
+#Warn
 #SingleInstance force
 SetTitleMatchMode, 2
 
 ;#include <UIA_Interface> ; Uncomment if you have moved UIA_Interface.ahk to your main Lib folder
 #include ..\Lib\UIA_Interface.ahk
+
+MsgBox, % "To test this file, create a new Word document (with the title ""Document1 - Word"") and write some sample text in it."
 
 UIA := UIA_Interface() ; Initialize UIA interface
 program := "Document1 - Word"
@@ -40,6 +43,7 @@ OnExit("ExitFunc") ; Set up an OnExit call to clean up the handler when exiting 
 return
 
 TextChangedEventHandler(el, eventId) {
+	local
 	try {
 		textPattern := el.GetCurrentPatternAs("Text")
 		ToolTip, % "You changed text in Word:`n`n" textPattern.DocumentRange.GetText()

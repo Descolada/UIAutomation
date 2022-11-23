@@ -1,4 +1,5 @@
 ﻿#NoEnv
+#Warn
 #SingleInstance force
 SetTitleMatchMode, 2
 
@@ -7,8 +8,9 @@ SetTitleMatchMode, 2
 
 Run, calc.exe
 UIA := UIA_Interface() ; Initialize UIA interface
-WinWaitActive, Calculator
-cEl := UIA.ElementFromHandle("Calculator")
+winTitle := "Calculator"
+WinWaitActive, %winTitle%
+cEl := UIA.ElementFromHandle(winTitle)
 MsgBox, % "Press OK to create a new EventHandler for the Notification event.`nTo test this, interact with the Calculator window, and a tooltip should pop up.`n`nTo exit the script, press F5."
 handler := UIA_CreateEventHandler("NotificationEventHandler", "Notification")
 UIA.AddNotificationEventHandler(cEl,,, handler)

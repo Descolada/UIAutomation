@@ -1,4 +1,5 @@
 ﻿#NoEnv
+#Warn
 #SingleInstance force
 
 ;#include <UIA_Interface> ; Uncomment if you have moved UIA_Interface.ahk to your main Lib folder
@@ -6,8 +7,9 @@
 
 Run, calc.exe
 UIA := UIA_Interface() ; Initialize UIA interface
-WinWaitActive, Calculator
-cEl := UIA.ElementFromHandle("Calculator") ; Get the element for the Calculator window
+winTitle := "Calculator"
+WinWaitActive, %winTitle%
+cEl := UIA.ElementFromHandle(winTitle) ; Get the element for the Calculator window
 ; All the calculator buttons are of "Button" ControlType, and if the system language is English then the Name of the elements are the English words for the buttons (eg button 5 is named "Five", = sign is named "Equals")
 cEl.WaitElementExist("Name=Six").Click() ; Wait for the "Six" button by name and click it
 cEl.FindFirstBy("Name=Five AND ControlType=Button").Click() ; Specify both name "Five" and control type "Button"

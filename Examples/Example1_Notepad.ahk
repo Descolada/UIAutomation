@@ -1,4 +1,5 @@
 ﻿#NoEnv
+#Warn
 #SingleInstance force
 SetTitleMatchMode, 2
 

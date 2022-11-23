@@ -115,7 +115,7 @@
 */
 
 class UIA_Chrome extends UIA_Browser {
-	__New(wTitle="A", customNames="", maxVersion="") {
+	__New(wTitle:="A", customNames:="", maxVersion:="") {
 		this.BrowserType := "Chrome"
 		this.InitiateUIA(wTitle, customNames, maxVersion)
 	}
@@ -140,7 +140,6 @@ class UIA_Chrome extends UIA_Browser {
 				this.ReloadButtonDescription := this.ReloadButton.GetCurrentPatternAs("LegacyIAccessible").CurrentDescription
 				this.ReloadButtonName := this.ReloadButton.CurrentName
 				return this.MainPaneElement
-				break
 			} catch {
 				WinActivate, % "ahk_id " this.BrowserId
 				WinWaitActive, % "ahk_id " this.BrowserId,,1
@@ -151,13 +150,14 @@ class UIA_Chrome extends UIA_Browser {
 }
 
 class UIA_Edge extends UIA_Browser {
-	__New(wTitle="A", customNames="", maxVersion="") {
+	__New(wTitle:="A", customNames:="", maxVersion:="") {
 		this.BrowserType := "Edge"
 		this.InitiateUIA(wTitle, customNames, maxVersion)
 	}
 
 	; Refreshes UIA_Browser.MainPaneElement and returns it
 	GetCurrentMainPaneElement() { 
+		local
 		this.BrowserElement.WaitElementExist("ControlType=Document")
 		Loop, 2 
 		{
@@ -185,7 +185,6 @@ class UIA_Edge extends UIA_Browser {
 				this.ReloadButtonFullDescription := this.ReloadButton.CurrentFullDescription
 				this.ReloadButtonName := this.ReloadButton.CurrentName
 				return this.MainPaneElement
-				break
 			} catch {
 				WinActivate, % "ahk_id " this.BrowserId
 				WinWaitActive, % "ahk_id " this.BrowserId,,1
@@ -196,7 +195,7 @@ class UIA_Edge extends UIA_Browser {
 }
 
 class UIA_Mozilla extends UIA_Browser {
-	__New(wTitle="A", customNames="", maxVersion="") {
+	__New(wTitle:="A", customNames:="", maxVersion:="") {
 		this.BrowserType := "Mozilla"
 		this.InitiateUIA(wTitle, customNames, maxVersion)
 	}
@@ -207,8 +206,6 @@ class UIA_Mozilla extends UIA_Browser {
 		{
 			try {
 				this.TabBarElement := this.ToolbarTreeWalker.GetNextSiblingElement(this.ToolbarTreeWalker.GetFirstChildElement(this.BrowserElement))
-				OutputDebug, % this.TabBarElement.DumpAll()
-				OutputDebug, % "Reset`n`n"
 				this.NavigationBarElement := this.ToolbarTreeWalker.GetNextSiblingElement(this.TabBarElement)
 				this.URLEditElement := this.NavigationBarElement.FindFirst(this.EditControlCondition)
 				this.MainPaneElement := this.TWT.GetParentElement(this.NavigationBarElement)
@@ -220,7 +217,6 @@ class UIA_Mozilla extends UIA_Browser {
 				this.ReloadButtonFullDescription := this.ReloadButton.CurrentFullDescription
 				this.ReloadButtonName := this.ReloadButton.CurrentName
 				return this.MainPaneElement
-				break
 			} catch {
 				WinActivate, % "ahk_id " this.BrowserId
 				WinWaitActive, % "ahk_id " this.BrowserId,,1
@@ -230,7 +226,8 @@ class UIA_Mozilla extends UIA_Browser {
 	}
 
 	; Returns the current document/content element of the browser
-	GetCurrentDocumentElement(tabName="", matchMode=3, caseSensitive=True) {
+	GetCurrentDocumentElement(tabName:="", matchMode:=3, caseSensitive:=True) {
+		local
 		for i, el in this.GetTabs() {
 			if (tabName ? this.__CompareTitles(tabName, el.CurrentName, matchMode, caseSensitive) : el.SelectionItemIsSelected) {
 				this.DocumentPanelElement := this.BrowserElement.FindAllBy("AutomationId=panel",2,2)[i]
@@ -245,7 +242,7 @@ class UIA_Mozilla extends UIA_Browser {
 	}
 
 	; Sets the URL bar to newUrl, optionally also navigates to it if navigateToNewUrl=True
-	SetURL(newUrl, navigateToNewUrl = False) { 
+	SetURL(newUrl, navigateToNewUrl := False) { 
 		this.URLEditElement.SetFocus()
 		valuePattern := this.URLEditElement.GetCurrentPatternAs("Value")
 		valuePattern.SetValue(newUrl " ")
@@ -254,6 +251,7 @@ class UIA_Mozilla extends UIA_Browser {
 	}
 
 	JSExecute(js) {
+		local
 		Send, {LCtrl up}{LAlt up}{LShift up}{RCtrl up}{RAlt up}{RShift up}
 		Send, {ctrl down}{shift down}k{ctrl up}{shift up}
 		this.BrowserElement.WaitElementExistByNameAndType("Switch to multi-line editor mode (Ctrl + B)", "Button")	
@@ -267,7 +265,8 @@ class UIA_Mozilla extends UIA_Browser {
 	}
 
 	; Gets text from an alert-box
-	GetAlertText(closeAlert=True, timeOut=3000) {
+	GetAlertText(closeAlert:=True, timeOut:=3000) {
+		local
 		this.GetCurrentDocumentElement()
 		startTime := A_TickCount
 		alertEl := this.TWT.GetNextSiblingElement(this.TWT.GetFirstChildElement(this.DocumentPanelElement))
@@ -285,7 +284,7 @@ class UIA_Mozilla extends UIA_Browser {
 	}
 
 	; Close tab by either providing the tab element or the name of the tab. If tabElementOrName is left empty, the current tab will be closed.
-	CloseTab(tabElementOrName="", matchMode=3, caseSensitive=True) { 
+	CloseTab(tabElementOrName:="", matchMode:=3, caseSensitive:=True) { 
 		if (tabElementOrName != "") {
 			if IsObject(tabElementOrName) {
 				if (tabElementOrName.CurrentControlType == this.UIA.TabItemControlType)
@@ -317,7 +316,8 @@ class UIA_Browser {
 		this.GetCurrentMainPaneElement()
 	}
 	; Initiates UIA and hooks to the browser window specified with wTitle. customNames can be an object that defines custom CurrentName values for locale-specific elements (such as the name of the URL bar): {URLEditName:"My URL Edit name", TabBarName:"Tab bar name", HomeButtonName:"Home button name", StopButtonName:"Stop button", NewTabButtonName:"New tab button name"}. maxVersion specifies the highest UIA version that will be used (default is up to version 7).
-	__New(wTitle="A", customNames="", maxVersion="") { 
+	__New(wTitle:="A", customNames:="", maxVersion:="") { 
+		local
 		this.BrowserId := WinExist(wTitle)
 		if !this.BrowserId
 			throw Exception("UIA_Browser: failed to find the browser!", -1)
@@ -325,7 +325,7 @@ class UIA_Browser {
 		WinGetClass, wClass, % "ahk_id" this.BrowserId
 		this.BrowserType := (wExe == "chrome.exe") ? "Chrome" : (wExe == "msedge.exe") ? "Edge" : InStr(wClass, "Mozilla") ? "Mozilla" : "Unknown"
 		bt := this.BrowserType
-		if IsObject(UIA_%bt%) {
+		if (VarSetCapacity(UIA_%bt%) && IsObject(UIA_%bt%)) {
 			this.base := UIA_%bt%
 			this.__New(wTitle, customNames, maxVersion)
 		} else 
@@ -333,6 +333,8 @@ class UIA_Browser {
 	}
 	
 	__Get(member) {
+		local
+		global UIA_Enum
 		if member not in base 
 		{
 			if RegexMatch(member, "PatternId|EventId|PropertyId|AttributeId|ControlTypeId|AnnotationType|StyleId|LandmarkTypeId|HeadingLevel|ChangeId|MetadataId", match) 
@@ -347,6 +349,7 @@ class UIA_Browser {
 	}
 	
 	__Call(member, params*) {
+		local
 		if !ObjHasKey(this.base, member) && !ObjHasKey(this.base.base, member) {
 			try
 				return this.UIA[member].Call(this.UIA, params*)
@@ -393,7 +396,6 @@ class UIA_Browser {
 				this.ReloadButtonDescription := this.ReloadButton.GetCurrentPatternAs("LegacyIAccessible").CurrentDescription
 				this.ReloadButtonName := this.ReloadButton.CurrentName
 				return this.MainPaneElement
-				break
 			} catch {
 				WinActivate, % "ahk_id " this.BrowserId
 				WinWaitActive, % "ahk_id " this.BrowserId,,1
@@ -430,13 +432,14 @@ class UIA_Browser {
 		this.SetURL("javascript:" js, True)
 	}
 	
-	JSAlert(js, closeAlert=True, timeOut=3000) {
+	JSAlert(js, closeAlert:=True, timeOut:=3000) {
 		this.JSExecute("alert(" js ");")
 		return this.GetAlertText(closeAlert, timeOut)
 	}
 	
 	; Executes Javascript code through the address bar and returns the return value through the clipboard.
 	JSReturnThroughClipboard(js) {
+		local
 		saveClip := ClipboardAll
 		Clipboard=
 		this.JSExecute("copyToClipboard(" js ");function copyToClipboard(text) {const elem = document.createElement('textarea');elem.value = text;document.body.appendChild(elem);elem.select();document.execCommand('copy');document.body.removeChild(elem);}")
@@ -448,7 +451,8 @@ class UIA_Browser {
 	}
 	
 	; Executes Javascript code through the address bar and returns the return value through the browser windows title.
-	JSReturnThroughTitle(js, timeOut=500) {
+	JSReturnThroughTitle(js, timeOut:=500) {
+		local
 		WinGetTitle, origTitle, % "ahk_id " this.BrowserId
 		this.JSExecute("origTitle=document.title;document.title=(" js ");void(0);setTimeout(function() {document.title=origTitle;void(0);}, " timeOut ")")
 		startTime := A_TickCount
@@ -460,7 +464,8 @@ class UIA_Browser {
 	}
 	
 	; Uses Javascript's querySelector to get a Javascript element and then its position. useRenderWidgetPos=True uses position of the Chrome_RenderWidgetHostHWND1 control to locate the position element relative to the window, otherwise it uses UIA_Browsers CurrentDocumentElement position.
-    JSGetElementPos(selector, useRenderWidgetPos=False) { ; based on code by AHK Forums user william_ahk
+    JSGetElementPos(selector, useRenderWidgetPos:=False) { ; based on code by AHK Forums user william_ahk
+		local
         js =
         (LTrim
 			(() => {
@@ -489,19 +494,22 @@ class UIA_Browser {
 	}
     
 	; Uses Javascript's querySelector to get a Javascript element and then ControlClicks that position. useRenderWidgetPos=True uses position of the Chrome_RenderWidgetHostHWND1 control to locate the position element relative to the window, otherwise it uses UIA_Browsers CurrentDocumentElement position.
-    ControlClickJSElement(selector, WhichButton="", ClickCount="", Options="", useRenderWidgetPos=False) {
+    ControlClickJSElement(selector, WhichButton:="", ClickCount:="", Options:="", useRenderWidgetPos:=False) {
+		local
         bounds := this.JSGetElementPos(selector, useRenderWidgetPos)
         ControlClick % "X" (bounds.x + bounds.w // 2) " Y" (bounds.y + bounds.h // 2), % "ahk_id " this.browserId,, % WhichButton, % ClickCount, % Options
     }
 
 	; Uses Javascript's querySelector to get a Javascript element and then Clicks that position. useRenderWidgetPos=True uses position of the Chrome_RenderWidgetHostHWND1 control to locate the position element relative to the window, otherwise it uses UIA_Browsers CurrentDocumentElement position.
-    ClickJSElement(selector, WhichButton="", ClickCount=1, DownOrUp="", Relative="", useRenderWidgetPos=False) {
+    ClickJSElement(selector, WhichButton:="", ClickCount:=1, DownOrUp:="", Relative:="", useRenderWidgetPos:=False) {
+		local
         bounds := this.JSGetElementPos(selector, useRenderWidgetPos)
         Click % (bounds.x + bounds.w / 2) " " (bounds.y + bounds.h / 2)" " WhichButton (ClickCount ? " " ClickCount : "") (DownOrUp ? " " DownOrUp : "") (Relative ? " " Relative : "")
     }
 	
 	; Gets text from an alert-box created with for example javascript:alert('message')
-	GetAlertText(closeAlert=True, timeOut=3000) {
+	GetAlertText(closeAlert:=True, timeOut:=3000) {
+		local
 		if !this.DialogTreeWalker
 			this.DialogTreeWalker := this.UIA.CreateTreeWalker(this.CreateOrCondition(this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.CustomControlTypeId), this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.WindowControlTypeId)))
 		startTime := A_TickCount
@@ -517,6 +525,7 @@ class UIA_Browser {
 	}
 	
 	CloseAlert() {
+		local
 		if !this.DialogTreeWalker
 			this.DialogTreeWalker := this.UIA.CreateTreeWalker(this.CreateOrCondition(this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.CustomControlTypeId), this.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.WindowControlTypeId)))
 		try {
@@ -528,6 +537,7 @@ class UIA_Browser {
 	
 	; Gets all text from the browser element (CurrentName properties for all Text elements)
 	GetAllText() { 
+		local
 		if !this.IsBrowserVisible()
 			WinActivate, % "ahk_id" this.BrowserId
 			
@@ -539,6 +549,7 @@ class UIA_Browser {
 	}
 	; Gets all link elements from the browser
 	GetAllLinks() {
+		local
 		if !this.IsBrowserVisible()
 			WinActivate, % "ahk_id" this.BrowserId			
 		LinkCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.HyperlinkControlTypeId)
@@ -546,6 +557,7 @@ class UIA_Browser {
 	}
 	
 	__CompareTitles(compareTitle, winTitle, matchMode:="", caseSensitive:=True) {
+		local
 		if !matchMode
 			matchMode := A_TitleMatchMode
 		if (matchMode == 1) {
@@ -565,7 +577,8 @@ class UIA_Browser {
 	}
 	
 	; Waits the browser title to change to targetTitle (by default just waits for the title to change), timeOut is in milliseconds (default is indefinite waiting)
-	WaitTitleChange(targetTitle="", timeOut=-1) { 
+	WaitTitleChange(targetTitle:="", timeOut:=-1) { 
+		local
 		WinGetTitle, origTitle, % "ahk_id" this.BrowserId
 		startTime := A_TickCount, newTitle := origTitle
 		while ((((A_TickCount - startTime) < timeOut) || (timeOut = -1)) && (targetTitle ? !this.__CompareTitles(targetTitle, newTitle) : (origTitle == newTitle))) {
@@ -575,7 +588,8 @@ class UIA_Browser {
 	}
 	
 	; Waits the browser page to load to targetTitle, default timeOut is indefinite waiting, sleepAfter additionally sleeps for 200ms after the page has loaded. 
-	WaitPageLoad(targetTitle="", timeOut=-1, sleepAfter=500, titleMatchMode="", titleCaseSensitive=False) {
+	WaitPageLoad(targetTitle:="", timeOut:=-1, sleepAfter:=500, titleMatchMode:="", titleCaseSensitive:=False) {
+		local
 		Sleep, 200 ; Give some time for the Reload button to change after navigating
 		if this.ReloadButtonDescription
 			legacyPattern := this.ReloadButton.GetCurrentPatternAs("LegacyIAccessible")
@@ -616,6 +630,7 @@ class UIA_Browser {
 
 	; Presses the Home button if it exists.
 	Home() { 
+		local
 		if homeBut := this.TWT.GetNextSiblingElement(this.ReloadButton)
 			return homeBut.Click()
 		;NameCondition := this.UIA.CreatePropertyCondition(this.UIA.NamePropertyId, this.CustomNames.HomeButtonName ? this.CustomNames.HomeButtonName : butName)
@@ -623,7 +638,8 @@ class UIA_Browser {
 	}
 	
 	; Gets the current URL. fromAddressBar=True gets it straight from the URL bar element, which is not a very good method, because the text might be changed by the user and doesn't start with "http(s)://". Default of fromAddressBar=False will cause the real URL to be fetched, but the browser must be visible for it to work (if is not visible, it will be automatically activated).
-	GetCurrentURL(fromAddressBar=False) { 
+	GetCurrentURL(fromAddressBar:=False) { 
+		local
 		if fromAddressBar {
 			URL := this.URLEditElement.CurrentValue
 			return URL ? (RegexMatch(URL, "^https?:\/\/") ? URL : "https://" URL) : ""
@@ -636,7 +652,8 @@ class UIA_Browser {
 	}
 	
 	; Sets the URL bar to newUrl, optionally also navigates to it if navigateToNewUrl=True
-	SetURL(newUrl, navigateToNewUrl = False) { 
+	SetURL(newUrl, navigateToNewUrl := False) { 
+		local
 		this.URLEditElement.SetFocus()
 		valuePattern := this.URLEditElement.GetCurrentPatternAs("Value")
 		valuePattern.SetValue(newUrl " ")
@@ -645,18 +662,24 @@ class UIA_Browser {
 			legacyPattern.SetValue(newUrl " ")
 			legacyPattern.Select()
 		}
-		if (navigateToNewUrl&&InStr(this.URLEditElement.CurrentValue, newUrl))
-			ControlSend,, {LCtrl up}{LAlt up}{LShift up}{RCtrl up}{RAlt up}{RShift up}{Enter}, % "ahk_id" this.BrowserId ; Or would it be better to use BlockInput instead of releasing modifier keys?
+		if (navigateToNewUrl&&InStr(this.URLEditElement.CurrentValue, newUrl)) {
+			if (this.BrowserType = "Mozilla") {
+				ControlFocus, ahk_parent, % "ahk_id" this.BrowserId
+				ControlSend, ahk_parent, {LCtrl up}{LAlt up}{LShift up}{RCtrl up}{RAlt up}{RShift up}{Enter}, % "ahk_id" this.BrowserId
+			} else
+				ControlSend, ahk_parent, {LCtrl up}{LAlt up}{LShift up}{RCtrl up}{RAlt up}{RShift up}{Enter}, % "ahk_id" this.BrowserId ; Or would it be better to use BlockInput instead of releasing modifier keys?
+		}
 	}
 
 	; Navigates to URL and waits page to load
-	Navigate(url, targetTitle="", waitLoadTimeOut=-1, sleepAfter=500) {
+	Navigate(url, targetTitle:="", waitLoadTimeOut:=-1, sleepAfter:=500) {
 		this.SetURL(url, True)
 		this.WaitPageLoad(targetTitle,waitLoadTimeOut,sleepAfter)
 	}
 	
 	; Presses the New tab button. The button name might differ if the browser language is not set to English and can be specified with butName
 	NewTab() { 
+		local
 		try el := this.TabBarElement.FindFirstWithOptions(4,this.ButtonControlCondition,2)
 		if el
 			el.Click()
@@ -672,12 +695,13 @@ class UIA_Browser {
 	}
 	; Gets all tab elements matching searchPhrase, matchMode and caseSensitive
 	; If searchPhrase is omitted then all tabs will be returned
-	GetTabs(searchPhrase="", matchMode=3, caseSensitive=True) {
+	GetTabs(searchPhrase:="", matchMode:=3, caseSensitive:=True) {
 		return (searchPhrase == "") ? this.TabBarElement.FindAll(this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, UIA_Enum.UIA_ControlTypeId("TabItem"))) : this.TabBarElement.FindAllByNameAndType(searchPhrase, "TabItem",, matchMode, caseSensitive)
 	}
 
 	; Gets all the titles of tabs
 	GetAllTabNames() { 
+		local
 		names := []
 		for k, v in this.GetTabs() {
 			names.Push(v.CurrentName)
@@ -686,18 +710,19 @@ class UIA_Browser {
 	}
 	
 	; Returns a tab element with text of searchPhrase, or if empty then the currently selected tab. matchMode follows SetTitleMatchMode scheme: 1=tab name must must start with tabName; 2=can contain anywhere; 3=exact match; RegEx
-	GetTab(searchPhrase="", matchMode=3, caseSensitive=True) { 
+	GetTab(searchPhrase:="", matchMode:=3, caseSensitive:=True) { 
 		return (searchPhrase == "") ? this.TabBarElement.FindFirstBy("ControlType=TabItem AND SelectionItemIsSelected=1") : this.TabBarElement.FindFirstByNameAndType(searchPhrase, "TabItem",, matchMode, caseSensitive)
 	}
 	
 	; Selects a tab with the text of tabName. matchMode follows SetTitleMatchMode scheme: 1=tab name must must start with tabName; 2=can contain anywhere; 3=exact match; RegEx
-	SelectTab(tabName, matchMode=3, caseSensitive=True) { 
+	SelectTab(tabName, matchMode:=3, caseSensitive:=True) { 
+		local
 		(selectedTab := this.TabBarElement.FindFirstByNameAndType(tabName, "TabItem",, matchMode, caseSensitive)).Click()
 		return selectedTab
 	}
 	
 	; Close tab by either providing the tab element or the name of the tab. If tabElementOrName is left empty, the current tab will be closed.
-	CloseTab(tabElementOrName="", matchMode=3, caseSensitive=True) { 
+	CloseTab(tabElementOrName:="", matchMode:=3, caseSensitive:=True) { 
 		if IsObject(tabElementOrName) {
 			if (tabElementOrName.CurrentControlType == this.UIA.TabItemControlType)
 				try this.TWT.GetLastChildElement(tabElementOrName).Click()
@@ -711,6 +736,7 @@ class UIA_Browser {
 	
 	; Returns True if any of window 4 corners are visible
 	IsBrowserVisible() { 
+		local
 		WinGetPos, X, Y, W, H, % "ahk_id" this.BrowserId
 		if ((this.BrowserId == this.WindowFromPoint(X, Y)) || (this.BrowserId == this.WindowFromPoint(X, Y+H-1)) || (this.BrowserId == this.WindowFromPoint(X+W-1, Y)) || (this.BrowserId == this.WindowFromPoint(X+W-1, Y+H-1)))
 			return True
@@ -720,10 +746,12 @@ class UIA_Browser {
 	WindowFromPoint(X, Y) { ; by SKAN and Linear Spoon
 		return DllCall( "GetAncestor", "UInt"
 			   , DllCall( "WindowFromPoint", "UInt64", X | (Y << 32))
-			   , "UInt", GA_ROOT := 2 )
+			   , "UInt", 2 ) ; GA_ROOT
 	}
 
 	PrintArray(arr) {
+		local
+		global UIA_Browser
 		ret := ""
 		for k, v in arr
 			ret .= "Key: " k " Value: " (IsFunc(v)? v.name:IsObject(v)?UIA_Browser.PrintArray(v):v) "`n"

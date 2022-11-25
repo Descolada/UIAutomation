@@ -4314,341 +4314,339 @@ class UIA_TextRangeArray extends UIA_Base {
 	}
 }
 
-{  ;~ UIA Functions
-	/*
-		UIAInterface function initializes the UIAutomation interface and returns a UIA_Interface object. After calling this function, all UIA_Interface class properties and methods can be accessed through the returned object. 
-			maxVersion can be used to limit the UIA_Interface version being created. By default the highest version available is used (usually IUIAutomation7 interface). 
-			Specifiying maxVersion:=2 would try to initialize IUIAutomation2 interface, and if that fails then IUIAutomation interface.
-		In addition some extra variables are initialized: 
-			CurrentVersion contains the version number of IUIAutomation interface
-			TrueCondition contains a UIA_TrueCondition
-			TreeWalkerTrue contains an UIA_TreeWalker that was created with UIA_TrueCondition
-		On subsequent calls of UIA_Interface(), the previously created UIA interface object is returned to avoid multiple connections being made. To bypass this, specify a maxVersion
-		Note that a new UIA_Interface object can't be created with the "new" keyword. 
-	*/
-	UIA_Interface(maxVersion:="") {
-		local screenreader := "", max, uiaBase, e
-		static uia := ""
-		if (IsObject(uia) && (maxVersion == ""))
-			return uia
-		; enable screenreader flag if disabled
-		DllCall("user32.dll\SystemParametersInfo", "uint", 0x0046, "uint", 0, "ptr*", screenreader) ; SPI_GETSCREENREADER
-		if !screenreader
-			DllCall("user32.dll\SystemParametersInfo", "uint", 0x0047, "uint", 1, "int", 0, "uint", 2) ; SPI_SETSCREENREADER
-		max := (maxVersion?maxVersion:UIA_Enum.UIA_MaxVersion_Interface)+1
-		while (--max) {
-			 
-			if (!IsObject(UIA_Interface%max%) || (max == 1))
-				continue
+;~ UIA Functions
 
-			try {
-				if uia:=ComObjCreate("{e22ad333-b25f-460c-83d0-0581107395c9}",UIA_Interface%max%.__IID) {
-					uia:=new UIA_Interface%max%(uia, 1, max), uiaBase := uia.base
-					Loop, %max%
-						uiaBase := uiaBase.base
-					uiaBase.__UIA:=uia, uiaBase.TrueCondition:=uia.CreateTrueCondition(), uiaBase.TreeWalkerTrue := uia.CreateTreeWalker(uiaBase.TrueCondition)
-					return uia
-				}
+/*
+	UIAInterface function initializes the UIAutomation interface and returns a UIA_Interface object. After calling this function, all UIA_Interface class properties and methods can be accessed through the returned object. 
+		maxVersion can be used to limit the UIA_Interface version being created. By default the highest version available is used (usually IUIAutomation7 interface). 
+		Specifiying maxVersion:=2 would try to initialize IUIAutomation2 interface, and if that fails then IUIAutomation interface.
+	In addition some extra variables are initialized: 
+		CurrentVersion contains the version number of IUIAutomation interface
+		TrueCondition contains a UIA_TrueCondition
+		TreeWalkerTrue contains an UIA_TreeWalker that was created with UIA_TrueCondition
+	On subsequent calls of UIA_Interface(), the previously created UIA interface object is returned to avoid multiple connections being made. To bypass this, specify a maxVersion
+	Note that a new UIA_Interface object can't be created with the "new" keyword. 
+*/
+UIA_Interface(maxVersion:="") {
+	local screenreader := "", max, uiaBase, e
+	static uia := ""
+	if (IsObject(uia) && (maxVersion == ""))
+		return uia
+	; enable screenreader flag if disabled
+	DllCall("user32.dll\SystemParametersInfo", "uint", 0x0046, "uint", 0, "ptr*", screenreader) ; SPI_GETSCREENREADER
+	if !screenreader
+		DllCall("user32.dll\SystemParametersInfo", "uint", 0x0047, "uint", 1, "int", 0, "uint", 2) ; SPI_SETSCREENREADER
+	max := (maxVersion?maxVersion:UIA_Enum.UIA_MaxVersion_Interface)+1
+	while (--max) {
+			
+		if (!IsObject(UIA_Interface%max%) || (max == 1))
+			continue
+
+		try {
+			if uia:=ComObjCreate("{e22ad333-b25f-460c-83d0-0581107395c9}",UIA_Interface%max%.__IID) {
+				uia:=new UIA_Interface%max%(uia, 1, max), uiaBase := uia.base
+				Loop, %max%
+					uiaBase := uiaBase.base
+				uiaBase.__UIA:=uia, uiaBase.TrueCondition:=uia.CreateTrueCondition(), uiaBase.TreeWalkerTrue := uia.CreateTreeWalker(uiaBase.TrueCondition)
+				return uia
 			}
 		}
-		; If all else fails, try the first IUIAutomation version
-		try {
-			if uia:=ComObjCreate("{ff48dba4-60ef-4201-aa87-54103eef594e}","{30cbe57d-d9d0-452a-ab13-7ac5ac4825ee}")
-				return uia:=new UIA_Interface(uia, 1, 1), uia.base.base.__UIA:=uia, uia.base.base.CurrentVersion:=1, uia.base.base.TrueCondition:=uia.CreateTrueCondition(), uia.base.base.TreeWalkerTrue := uia.CreateTreeWalker(uia.base.base.TrueCondition)
-			throw "UIAutomation Interface failed to initialize."
-		} catch e
-			MsgBox, 262160, UIA Startup Error, % IsObject(e)?"IUIAutomation Interface is not registered.":e.Message
-		return
 	}
-	; Converts an error code to the corresponding error message
-	UIA_Hr(hr) {
-		local
-		;~ http://blogs.msdn.com/b/eldar/archive/2007/04/03/a-lot-of-hresult-codes.aspx
-		static err:={0x8000FFFF:"Catastrophic failure.",0x80004001:"Not implemented.",0x8007000E:"Out of memory.",0x80070057:"One or more arguments are not valid.",0x80004002:"Interface not supported.",0x80004003:"Pointer not valid.",0x80070006:"Handle not valid.",0x80004004:"Operation aborted.",0x80004005:"Unspecified error.",0x80070005:"General access denied.",0x800401E5:"The object identified by this moniker could not be found.",0x80040201:"UIA_E_ELEMENTNOTAVAILABLE",0x80040200:"UIA_E_ELEMENTNOTENABLED",0x80131509:"UIA_E_INVALIDOPERATION",0x80040202:"UIA_E_NOCLICKABLEPOINT",0x80040204:"UIA_E_NOTSUPPORTED",0x80040203:"UIA_E_PROXYASSEMBLYNOTLOADED",0x80131505:"COR_E_TIMEOUT"} ; //not completed
-		if hr&&(hr&=0xFFFFFFFF) {
-			RegExMatch(Exception("",-2).what,"(\w+).(\w+)",i)
-			throw Exception(UIA_Hex(hr) " - " err[hr], -2, i2 "  (" i1 ")")
-		}
-		return !hr
-	}
-	UIA_NotImplemented() {
-		local
-		RegExMatch(Exception("",-2).What,"(\D+)\.(\D+)",m)
-		MsgBox, 262192, UIA Message, Class:`t%m1%`nMember:`t%m2%`n`nMethod has not been implemented yet.
-	}
-	; Used by UIA methods to create new UIA_Element objects of the highest available version. The highest version to try can be changed by modifying UIA_Enum.UIA_CurrentVersion_Element value.
-	UIA_Element(e,flag:=1) {
-		local max, riid
-		static v := "", previousVersion := ""
-		if !e
-			return
-		if (previousVersion != UIA_Enum.UIA_CurrentVersion_Element) ; Check if the user wants an element with a different version
-			v := ""
-		else if v
-			return (v==1)?new UIA_Element(e,flag,1):new UIA_Element%v%(e,flag,v)
-		max := UIA_Enum.UIA_CurrentVersion_Element+1
-		While (--max) {
-			if UIA_GUID(riid, UIA_Element%max%.__IID)
-				return new UIA_Element%max%(e,flag,v:=max)
-		}
-		return new UIA_Element(e,flag,v:=1)
-	}
-	; Used by UIA methods to create new UIA_TextRange objects of the highest available version. The highest version to try can be changed by modifying UIA_Enum.UIA_CurrentVersion_TextRange value.
-	UIA_TextRange(e,flag:=1) {
-		local max, riid
-		static v := "", previousVersion := ""
-		if (previousVersion != UIA_Enum.UIA_CurrentVersion_TextRange) ; Check if the user wants an element with a different version
-			v := ""
-		else if v
-			return (v==1)?new UIA_TextRange(e,flag,1):new UIA_TextRange%v%(e,flag,v)
-		max := UIA_Enum.UIA_MaxVersion_TextRange+1
-		While (--max) {
-			if UIA_GUID(riid, UIA_TextRange%max%.__IID)
-				return new UIA_TextRange%max%(e,flag,v:=max)
-		}
-		return new UIA_TextRange(e,flag,v:=1)
-	}
-	; Used by UIA methods to create new Pattern objects of the highest available version for a given pattern.
-	UIA_Pattern(p, el) {
-		local i, patternName, patternAvailableId
-		if p is integer 
-			return patternName := UIA_Enum.UIA_Pattern(p)
-		else
-			patternName := InStr(p, "Pattern") ? p : p "Pattern", i:=1
-		Loop {
-			i++
-			if !(VarSetCapacity(UIA_%patternName%%i%) && IsObject(UIA_%patternName%%i%) && UIA_%patternName%%i%.__iid && UIA_%patternName%%i%.__PatternID)
-				break
-		}
-		While (--i > 1) {
-			if ((patternAvailableId := UIA_Enum["UIA_Is" patternName i "AvailablePropertyId"]) && el.GetCurrentPropertyValue(patternAvailableId))
-				return patternName i
-		}
-		return patternName
-	}
-	; Used to fetch constants and enumerations from the UIA_Enum class. The "UIA_" part of a variable name can be left out (eg UIA_Enum("ButtonControlTypeId") will return 50000).
-	UIA_Enum(e) {
-		if ObjHasKey(UIA_Enum, e)
-			return UIA_Enum[e]
-		else if ObjHasKey(UIA_Enum, "UIA_" e)
-			return UIA_Enum["UIA_" e]
-	}
-	UIA_ElementArray(p, uia:="",flag:=1) { ; Should AHK Object be 0 or 1 based? Currently 1 based.
-		local
-		global UIA_ElementArray
-		if !p
-			return
-		a:=new UIA_ElementArray(p,flag),out:=[]
-		Loop % a.Length
-			out[A_Index]:=a.GetElement(A_Index-1)
-		return out, out.base:={UIA_ElementArray:a}
-	}
-	UIA_TextRangeArray(p, uia:="",flag:=1) { ; Should AHK Object be 0 or 1 based? Currently 1 based.
-		local
-		global UIA_TextRangeArray
-		a:=new UIA_TextRangeArray(p,flag),out:=[]
-		Loop % a.Length
-			out[A_Index]:=a.GetElement(A_Index-1)
-		return out, out.base:={UIA_TextRangeArray:a}
-	}
-	UIA_RectToObject(ByRef r) { ; rect.__Value work with DllCalls?
-		static b:={__Class:"object",__Type:"RECT",Struct:Func("UIA_RectStructure")}
-		return {l:NumGet(r,0,"Int"),t:NumGet(r,4,"Int"),r:NumGet(r,8,"Int"),b:NumGet(r,12,"Int"),base:b}
-	}
-	UIA_RectStructure(this, ByRef r) {
-		static sides:="ltrb"
-		VarSetCapacity(r,16)
-		Loop Parse, sides
-			NumPut(this[A_LoopField],r,(A_Index-1)*4,"Int")
-	}
-	UIA_SafeArrayToAHKArray(safearray) {
-		local
-		b:={__Class:"object",__Type:"SafeArray",__Value:safearray}
-		out := []
-		for k in safearray
-			out.Push(k)
-		return out, out.base:=b
-	}
-	UIA_SafeArraysToObject(keys,values) {
-	;~	1 dim safearrays w/ same # of elements
-		local
-		out:={}
-		for key in keys
-			out[key]:=values[A_Index-1]
-		return out
-	}
-	UIA_Hex(p) {
-		local
-		setting:=A_FormatInteger
-		SetFormat,IntegerFast,H
-		out:=p+0 ""
-		SetFormat,IntegerFast,%setting%
-		return out
-	}
-	UIA_GUID(ByRef GUID, sGUID) { ;~ Converts a string to a binary GUID and returns its address.
-		if !sGUID
-			return
-		VarSetCapacity(GUID,16,0)
-		return DllCall("ole32\CLSIDFromString", "wstr",sGUID, "ptr",&GUID)>=0?&GUID:""
-	}
-	UIA_Variant(ByRef var,type:=0,val:=0) {
-		; https://www.autohotkey.com/boards/viewtopic.php?t=6979
-		static SIZEOF_VARIANT := 8 + (2 * A_PtrSize)
-		VarSetCapacity(var, SIZEOF_VARIANT), ComObject(0x400C, &var)[] := type&&(type!=8)?ComObject(type,type=0xB?(!val?0:-1):val):val
-		return &var ; The variant probably doesn't need clearing, because it is passed to UIA and UIA should take care of releasing it.
-		; Old implementation:
-		; return (VarSetCapacity(var,8+2*A_PtrSize)+NumPut(type,var,0,"short")+NumPut(type=8? DllCall("oleaut32\SysAllocString", "ptr",&val):val,var,8,"ptr"))*0+&var
-	}
-	UIA_IsVariant(ByRef vt, ByRef type:="", offset:=0, flag:=1) {
-		local
-		size:=VarSetCapacity(vt),type:=NumGet(vt,offset,"UShort")
-		return size>=16&&size<=24&&type>=0&&(type<=23||type|0x2000)
-	}
-	UIA_VariantType(type){
-		static _:={2:[2,"short"]
-		,3:[4,"int"]
-		,4:[4,"float"]
-		,5:[8,"double"]
-		,0xA:[4,"uint"]
-		,0xB:[2,"short"]
-		,0x10:[1,"char"]
-		,0x11:[1,"uchar"]
-		,0x12:[2,"ushort"]
-		,0x13:[4,"uint"]
-		,0x14:[8,"int64"]
-		,0x15:[8,"uint64"]}
-		return _.haskey(type)?_[type]:[A_PtrSize,"ptr"]
-	}
-	UIA_VariantData(ByRef p, flag:=1, offset:=0) {
-		local
-		if flag {
-			var := !UIA_IsVariant(p,vt, offset)?"Invalid Variant":ComObject(0x400C, &p)[] ; https://www.autohotkey.com/boards/viewtopic.php?t=6979
-			UIA_VariantClear(&p) ; Clears variant, except if it contains a pointer to an object (eg IDispatch). BSTR is automatically freed.
-		} else {
-			vt:=NumGet(p+0,offset,"UShort"), var := !(vt>=0&&(vt<=23||vt|0x2000))?"Invalid Variant":ComObject(0x400C, p)[]
-			UIA_VariantClear(p)
-		}
-		return vt=11?-var:var ; Negate value if VT_BOOL (-1=True, 0=False)
-		; Old implementation, based on Sean's COM_Enumerate function
-		; return !UIA_IsVariant(p,vt, offset)?"Invalid Variant"
-		;		:vt=0?"" ; VT_EMPTY
-		;		:vt=3?NumGet(p,offset+8,"int")
-		;		:vt=8?StrGet(NumGet(p,offset+8))
-		;		:vt=11?-NumGet(p,offset+8,"short")
-		;		:vt=9||vt=13||vt&0x2000?ComObj(vt,NumGet(p,offset+8),flag)
-		;		:vt<0x1000&&UIA_VariantChangeType(&p,&p)=0?StrGet(NumGet(p,offset+8)) UIA_VariantClear(&p)
-		;		:NumGet(p,offset+8)
-	/*
-		VT_EMPTY     =      0  		; No value
-		VT_NULL      =      1 		; SQL-style Null
-		VT_I2        =      2 		; 16-bit signed int
-		VT_I4        =      3 		; 32-bit signed int
-		VT_R4        =      4 		; 32-bit floating-point number
-		VT_R8        =      5 		; 64-bit floating-point number
-		VT_CY        =      6 		; Currency
-		VT_DATE      =      7  		; Date
-		VT_BSTR      =      8 		; COM string (Unicode string with length prefix)
-		VT_DISPATCH  =      9 		; COM object 
-		VT_ERROR     =    0xA  10	; Error code (32-bit integer)
-		VT_BOOL      =    0xB  11	; Boolean True (-1) or False (0)
-		VT_VARIANT   =    0xC  12	; VARIANT (must be combined with VT_ARRAY or VT_BYREF)
-		VT_UNKNOWN   =    0xD  13	; IUnknown interface pointer
-		VT_DECIMAL   =    0xE  14	; (not supported)
-		VT_I1        =   0x10  16	; 8-bit signed int
-		VT_UI1       =   0x11  17	; 8-bit unsigned int
-		VT_UI2       =   0x12  18	; 16-bit unsigned int
-		VT_UI4       =   0x13  19	; 32-bit unsigned int
-		VT_I8        =   0x14  20	; 64-bit signed int
-		VT_UI8       =   0x15  21	; 64-bit unsigned int
-		VT_INT       =   0x16  22	; Signed machine int
-		VT_UINT      =   0x17  23	; Unsigned machine int
-		VT_RECORD    =   0x24  36	; User-defined type
-		VT_ARRAY     = 0x2000  		; SAFEARRAY
-		VT_BYREF     = 0x4000  		; Pointer to another type of value
-					 = 0x1000  4096
-
-		COM_SysAllocString(str) {
-			Return	DllCall("oleaut32\SysAllocString", "Uint", &str)
-		}
-		COM_SysFreeString(pstr) {
-				DllCall("oleaut32\SysFreeString", "Uint", pstr)
-		}
-		COM_SysString(ByRef wString, sString) {
-			VarSetCapacity(wString,4+nLen:=2*StrLen(sString))
-			Return	DllCall("kernel32\lstrcpyW","Uint",NumPut(nLen,wString),"Uint",&sString)
-		}
-		DllCall("oleaut32\SafeArrayGetVartype", "ptr*",ComObjValue(SafeArray), "uint*",pvt)
-		HRESULT SafeArrayGetVartype(
-		  _In_   SAFEARRAY *psa,
-		  _Out_  VARTYPE *pvt
-		);
-		DllCall("oleaut32\SafeArrayDestroy", "ptr",ComObjValue(SafeArray))
-		HRESULT SafeArrayDestroy(
-		  _In_  SAFEARRAY *psa
-		);
-	*/
-	}
-	UIA_VariantChangeType(pvarDst, pvarSrc, vt:=8) { ; written by Sean
-		return DllCall("oleaut32\VariantChangeTypeEx", "ptr",pvarDst, "ptr",pvarSrc, "Uint",1024, "Ushort",0, "Ushort",vt)
-	}
-	UIA_VariantClear(pvar) { ; Written by Sean
-		DllCall("oleaut32\VariantClear", "ptr",pvar)
-	}
-	UIA_GetSafeArrayValue(p,type,flag:=1){ ; Credit: https://github.com/neptercn/UIAutomation/blob/master/UIA.ahk
-		local
-		t:=UIA_VariantType(type),item:={},pv:=NumGet(p+8+A_PtrSize,"ptr")
-		loop % NumGet(p+8+2*A_PtrSize,"uint") {
-			item.Insert((type=8)?StrGet(NumGet(pv+(A_Index-1)*t.1,t.2),"utf-16"):NumGet(pv+(A_Index-1)*t.1,t.2))
-		}
-		if flag
-			DllCall("oleaut32\SafeArrayDestroy","ptr", p)
-		return item
-	}
-	UIA_GetBSTRValue(ByRef bstr) {
-		local
-		val := StrGet(bstr)
-		DllCall("oleaut32\SysFreeString", "ptr", bstr)
-		return val
-	}
-	/*
-		UIA_CreateEventHandler(funcName, handlerType) returns a new handler object that can be used with methods that create EventHandlers (eg AddAutomationEventHandler)
-			funcName: name of the function that will receive the calls when an event happens
-			handlerType: needed by some of the newer Add...EventHandler functions. In the case of AddAutomationEventHandler, this should be left empty. For other Add...EventHandler cases, specify the ... part: FocusChanged, StructureChanged, TextEditTextChanged, Changes, Notification. So for AddFocusChangedEventHandler, set this value to "FocusChanged"
-		
-		The function funcName needs to be able to receive a certain number of arguments that depends on the type on handler being created:
-			HandleAutomationEvent(sender, eventId)  <--- this is the most common handler type created with AddAutomationEventHandler, and the handler function needs to have exactly two arguments: sender (the element which sent the event), and eventId.
-			HandleFocusChangedEvent(sender)
-			HandlePropertyChangedEvent(sender, propertyId, newValue)
-			HandleStructureChangedEvent(sender, changeType, runtimeId)
-			HandleTextEditTextChangedEvent(sender, changeType, eventStrings)
-			HandleChangesEvent(sender, uiaChanges, changesCount)
-			HandleNotificationEvent(sender, notificationKind, notificationProcessing, displayString, activityId)
-	*/
-	UIA_CreateEventHandler(funcName, handlerType:="") { ; Possible handlerType values: empty, FocusChanged, StructureChanged, TextEditTextChanged, Changes, Notification.
-		local handler, ptr
-		if !(IsFunc(funcName) || IsObject(funcName)) ; Figuring out if the Object is callable is way too difficult to bother with. 
-			throw Exception(funcName "is not a function!", -1)
-		ptr := DllCall("GlobalAlloc", "UInt",0x40, "UInt",A_PtrSize*5, "Ptr" )
-		handler := new _UIA_%handlerType%EventHandler(ptr,2,funcName) ; deref will be done on destruction of EventHandler. Function name piggybacks on the __Version property
-		,NumPut(ptr+A_PtrSize,ptr+0)
-		,NumPut(RegisterCallback("_UIA_QueryInterface","F"),ptr+0,A_PtrSize*1)
-		,NumPut(RegisterCallback("_UIA_AddRef","F"),ptr+0,A_PtrSize*2)
-		,NumPut(RegisterCallback("_UIA_Release","F"),ptr+0,A_PtrSize*3)
-		,NumPut(RegisterCallback("_UIA_" handlerType "EventHandler.Handle" (handlerType == "" ? "Automation" : handlerType) "Event","F",,&handler),ptr+0,A_PtrSize*4)
-		return handler
-	}
-	_UIA_QueryInterface(pSelf, pRIID, pObj){ ; Credit: https://github.com/neptercn/UIAutomation/blob/master/UIA.ahk
-		local
-		DllCall("ole32\StringFromIID","ptr",pRIID,"ptr*",sz:=""),str:=StrGet(sz) ; sz should not be freed here
-		return (str="{00000000-0000-0000-C000-000000000046}")||(str="{146c3c17-f12e-4e22-8c27-f894b9b79c69}")||(str="{40cd37d4-c756-4b0c-8c6f-bddfeeb13b50}")||(str="{e81d1b4e-11c5-42f8-9754-e7036c79f054}")||(str="{c270f6b5-5c69-4290-9745-7a7f97169468}")||(str="{92FAA680-E704-4156-931A-E32D5BB38F3F}")||(str="{58EDCA55-2C3E-4980-B1B9-56C17F27A2A0}")||(str="{C7CB2637-E6C2-4D0C-85DE-4948C02175C7}")?NumPut(pSelf,pObj+0)*0:0x80004002 ; E_NOINTERFACE
-	}
-	_UIA_AddRef(pSelf){
-	}
-	_UIA_Release(pSelf){
-	}
+	; If all else fails, try the first IUIAutomation version
+	try {
+		if uia:=ComObjCreate("{ff48dba4-60ef-4201-aa87-54103eef594e}","{30cbe57d-d9d0-452a-ab13-7ac5ac4825ee}")
+			return uia:=new UIA_Interface(uia, 1, 1), uia.base.base.__UIA:=uia, uia.base.base.CurrentVersion:=1, uia.base.base.TrueCondition:=uia.CreateTrueCondition(), uia.base.base.TreeWalkerTrue := uia.CreateTreeWalker(uia.base.base.TrueCondition)
+		throw "UIAutomation Interface failed to initialize."
+	} catch e
+		MsgBox, 262160, UIA Startup Error, % IsObject(e)?"IUIAutomation Interface is not registered.":e.Message
+	return
 }
+; Converts an error code to the corresponding error message
+UIA_Hr(hr) {
+	local
+	;~ http://blogs.msdn.com/b/eldar/archive/2007/04/03/a-lot-of-hresult-codes.aspx
+	static err:={0x8000FFFF:"Catastrophic failure.",0x80004001:"Not implemented.",0x8007000E:"Out of memory.",0x80070057:"One or more arguments are not valid.",0x80004002:"Interface not supported.",0x80004003:"Pointer not valid.",0x80070006:"Handle not valid.",0x80004004:"Operation aborted.",0x80004005:"Unspecified error.",0x80070005:"General access denied.",0x800401E5:"The object identified by this moniker could not be found.",0x80040201:"UIA_E_ELEMENTNOTAVAILABLE",0x80040200:"UIA_E_ELEMENTNOTENABLED",0x80131509:"UIA_E_INVALIDOPERATION",0x80040202:"UIA_E_NOCLICKABLEPOINT",0x80040204:"UIA_E_NOTSUPPORTED",0x80040203:"UIA_E_PROXYASSEMBLYNOTLOADED",0x80131505:"COR_E_TIMEOUT"} ; //not completed
+	if hr&&(hr&=0xFFFFFFFF) {
+		RegExMatch(Exception("",-2).what,"(\w+).(\w+)",i)
+		throw Exception(UIA_Hex(hr) " - " err[hr], -2, i2 "  (" i1 ")")
+	}
+	return !hr
+}
+UIA_NotImplemented() {
+	local
+	RegExMatch(Exception("",-2).What,"(\D+)\.(\D+)",m)
+	MsgBox, 262192, UIA Message, Class:`t%m1%`nMember:`t%m2%`n`nMethod has not been implemented yet.
+}
+; Used by UIA methods to create new UIA_Element objects of the highest available version. The highest version to try can be changed by modifying UIA_Enum.UIA_CurrentVersion_Element value.
+UIA_Element(e,flag:=1) {
+	local max, riid
+	static v := "", previousVersion := ""
+	if !e
+		return
+	if (previousVersion != UIA_Enum.UIA_CurrentVersion_Element) ; Check if the user wants an element with a different version
+		v := ""
+	else if v
+		return (v==1)?new UIA_Element(e,flag,1):new UIA_Element%v%(e,flag,v)
+	max := UIA_Enum.UIA_CurrentVersion_Element+1
+	While (--max) {
+		if UIA_GUID(riid, UIA_Element%max%.__IID)
+			return new UIA_Element%max%(e,flag,v:=max)
+	}
+	return new UIA_Element(e,flag,v:=1)
+}
+; Used by UIA methods to create new UIA_TextRange objects of the highest available version. The highest version to try can be changed by modifying UIA_Enum.UIA_CurrentVersion_TextRange value.
+UIA_TextRange(e,flag:=1) {
+	local max, riid
+	static v := "", previousVersion := ""
+	if (previousVersion != UIA_Enum.UIA_CurrentVersion_TextRange) ; Check if the user wants an element with a different version
+		v := ""
+	else if v
+		return (v==1)?new UIA_TextRange(e,flag,1):new UIA_TextRange%v%(e,flag,v)
+	max := UIA_Enum.UIA_MaxVersion_TextRange+1
+	While (--max) {
+		if UIA_GUID(riid, UIA_TextRange%max%.__IID)
+			return new UIA_TextRange%max%(e,flag,v:=max)
+	}
+	return new UIA_TextRange(e,flag,v:=1)
+}
+; Used by UIA methods to create new Pattern objects of the highest available version for a given pattern.
+UIA_Pattern(p, el) {
+	local i, patternName, patternAvailableId
+	if p is integer 
+		return patternName := UIA_Enum.UIA_Pattern(p)
+	else
+		patternName := InStr(p, "Pattern") ? p : p "Pattern", i:=1
+	Loop {
+		i++
+		if !(VarSetCapacity(UIA_%patternName%%i%) && IsObject(UIA_%patternName%%i%) && UIA_%patternName%%i%.__iid && UIA_%patternName%%i%.__PatternID)
+			break
+	}
+	While (--i > 1) {
+		if ((patternAvailableId := UIA_Enum["UIA_Is" patternName i "AvailablePropertyId"]) && el.GetCurrentPropertyValue(patternAvailableId))
+			return patternName i
+	}
+	return patternName
+}
+; Used to fetch constants and enumerations from the UIA_Enum class. The "UIA_" part of a variable name can be left out (eg UIA_Enum("ButtonControlTypeId") will return 50000).
+UIA_Enum(e) {
+	if ObjHasKey(UIA_Enum, e)
+		return UIA_Enum[e]
+	else if ObjHasKey(UIA_Enum, "UIA_" e)
+		return UIA_Enum["UIA_" e]
+}
+UIA_ElementArray(p, uia:="",flag:=1) { ; Should AHK Object be 0 or 1 based? Currently 1 based.
+	local
+	global UIA_ElementArray
+	if !p
+		return
+	a:=new UIA_ElementArray(p,flag),out:=[]
+	Loop % a.Length
+		out[A_Index]:=a.GetElement(A_Index-1)
+	return out, out.base:={UIA_ElementArray:a}
+}
+UIA_TextRangeArray(p, uia:="",flag:=1) { ; Should AHK Object be 0 or 1 based? Currently 1 based.
+	local
+	global UIA_TextRangeArray
+	a:=new UIA_TextRangeArray(p,flag),out:=[]
+	Loop % a.Length
+		out[A_Index]:=a.GetElement(A_Index-1)
+	return out, out.base:={UIA_TextRangeArray:a}
+}
+UIA_RectToObject(ByRef r) { ; rect.__Value work with DllCalls?
+	static b:={__Class:"object",__Type:"RECT",Struct:Func("UIA_RectStructure")}
+	return {l:NumGet(r,0,"Int"),t:NumGet(r,4,"Int"),r:NumGet(r,8,"Int"),b:NumGet(r,12,"Int"),base:b}
+}
+UIA_RectStructure(this, ByRef r) {
+	static sides:="ltrb"
+	VarSetCapacity(r,16)
+	Loop Parse, sides
+		NumPut(this[A_LoopField],r,(A_Index-1)*4,"Int")
+}
+UIA_SafeArrayToAHKArray(safearray) {
+	local
+	b:={__Class:"object",__Type:"SafeArray",__Value:safearray}
+	out := []
+	for k in safearray
+		out.Push(k)
+	return out, out.base:=b
+}
+UIA_SafeArraysToObject(keys,values) {
+;~	1 dim safearrays w/ same # of elements
+	local
+	out:={}
+	for key in keys
+		out[key]:=values[A_Index-1]
+	return out
+}
+UIA_Hex(p) {
+	local
+	setting:=A_FormatInteger
+	SetFormat,IntegerFast,H
+	out:=p+0 ""
+	SetFormat,IntegerFast,%setting%
+	return out
+}
+UIA_GUID(ByRef GUID, sGUID) { ;~ Converts a string to a binary GUID and returns its address.
+	if !sGUID
+		return
+	VarSetCapacity(GUID,16,0)
+	return DllCall("ole32\CLSIDFromString", "wstr",sGUID, "ptr",&GUID)>=0?&GUID:""
+}
+UIA_Variant(ByRef var,type:=0,val:=0) {
+	; https://www.autohotkey.com/boards/viewtopic.php?t=6979
+	static SIZEOF_VARIANT := 8 + (2 * A_PtrSize)
+	VarSetCapacity(var, SIZEOF_VARIANT), ComObject(0x400C, &var)[] := type&&(type!=8)?ComObject(type,type=0xB?(!val?0:-1):val):val
+	return &var ; The variant probably doesn't need clearing, because it is passed to UIA and UIA should take care of releasing it.
+	; Old implementation:
+	; return (VarSetCapacity(var,8+2*A_PtrSize)+NumPut(type,var,0,"short")+NumPut(type=8? DllCall("oleaut32\SysAllocString", "ptr",&val):val,var,8,"ptr"))*0+&var
+}
+UIA_IsVariant(ByRef vt, ByRef type:="", offset:=0, flag:=1) {
+	local
+	size:=VarSetCapacity(vt),type:=NumGet(vt,offset,"UShort")
+	return size>=16&&size<=24&&type>=0&&(type<=23||type|0x2000)
+}
+UIA_VariantType(type){
+	static _:={2:[2,"short"]
+	,3:[4,"int"]
+	,4:[4,"float"]
+	,5:[8,"double"]
+	,0xA:[4,"uint"]
+	,0xB:[2,"short"]
+	,0x10:[1,"char"]
+	,0x11:[1,"uchar"]
+	,0x12:[2,"ushort"]
+	,0x13:[4,"uint"]
+	,0x14:[8,"int64"]
+	,0x15:[8,"uint64"]}
+	return _.haskey(type)?_[type]:[A_PtrSize,"ptr"]
+}
+UIA_VariantData(ByRef p, flag:=1, offset:=0) {
+	local
+	if flag {
+		var := !UIA_IsVariant(p,vt, offset)?"Invalid Variant":ComObject(0x400C, &p)[] ; https://www.autohotkey.com/boards/viewtopic.php?t=6979
+		UIA_VariantClear(&p) ; Clears variant, except if it contains a pointer to an object (eg IDispatch). BSTR is automatically freed.
+	} else {
+		vt:=NumGet(p+0,offset,"UShort"), var := !(vt>=0&&(vt<=23||vt|0x2000))?"Invalid Variant":ComObject(0x400C, p)[]
+		UIA_VariantClear(p)
+	}
+	return vt=11?-var:var ; Negate value if VT_BOOL (-1=True, 0=False)
+	; Old implementation, based on Sean's COM_Enumerate function
+	; return !UIA_IsVariant(p,vt, offset)?"Invalid Variant"
+	;		:vt=0?"" ; VT_EMPTY
+	;		:vt=3?NumGet(p,offset+8,"int")
+	;		:vt=8?StrGet(NumGet(p,offset+8))
+	;		:vt=11?-NumGet(p,offset+8,"short")
+	;		:vt=9||vt=13||vt&0x2000?ComObj(vt,NumGet(p,offset+8),flag)
+	;		:vt<0x1000&&UIA_VariantChangeType(&p,&p)=0?StrGet(NumGet(p,offset+8)) UIA_VariantClear(&p)
+	;		:NumGet(p,offset+8)
+/*
+	VT_EMPTY     =      0  		; No value
+	VT_NULL      =      1 		; SQL-style Null
+	VT_I2        =      2 		; 16-bit signed int
+	VT_I4        =      3 		; 32-bit signed int
+	VT_R4        =      4 		; 32-bit floating-point number
+	VT_R8        =      5 		; 64-bit floating-point number
+	VT_CY        =      6 		; Currency
+	VT_DATE      =      7  		; Date
+	VT_BSTR      =      8 		; COM string (Unicode string with length prefix)
+	VT_DISPATCH  =      9 		; COM object 
+	VT_ERROR     =    0xA  10	; Error code (32-bit integer)
+	VT_BOOL      =    0xB  11	; Boolean True (-1) or False (0)
+	VT_VARIANT   =    0xC  12	; VARIANT (must be combined with VT_ARRAY or VT_BYREF)
+	VT_UNKNOWN   =    0xD  13	; IUnknown interface pointer
+	VT_DECIMAL   =    0xE  14	; (not supported)
+	VT_I1        =   0x10  16	; 8-bit signed int
+	VT_UI1       =   0x11  17	; 8-bit unsigned int
+	VT_UI2       =   0x12  18	; 16-bit unsigned int
+	VT_UI4       =   0x13  19	; 32-bit unsigned int
+	VT_I8        =   0x14  20	; 64-bit signed int
+	VT_UI8       =   0x15  21	; 64-bit unsigned int
+	VT_INT       =   0x16  22	; Signed machine int
+	VT_UINT      =   0x17  23	; Unsigned machine int
+	VT_RECORD    =   0x24  36	; User-defined type
+	VT_ARRAY     = 0x2000  		; SAFEARRAY
+	VT_BYREF     = 0x4000  		; Pointer to another type of value
+					= 0x1000  4096
 
-
+	COM_SysAllocString(str) {
+		Return	DllCall("oleaut32\SysAllocString", "Uint", &str)
+	}
+	COM_SysFreeString(pstr) {
+			DllCall("oleaut32\SysFreeString", "Uint", pstr)
+	}
+	COM_SysString(ByRef wString, sString) {
+		VarSetCapacity(wString,4+nLen:=2*StrLen(sString))
+		Return	DllCall("kernel32\lstrcpyW","Uint",NumPut(nLen,wString),"Uint",&sString)
+	}
+	DllCall("oleaut32\SafeArrayGetVartype", "ptr*",ComObjValue(SafeArray), "uint*",pvt)
+	HRESULT SafeArrayGetVartype(
+		_In_   SAFEARRAY *psa,
+		_Out_  VARTYPE *pvt
+	);
+	DllCall("oleaut32\SafeArrayDestroy", "ptr",ComObjValue(SafeArray))
+	HRESULT SafeArrayDestroy(
+		_In_  SAFEARRAY *psa
+	);
+*/
+}
+UIA_VariantChangeType(pvarDst, pvarSrc, vt:=8) { ; written by Sean
+	return DllCall("oleaut32\VariantChangeTypeEx", "ptr",pvarDst, "ptr",pvarSrc, "Uint",1024, "Ushort",0, "Ushort",vt)
+}
+UIA_VariantClear(pvar) { ; Written by Sean
+	DllCall("oleaut32\VariantClear", "ptr",pvar)
+}
+UIA_GetSafeArrayValue(p,type,flag:=1){ ; Credit: https://github.com/neptercn/UIAutomation/blob/master/UIA.ahk
+	local
+	t:=UIA_VariantType(type),item:={},pv:=NumGet(p+8+A_PtrSize,"ptr")
+	loop % NumGet(p+8+2*A_PtrSize,"uint") {
+		item.Insert((type=8)?StrGet(NumGet(pv+(A_Index-1)*t.1,t.2),"utf-16"):NumGet(pv+(A_Index-1)*t.1,t.2))
+	}
+	if flag
+		DllCall("oleaut32\SafeArrayDestroy","ptr", p)
+	return item
+}
+UIA_GetBSTRValue(ByRef bstr) {
+	local
+	val := StrGet(bstr)
+	DllCall("oleaut32\SysFreeString", "ptr", bstr)
+	return val
+}
+/*
+	UIA_CreateEventHandler(funcName, handlerType) returns a new handler object that can be used with methods that create EventHandlers (eg AddAutomationEventHandler)
+		funcName: name of the function that will receive the calls when an event happens
+		handlerType: needed by some of the newer Add...EventHandler functions. In the case of AddAutomationEventHandler, this should be left empty. For other Add...EventHandler cases, specify the ... part: FocusChanged, StructureChanged, TextEditTextChanged, Changes, Notification. So for AddFocusChangedEventHandler, set this value to "FocusChanged"
+	
+	The function funcName needs to be able to receive a certain number of arguments that depends on the type on handler being created:
+		HandleAutomationEvent(sender, eventId)  <--- this is the most common handler type created with AddAutomationEventHandler, and the handler function needs to have exactly two arguments: sender (the element which sent the event), and eventId.
+		HandleFocusChangedEvent(sender)
+		HandlePropertyChangedEvent(sender, propertyId, newValue)
+		HandleStructureChangedEvent(sender, changeType, runtimeId)
+		HandleTextEditTextChangedEvent(sender, changeType, eventStrings)
+		HandleChangesEvent(sender, uiaChanges, changesCount)
+		HandleNotificationEvent(sender, notificationKind, notificationProcessing, displayString, activityId)
+*/
+UIA_CreateEventHandler(funcName, handlerType:="") { ; Possible handlerType values: empty, FocusChanged, StructureChanged, TextEditTextChanged, Changes, Notification.
+	local handler, ptr
+	if !(IsFunc(funcName) || IsObject(funcName)) ; Figuring out if the Object is callable is way too difficult to bother with. 
+		throw Exception(funcName "is not a function!", -1)
+	ptr := DllCall("GlobalAlloc", "UInt",0x40, "UInt",A_PtrSize*5, "Ptr" )
+	handler := new _UIA_%handlerType%EventHandler(ptr,2,funcName) ; deref will be done on destruction of EventHandler. Function name piggybacks on the __Version property
+	,NumPut(ptr+A_PtrSize,ptr+0)
+	,NumPut(RegisterCallback("_UIA_QueryInterface","F"),ptr+0,A_PtrSize*1)
+	,NumPut(RegisterCallback("_UIA_AddRef","F"),ptr+0,A_PtrSize*2)
+	,NumPut(RegisterCallback("_UIA_Release","F"),ptr+0,A_PtrSize*3)
+	,NumPut(RegisterCallback("_UIA_" handlerType "EventHandler.Handle" (handlerType == "" ? "Automation" : handlerType) "Event","F",,&handler),ptr+0,A_PtrSize*4)
+	return handler
+}
+_UIA_QueryInterface(pSelf, pRIID, pObj){ ; Credit: https://github.com/neptercn/UIAutomation/blob/master/UIA.ahk
+	local
+	DllCall("ole32\StringFromIID","ptr",pRIID,"ptr*",sz:=""),str:=StrGet(sz) ; sz should not be freed here
+	return (str="{00000000-0000-0000-C000-000000000046}")||(str="{146c3c17-f12e-4e22-8c27-f894b9b79c69}")||(str="{40cd37d4-c756-4b0c-8c6f-bddfeeb13b50}")||(str="{e81d1b4e-11c5-42f8-9754-e7036c79f054}")||(str="{c270f6b5-5c69-4290-9745-7a7f97169468}")||(str="{92FAA680-E704-4156-931A-E32D5BB38F3F}")||(str="{58EDCA55-2C3E-4980-B1B9-56C17F27A2A0}")||(str="{C7CB2637-E6C2-4D0C-85DE-4948C02175C7}")?NumPut(pSelf,pObj+0)*0:0x80004002 ; E_NOINTERFACE
+}
+_UIA_AddRef(pSelf){
+}
+_UIA_Release(pSelf){
+}
 
 
 /*

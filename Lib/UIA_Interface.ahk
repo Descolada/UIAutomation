@@ -1430,7 +1430,8 @@ class UIA_Element extends UIA_Base {
 					ClickCount := ClickCountAndSleepTime[1]
 				}
 			}
-			if !((pos := this.GetClickablePointRelativeTo()).x || pos.y) {
+			try pos := this.GetClickablePointRelativeTo()
+			if !(pos.x || pos.y) {
 				pos := this.GetCurrentPos() ; or should only GetClickablePoint be used instead?
 				Click, % (pos.x+pos.w//2+rel[1]) " " (pos.y+pos.h//2+rel[2]) " " WhichButtonOrSleepTime (ClickCount ? " " ClickCount : "") (DownOrUp ? " " DownOrUp : "") (Relative ? " " Relative : "")
 			} else {
@@ -1445,8 +1446,9 @@ class UIA_Element extends UIA_Base {
 		local
 		try this.SetFocus()
 		if (WinTitleOrSleepTime == "")
-			WinTitleOrSleepTime := "ahk_id " this.GetParentHwnd()	
-		if !((pos := this.GetClickablePointRelativeTo("window")).x || pos.y) {
+			WinTitleOrSleepTime := "ahk_id " this.GetParentHwnd()
+		try pos := this.GetClickablePointRelativeTo("window")
+		if !(pos.x || pos.y) {
 			pos := this.GetCurrentPos("window") ; or should GetClickablePoint be used instead?
 			ControlClick, % "X" pos.x+pos.w//2 " Y" pos.y+pos.h//2, % WinTitleOrSleepTime, % WinTextOrSleepTime, % WhichButton, % ClickCount, % Options, % ExcludeTitle, % ExcludeText
 		} else {

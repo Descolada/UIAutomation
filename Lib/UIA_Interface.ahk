@@ -184,6 +184,8 @@ class UIA_Interface extends UIA_Base {
 		local
 		if hwnd is not integer
 			hwnd := WinExist(hwnd)
+		if !hwnd
+			return
 		if (activateChromiumAccessibility != 0)
 			activateChromiumAccessibility := this.ActivateChromiumAccessibility(hwnd)
 		return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",hwnd, "ptr*",out:=""))? UIA_Element(out):
@@ -216,6 +218,8 @@ class UIA_Interface extends UIA_Base {
 		local
 		if hwnd is not integer
 			hwnd := WinExist(hwnd)
+		if !hwnd
+			return
 		if (activateChromiumAccessibility != 0)
 			activateChromiumAccessibility := this.ActivateChromiumAccessibility(hwnd, cacheRequest)
 		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "ptr",hwnd, "ptr",cacheRequest.__Value, "ptr*",out:=""))? UIA_Element(out):

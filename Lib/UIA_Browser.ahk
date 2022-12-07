@@ -76,6 +76,8 @@
 		Close tab by either providing the tab element or the name of the tab. If tabElementOrName is left empty, the current tab will be closed.
 	IsBrowserVisible()
 		Returns True if any of the 4 corners of the browser are visible.
+	Send(text)
+		Uses ControlSend to send text to the browser.
 	GetAlertText()
 		Gets the text from an alert box
 	CloseAlert()
@@ -230,7 +232,7 @@ class UIA_Mozilla extends UIA_Browser {
 		local
 		for i, el in this.GetTabs() {
 			if (tabName ? this.__CompareTitles(tabName, el.CurrentName, matchMode, caseSensitive) : el.SelectionItemIsSelected) {
-				this.DocumentPanelElement := this.BrowserElement.FindAllBy("AutomationId=panel",2,2)[i]
+				this.DocumentPanelElement := this.BrowserElement.FindAllBy("AutomationId=panel",2,2)[i+1]
 				return this.TWT.GetFirstChildElement(this.TWT.GetFirstChildElement(this.DocumentPanelElement))
 			}
 		}
@@ -246,17 +248,22 @@ class UIA_Mozilla extends UIA_Browser {
 		this.URLEditElement.SetFocus()
 		valuePattern := this.URLEditElement.GetCurrentPatternAs("Value")
 		valuePattern.SetValue(newUrl " ")
-		if (navigateToNewUrl&&InStr(this.URLEditElement.CurrentValue, newUrl))
-			Send, {LCtrl up}{LAlt up}{LShift up}{RCtrl up}{RAlt up}{RShift up}{Enter}
+		if (navigateToNewUrl&&InStr(this.URLEditElement.CurrentValue, newUrl)) {
+			ControlFocus, ahk_parent, % "ahk_id" this.BrowserId
+			ControlSend, ahk_parent, {LCtrl up}{LAlt up}{LShift up}{RCtrl up}{RAlt up}{RShift up}{Enter}, % "ahk_id" this.BrowserId
+		}
 	}
 
 	JSExecute(js) {
 		local
-		Send, {LCtrl up}{LAlt up}{LShift up}{RCtrl up}{RAlt up}{RShift up}
-		Send, {ctrl down}{shift down}k{ctrl up}{shift up}
+		ControlFocus, ahk_parent, % "ahk_id" this.BrowserId
+		ControlSend, ahk_parent, {LCtrl up}{LAlt up}{LShift up}{RCtrl up}{RAlt up}{RShift up}, % "ahk_id" this.BrowserId
+		ControlSend, ahk_parent, {ctrl down}{shift down}k{ctrl up}{shift up}, % "ahk_id" this.BrowserId
 		this.BrowserElement.WaitElementExistByNameAndType("Switch to multi-line editor mode (Ctrl + B)", "Button")	
 		ClipSave := ClipboardAll
 		Clipboard := js
+		WinActivate, % "ahk_id" this.BrowserId
+		WinWaitActive, % "ahk_id" this.BrowserId
 		Send, {ctrl down}v{ctrl up}{enter down}{enter up}
 		sleep 40
 		Send, {ctrl down}{shift down}i{ctrl up}{shift up}
@@ -293,8 +300,8 @@ class UIA_Mozilla extends UIA_Browser {
 				try this.TabBarElement.FindFirstByNameAndType(searchPhrase, "TabItem",, matchMode, caseSensitive).Click()
 			}
 		}
-		Send, {LCtrl up}{LAlt up}{LShift up}{RCtrl up}{RAlt up}{RShift up}
-		Send, {Ctrl down}w{Ctrl up}
+		ControlSend, ahk_parent, {LCtrl up}{LAlt up}{LShift up}{RCtrl up}{RAlt up}{RShift up}, % "ahk_id " this.BrowserId
+		ControlSend, ahk_parent, {Ctrl down}w{Ctrl up}, % "ahk_id " this.BrowserId
 	}
 }
 
@@ -317,7 +324,7 @@ class UIA_Browser {
 	}
 	; Initiates UIA and hooks to the browser window specified with wTitle. customNames can be an object that defines custom CurrentName values for locale-specific elements (such as the name of the URL bar): {URLEditName:"My URL Edit name", TabBarName:"Tab bar name", HomeButtonName:"Home button name", StopButtonName:"Stop button", NewTabButtonName:"New tab button name"}. maxVersion specifies the highest UIA version that will be used (default is up to version 7).
 	__New(wTitle:="A", customNames:="", maxVersion:="") { 
-		local
+		local bt
 		this.BrowserId := WinExist(wTitle)
 		if !this.BrowserId
 			throw Exception("UIA_Browser: failed to find the browser!", -1)
@@ -325,7 +332,7 @@ class UIA_Browser {
 		WinGetClass, wClass, % "ahk_id" this.BrowserId
 		this.BrowserType := (wExe == "chrome.exe") ? "Chrome" : (wExe == "msedge.exe") ? "Edge" : InStr(wClass, "Mozilla") ? "Mozilla" : "Unknown"
 		bt := this.BrowserType
-		if (VarSetCapacity(UIA_%bt%) && IsObject(UIA_%bt%)) {
+		if (IsSet(UIA_%bt%) && IsObject(UIA_%bt%)) {
 			this.base := UIA_%bt%
 			this.__New(wTitle, customNames, maxVersion)
 		} else 
@@ -663,11 +670,9 @@ class UIA_Browser {
 			legacyPattern.Select()
 		}
 		if (navigateToNewUrl&&InStr(this.URLEditElement.CurrentValue, newUrl)) {
-			if (this.BrowserType = "Mozilla") {
+			if (this.BrowserType = "Mozilla")
 				ControlFocus, ahk_parent, % "ahk_id" this.BrowserId
-				ControlSend, ahk_parent, {LCtrl up}{LAlt up}{LShift up}{RCtrl up}{RAlt up}{RShift up}{Enter}, % "ahk_id" this.BrowserId
-			} else
-				ControlSend, ahk_parent, {LCtrl up}{LAlt up}{LShift up}{RCtrl up}{RAlt up}{RShift up}{Enter}, % "ahk_id" this.BrowserId ; Or would it be better to use BlockInput instead of releasing modifier keys?
+			ControlSend, ahk_parent, {LCtrl up}{LAlt up}{LShift up}{RCtrl up}{RAlt up}{RShift up}{Enter}, % "ahk_id" this.BrowserId ; Or would it be better to use BlockInput instead of releasing modifier keys?
 		}
 	}
 
@@ -741,6 +746,13 @@ class UIA_Browser {
 		if ((this.BrowserId == this.WindowFromPoint(X, Y)) || (this.BrowserId == this.WindowFromPoint(X, Y+H-1)) || (this.BrowserId == this.WindowFromPoint(X+W-1, Y)) || (this.BrowserId == this.WindowFromPoint(X+W-1, Y+H-1)))
 			return True
 		return False
+	}
+
+	Send(text) {
+		if (this.BrowserType = "Mozilla")
+			ControlFocus, ahk_parent, % "ahk_id" this.BrowserId
+		ControlSend, ahk_parent, {LCtrl up}{LAlt up}{LShift up}{RCtrl up}{RAlt up}{RShift up}{Enter}, % "ahk_id" this.BrowserId
+		ControlSend, ahk_parent, % text, % "ahk_id" this.BrowserId
 	}
 	
 	WindowFromPoint(X, Y) { ; by SKAN and Linear Spoon

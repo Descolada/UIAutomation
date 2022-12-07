@@ -4424,7 +4424,7 @@ UIA_Pattern(p, el) {
 		patternName := InStr(p, "Pattern") ? p : p "Pattern", i:=1
 	Loop {
 		i++
-		if !(VarSetCapacity(UIA_%patternName%%i%) && IsObject(UIA_%patternName%%i%) && UIA_%patternName%%i%.__iid && UIA_%patternName%%i%.__PatternID)
+		if !(IsSet(UIA_%patternName%%i%) && IsObject(UIA_%patternName%%i%) && UIA_%patternName%%i%.__iid && UIA_%patternName%%i%.__PatternID)
 			break
 	}
 	While (--i > 1) {

@@ -332,7 +332,7 @@ class UIA_Browser {
 		WinGetClass, wClass, % "ahk_id" this.BrowserId
 		this.BrowserType := (wExe == "chrome.exe") ? "Chrome" : (wExe == "msedge.exe") ? "Edge" : InStr(wClass, "Mozilla") ? "Mozilla" : "Unknown"
 		bt := this.BrowserType
-		if (IsSet(UIA_%bt%) && IsObject(UIA_%bt%)) {
+		if (bt != "Unknown") {
 			this.base := UIA_%bt%
 			this.__New(wTitle, customNames, maxVersion)
 		} else 

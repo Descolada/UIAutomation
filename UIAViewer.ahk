@@ -17,7 +17,7 @@ _xoffsetfirst := 8
 _xoffset := 5
 _yoffset := 20
 _ysoffset := 3
-_minSplitterPosX := 100, _maxSplitterPosX := 500, _minSplitterPosY := 100, _maxSplitterPosY := 500, SplitterW = 5
+_minSplitterPosX := 100, _maxSplitterPosX := 500, _minSplitterPosY := 100, _maxSplitterPosY := 500, SplitterW = 10
 
 Gui Main: New, AlwaysOnTop Resize hwndMainGuiHwnd, UIAViewer
 Gui Main: Default
@@ -92,7 +92,7 @@ MainGuiClose:
     ExitApp
 
 MainGuiSize(GuiHwnd, EventInfo, Width, Height){
-	global splitterW, _minSplitterPosX := 200, _maxSplitterPosX := (Width - SplitterW), _minSplitterPosY := 220, _maxSplitterPosY := (Height - SplitterW - 100)
+	global splitterW, _minSplitterPosX := 200, _maxSplitterPosX := (Width - SplitterW - 310), _minSplitterPosY := 220, _maxSplitterPosY := (Height - SplitterW - 100)
 
 	GuiControl, -Redraw, TabsMain
 	GuiControlGet, Pos, Pos , TabsMain
@@ -302,21 +302,16 @@ MoveSplitter2:
 
 ; Handle splitters to adjust the size of controls
 GetMouseOffsets(ByRef offsetX, ByRef offsetY, _controlName) {
+	oldCoordMode := A_CoordModeMouse
 	CoordMode Mouse, Screen
 	MouseGetPos initScrX, initScrY, hWnd
-	CoordMode Mouse, Relative   ; Restore default
+	CoordMode Mouse, Relative
 	MouseGetPos initWinX, initWinY
-	; Compute client area relative coordinates of the mouse
-	VarSetCapacity(point, 8), NumPut(initScrX, point, 0, "int"), NumPut(initScrY, point, 4, "int")
-	DllCall("user32\ScreenToClient", "ptr", hWnd, "ptr", &point, "int")
-	initCliX := NumGet(point,0,"Int"), initCliY := NumGet(point,4,"Int")
 	; Coordinates of the control, relative to the client area
 	GuiControlGet controlPos, Pos, %_controlName%
-	mouseX := controlPosX, 	mouseY := controlPosY
 	; Compute offset between click inside control and top-left corner of control
-	offsetX := initCliX - controlPosX, offsetY :=  initCliY - controlPosY
-	; Add offset between window and client area
-	offsetX += initWinX - initCliX, offsetY += initWinY - initCliY
+	offsetX := initWinX - controlPosX, offsetY :=  initWinY - controlPosY
+	CoordMode, Mouse, %oldCoordMode% ; Restore default
 }
 
 DragSplitter1(_controlName) { ; Based on a script by user PhiLho (https://www.autohotkey.com/board/topic/8001-splitter-bar-window-control-with-ahk/)
@@ -326,28 +321,29 @@ DragSplitter1(_controlName) { ; Based on a script by user PhiLho (https://www.au
 	GetMouseOffsets(offsetX, offsetY, _controlName)
 	originalSizes := GetControlSizes(_controlName, "LVPropertyIds", "GBWindowInfo", "EditWinTitle", "GBProperties", "GBPatterns", "TVPatterns", "ButCapture", "CBDeepSearch", "EditWinHwnd", "EditWinPosition", "EditWinSize", "TextClassNN", "TextProcess", "TextProcessID", "EditWinClass", "EditWinProcess", "EditWinProcessID", "MainTreeView", "ButRefreshTreeview", "Splitter2", "TabsMain", "EditMacroContent", "DDLMacroMatchMode", "DDLMacroFunction")
 	oldControlPos := originalSizes[_controlName]
+	oldCoordMode := A_CoordModeMouse
+	CoordMode, Mouse, Relative
 	Loop {
 		if !GetKeyState("LButton")
-			Break 
+			Break
 		MouseGetPos, mouseX, mouseY
-		mouseX -= offsetX
+		
+		moveX := Floor((mouseX-offsetX-oldControlPos.x)*(96/A_ScreenDPI))
+		if (oldControlPos.x+moveX > _maxSplitterPosX)
+			moveX := _maxSplitterPosX-oldControlPos.x
+		if (oldControlPos.x+moveX < _minSplitterPosX)
+			moveX := _minSplitterPosX-oldControlPos.x
 
-		if (mouseX < _minSplitterPosX) {
-			mouseX := _minSplitterPosX
-		}
-		if (mouseX > _maxSplitterPosX) {
-			mouseX := _maxSplitterPosX
-		}
-		moveX := Floor((mouseX-oldControlPos.x)*(96/A_ScreenDPI))
 		OffsetControls(originalSizes,moveX,,,, _controlName, "CBDeepSearch")
 		OffsetControls(originalSizes,,, moveX,, "LVPropertyIds", "GBWindowInfo", "EditWinTitle", "GBProperties", "GBPatterns", "TVPatterns", "ButCapture", "Splitter2")
 		OffsetControls(originalSizes,,, moveX//2,, "EditWinHwnd", "EditWinPosition", "EditWinSize")
 		OffsetControls(originalSizes,moveX//2,, moveX//2,,"EditWinClass", "EditWinProcess", "EditWinProcessID")
 		OffsetControls(originalSizes,moveX//2,,,, "TextClassNN", "TextProcess", "TextProcessID")
 		OffsetControls(originalSizes,moveX,, -moveX,, "TabsMain")
-		OffsetControls(originalSizes,,, -moveX,, "ButRefreshTreeview", "MainTreeView", "EditMacroContent", "DDLMacroMatchMode", "DDLMacroFunction")
+		OffsetControls(originalSizes,,, -moveX,, "ButRefreshTreeview", "MainTreeView", "EditMacroContent")
 		Sleep 100
 	}
+	CoordMode, Mouse, %oldCoordMode%
 	WinSet, Redraw,, ahk_id %MainGuiHwnd%
 }
 DragSplitter2(_controlName) {
@@ -358,24 +354,23 @@ DragSplitter2(_controlName) {
 
 	originalSizes := GetControlSizes(_controlName, "LVPropertyIds", "GBWindowInfo", "EditWinTitle", "GBProperties", "GBPatterns", "TVPatterns", "ButCapture", "EditWinHwnd", "EditWinPosition", "EditWinSize", "TextClassNN", "TextProcess", "TextProcessID", "EditWinClass", "EditWinProcess", "EditWinProcessID", "MainTreeView", "ButRefreshTreeview")
 	oldControlPos := originalSizes[_controlName]
+	oldCoordMode := A_CoordModeMouse
+	CoordMode, Mouse, Relative
 	Loop {
 		if !GetKeyState("LButton")
 			Break 
 		MouseGetPos, mouseX, mouseY
-		mouseY -= offsetY
-
-		if (mouseY < _minSplitterPosY) {
-			mouseY := _minSplitterPosY
-		}
-		if (mouseY > _maxSplitterPosY) {
-			mouseY := _maxSplitterPosY
-		}
-		moveY := Floor((mouseY-oldControlPos.y)*(96/A_ScreenDPI))
+		moveY := Floor((mouseY-offsetY-oldControlPos.y)*(96/A_ScreenDPI))
+		if (oldControlPos.y+moveY > _maxSplitterPosY)
+			moveY := _maxSplitterPosY-oldControlPos.y
+		if (oldControlPos.y+moveY < _minSplitterPosY)
+			moveY := _minSplitterPosY-oldControlPos.y
 		OffsetControls(originalSizes,,moveY,,, _controlName)
 		OffsetControls(originalSizes, ,, ,moveY, "LVPropertyIds", "GBProperties")
 		OffsetControls(originalSizes,,moveY, ,-moveY, "GBPatterns", "TVPatterns")
 		Sleep 100
 	}
+	CoordMode, Mouse, %oldCoordMode%
 	WinSet, Redraw,, ahk_id %MainGuiHwnd%
 }
 

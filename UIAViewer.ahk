@@ -22,6 +22,9 @@ _minSplitterPosX := 100, _maxSplitterPosX := 500, _minSplitterPosY := 100, _maxS
 Gui Main: New, AlwaysOnTop Resize hwndMainGuiHwnd, UIAViewer
 Gui Main: Default
 
+Gui, Add, Text, x310 y0 w%SplitterW% h500 vSplitter1 gMoveSplitter1
+Gui, Add, Text, x%_xoffsetfirst% y390 w300 h%SplitterW% vSplitter2 gMoveSplitter2
+
 Gui Add, GroupBox, x8 y10 w302 h130 vGBWindowInfo, Window/Control Info
 Gui Add, Text, x18 y28 w30 vTextWinTitle, WinTitle:
 Gui Add, Edit, x65 yp-%_ysoffset% w235 vEditWinTitle, 
@@ -77,8 +80,6 @@ Gui, Font
 SB_SetParts(380)
 SB_SetText("`tCurrent UIA Interface version: " UIA.__Version,2)
 
-Gui, Add, Text, x310 y0 w%SplitterW% h500 vSplitter1 gMoveSplitter1
-Gui, Add, Text, x%_xoffsetfirst% y390 w300 h%SplitterW% vSplitter2 gMoveSplitter2
 ; Change the cursor when mouse is over splitter control
 OnMessage(WM_SETCURSOR := 0x20, "HandleMessage")
 OnMessage(WM_MOUSEMOVE := 0x200, "HandleMessage") 

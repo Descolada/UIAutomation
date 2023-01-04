@@ -3,6 +3,7 @@
 #Warn
 SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 SetTitleMatchMode, 2
+SetBatchLines, -1
 
 ;#include <UIA_Interface> ; Uncomment if you have moved UIA_Interface.ahk to your main Lib folder
 #include ..\Lib\UIA_Interface.ahk
@@ -12,25 +13,25 @@ UIA := UIA_Interface()
 DriveGet, CDriveName, Label, C:
 CDriveName := CDriveName " (C:)"
 WinWaitActive, %CDriveName%
-explorerEl := UIA.ElementFromHandle(WinActive("A"))
+explorerEl := UIA.ElementFromHandle("A")
 listEl := explorerEl.FindFirstByType("List")
 
-gridPattern := listEl.GetCurrentPatternAs("Grid")
+gridPattern := listEl.GridPattern
 Sleep, 500
 MsgBox, % "GridPattern properties: "
-	. "`nCurrentRowCount: " gridPattern.CurrentRowCount
-	. "`nCurrentColumnCount: " gridPattern.CurrentColumnCount
+	. "`nCurrentRowCount: " gridPattern.RowCount
+	. "`nCurrentColumnCount: " gridPattern.ColumnCount
 
 MsgBox, % "Getting grid item from row 4, column 1 (0-based indexing)"
 editEl := gridPattern.GetItem(3,0)
 MsgBox, % "Got this element: `n" editEl.Dump()
 
-gridItemPattern := editEl.GetCurrentPatternAs("GridItem")
+gridItemPattern := editEl.GridItemPattern
 MsgBox, % "GridItemPattern properties: "
-	. "`nCurrentRow: " gridItemPattern.CurrentRow
-	. "`nCurrentColumn: " gridItemPattern.CurrentColumn
-	. "`nCurrentRowSpan: " gridItemPattern.CurrentRowSpan
-	. "`nCurrentColumnSpan: " gridItemPattern.CurrentColumnSpan
+	. "`nCurrentRow: " gridItemPattern.Row
+	. "`nCurrentColumn: " gridItemPattern.Column
+	. "`nCurrentRowSpan: " gridItemPattern.RowSpan
+	. "`nCurrentColumnSpan: " gridItemPattern.ColumnSpan
 	; gridItemPattern.CurrentContainingGrid should return listEl
 
 ExitApp

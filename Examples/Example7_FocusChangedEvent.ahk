@@ -3,6 +3,7 @@
 #NoEnv  ; Recommended for performance and compatibility with future AutoHotkey releases.
 SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 SetTitleMatchMode, 2
+SetBatchLines, -1
 
 ;#include <UIA_Interface> ; Uncomment if you have moved UIA_Interface.ahk to your main Lib folder
 #include ..\Lib\UIA_Interface.ahk
@@ -14,7 +15,7 @@ EventHandler(el) {
 	try {
 		ToolTip, % "Caught event!`nElement name: " el.CurrentName
 		if cUIA.CompareElements(cUIA.URLEditElement, el) ; Check if the focused element is the same as Chrome's address bar element (comparison using == won't work)
-			el.SetValue("") ; If the Address bar was focused, clear it
+			el.Value := "" ; If the Address bar was focused, clear it
 	}
 }
 

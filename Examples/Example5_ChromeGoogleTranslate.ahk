@@ -2,6 +2,7 @@
 #Warn
 #SingleInstance force
 SetTitleMatchMode, 2
+SetBatchLines, -1
 ;#include <UIA_Interface> ; Uncomment if you have moved UIA_Interface.ahk to your main Lib folder
 #include ..\Lib\UIA_Interface.ahk
 ;#include <UIA_Browser> ; Uncomment if you have moved UIA_Browser.ahk to your main Lib folder

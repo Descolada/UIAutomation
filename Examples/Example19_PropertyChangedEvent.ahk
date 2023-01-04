@@ -2,6 +2,7 @@
 #Warn
 #SingleInstance force
 SetTitleMatchMode, 2
+SetBatchLines, -1
 
 ;#include <UIA_Interface> ; Uncomment if you have moved UIA_Interface.ahk to your main Lib folder
 #include ..\Lib\UIA_Interface.ahk
@@ -11,7 +12,7 @@ Run, explore C:\
 DriveGet, CDriveName, Label, C:
 CDriveName := CDriveName " (C:)"
 WinWaitActive, %CDriveName%,,1
-explorerEl := UIA.ElementFromHandle(WinActive("A"))
+explorerEl := UIA.ElementFromHandle("A")
 MsgBox, % "Press OK to create a new EventHandler for the PropertyChanged event (property UIA_NamePropertyId).`nTo test this, click on any file/folder, and a tooltip should pop up.`n`nTo exit the script, press F5."
 handler := UIA_CreateEventHandler("PropertyChangedEventHandler", "PropertyChanged")
 UIA.AddPropertyChangedEventHandler(explorerEl,0x4,,handler, [UIA_Enum.UIA_NamePropertyId]) ; Multiple properties can be specified in the array

@@ -2,6 +2,7 @@
 #Warn
 #SingleInstance force
 SetTitleMatchMode, 2
+SetBatchLines, -1
 
 ;#include <UIA_Interface> ; Uncomment if you have moved UIA_Interface.ahk to your main Lib folder
 #include ..\Lib\UIA_Interface.ahk
@@ -12,7 +13,7 @@ UIA := UIA_Interface() ; Initialize UIA interface
 program := "Document1 - Word"
 WinActivate, %program%
 WinWaitActive, %program%
-wordEl := UIA.ElementFromHandle(WinExist(program))
+wordEl := UIA.ElementFromHandle(program)
 bodyEl := wordEl.FindFirstBy("AutomationId=Body") ; First get the body element of Word
 textPattern := bodyEl.GetCurrentPatternAs("Text") ; Get TextPattern for the body element
 document := textPattern.DocumentRange ; Get the TextRange for the whole document

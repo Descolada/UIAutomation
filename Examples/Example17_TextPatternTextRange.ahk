@@ -2,6 +2,7 @@
 #Warn
 #SingleInstance force
 SetTitleMatchMode, 2
+SetBatchLines, -1
 
 ;#include <UIA_Interface> ; Uncomment if you have moved UIA_Interface.ahk to your main Lib folder
 #include ..\Lib\UIA_Interface.ahk
@@ -16,10 +17,10 @@ Run notepad.exe
 UIA := UIA_Interface()
 WinWaitActive, ahk_exe notepad.exe
 ;MsgBox, % UIA.TextPatternRangeEndpoint_Start " " UIA.TextPatternRangeEndpoint_End " " UIA.TextUnit_Character
-NotepadEl := UIA.ElementFromHandle(WinExist("ahk_exe notepad.exe"))
+NotepadEl := UIA.ElementFromHandle("ahk_exe notepad.exe")
 editEl := NotepadEl.FindFirstBy("ControlType=Document OR ControlType=Edit") ; Get the Edit or Document element (differs between UIAutomation versions)
-editEl.CurrentValue := lorem ; Set the text to our sample text
-textPattern := editEl.GetCurrentPatternAs("Text") ; Get the TextPattern
+editEl.Value := lorem ; Set the text to our sample text
+textPattern := editEl.TextPattern ; Get the TextPattern
 
 MsgBox, % "TextPattern properties:"
 	. "`nDocumentRange: returns the TextRange for all the text inside the element"

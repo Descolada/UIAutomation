@@ -84,11 +84,12 @@ class UIA_Base {
 	}
 	__Call(member, params*) {
 		local
-		global UIA_Base
+		global UIA_Base, UIA_Enum
 		if RegexMatch(member, "i)^(?:UIA_)?(PatternId|EventId|PropertyId|AttributeId|ControlTypeId|AnnotationType|StyleId|LandmarkTypeId|HeadingLevel|ChangeId|MetadataId)$", match) {
 			return UIA_Enum["UIA_" match1](params*)
-		} else if !ObjHasKey(UIA_Base,member)&&!ObjHasKey(this,member)&&!"_NewEnum"
+		} else if !ObjHasKey(UIA_Base,member)&&!ObjHasKey(this,member)&&!(member = "_NewEnum") {
 			throw Exception("Method Call not supported by the " this.__Class " Class.",-1,member)
+		}
 	}
 	__Delete() {
 		this.__Flag ? ((this.__Flag == 2) ? DllCall("GlobalFree", "Ptr", this.__Value) : ObjRelease(this.__Value)):
@@ -1779,7 +1780,7 @@ class UIA_Element extends UIA_Base {
 		searchPath="P1-1.1.1.2" -> gets the parent element, then the previous sibling element of the parent, and then "1.1.2" gets the second child of the first childs first child. 
 
 		c or condition argument can be used to only filter elements specified by the condition: 
-		UIA_Element.FindByPath("+2", UIA_Interface.CreateCondition("ControlType", "Button")) will only consider "Button" controls and gets the second sibling button.
+		UIA_Element.FindByPath("+2", "Type=Button") will only consider "Button" controls and gets the second sibling button.
 	*/
 	FindByPath(searchPath:="", c:="") {
 		local
@@ -4093,8 +4094,7 @@ class UIA_DragPattern extends UIA_Base { ; UNTESTED, couldn't find a window that
 		}
 	}
 
-	; ---------- UIA_GrabPattern methods ----------
-
+	; ---------- UIA_DragPattern methods ----------
 	GetCurrentGrabbedItems() {
 		local
 		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value, "ptr*",out:=""))?UIA_ElementArray(out):
@@ -4149,7 +4149,6 @@ class UIA_ObjectModelPattern extends UIA_Base {			; Windows 8 [desktop apps only
 	;~ http://msdn.microsoft.com/en-us/library/windows/desktop/hh437262(v=vs.85).aspx
 	static	__IID := "{71c284b3-c14d-4d14-981e-19751b0d756d}"
 		,	__PatternID := 10022
-	
 	GetUnderlyingObjectModel() { ; UNTESTED. Returns IUnknown interface used to access the underlying object model of the provider.
 		local
 		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr*",out:=""))?out:

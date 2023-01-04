@@ -3,6 +3,7 @@
 #Warn
 SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 SetTitleMatchMode, 2
+SetBatchLines, -1
 
 ;#include <UIA_Interface> ; Uncomment if you have moved UIA_Interface.ahk to your main Lib folder
 #include ..\Lib\UIA_Interface.ahk
@@ -12,7 +13,7 @@ UIA := UIA_Interface()
 DriveGet, CDriveName, Label, C:
 CDriveName := CDriveName " (C:)"
 WinWaitActive, %CDriveName%
-explorerEl := UIA.ElementFromHandle(WinActive("A"))
+explorerEl := UIA.ElementFromHandle("A")
 listEl := explorerEl.FindFirstByType("List")
 
 mvPattern := listEl.GetCurrentPatternAs("MultipleView")

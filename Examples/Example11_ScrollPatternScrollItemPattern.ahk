@@ -3,6 +3,7 @@
 #Warn
 SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 SetTitleMatchMode, 2
+SetBatchLines, -1
 
 ;#include <UIA_Interface> ; Uncomment if you have moved UIA_Interface.ahk to your main Lib folder
 #include ..\Lib\UIA_Interface.ahk
@@ -12,18 +13,18 @@ UIA := UIA_Interface()
 DriveGet, CDriveName, Label, C:
 CDriveName := CDriveName " (C:)"
 WinWaitActive, %CDriveName%
-explorerEl := UIA.ElementFromHandle(WinActive("A"))
+explorerEl := UIA.ElementFromHandle("A")
 treeEl := explorerEl.FindFirstByType("Tree")
 
 MsgBox, % "For this example, make sure that the folder tree on the left side in File Explorer has some scrollable elements (make the window small enough)."
-scrollPattern := treeEl.GetCurrentPatternAs("Scroll")
+scrollPattern := treeEl.ScrollPattern
 Sleep, 500
 MsgBox, % "ScrollPattern properties: "
-	. "`nCurrentHorizontalScrollPercent: " scrollPattern.CurrentHorizontalScrollPercent ; If this returns an error about not existing, make sure you have the latest UIA_Interface.ahk
-	. "`nCurrentVerticalScrollPercent: " scrollPattern.CurrentVerticalScrollPercent
-	. "`nCurrentHorizontalViewSize: " scrollPattern.CurrentHorizontalViewSize
-	. "`nCurrentHorizontallyScrollable: " scrollPattern.CurrentHorizontallyScrollable
-	. "`nCurrentVerticallyScrollable: " scrollPattern.CurrentVerticallyScrollable
+	. "`nCurrentHorizontalScrollPercent: " scrollPattern.HorizontalScrollPercent ; If this returns an error about not existing, make sure you have the latest UIA_Interface.ahk
+	. "`nCurrentVerticalScrollPercent: " scrollPattern.VerticalScrollPercent
+	. "`nCurrentHorizontalViewSize: " scrollPattern.HorizontalViewSize
+	. "`nCurrentHorizontallyScrollable: " scrollPattern.HorizontallyScrollable
+	. "`nCurrentVerticallyScrollable: " scrollPattern.VerticallyScrollable
 Sleep, 50
 MsgBox, % "Press OK to set scroll percent to 50% vertically and 0% horizontally."
 scrollPattern.SetScrollPercent(,50)
@@ -38,7 +39,7 @@ if !CDriveEl {
 	MsgBox, C: drive element not found! Exiting app...
 	ExitApp
 }
-scrollItemPattern := CDriveEl.GetCurrentPatternAs("ScrollItem")
+scrollItemPattern := CDriveEl.ScrollItemPattern
 scrollItemPattern.ScrollIntoView()
 
 ExitApp

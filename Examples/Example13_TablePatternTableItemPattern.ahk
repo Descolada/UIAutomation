@@ -3,19 +3,18 @@
 #Warn
 SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 SetTitleMatchMode, 2
+SetBatchLines, -1
 
 ;#include <UIA_Interface> ; Uncomment if you have moved UIA_Interface.ahk to your main Lib folder
 #include ..\Lib\UIA_Interface.ahk
 
-Run, explore C:\
+Run, explore C:\Windows
 UIA := UIA_Interface()
-DriveGet, CDriveName, Label, C:
-CDriveName := CDriveName " (C:)"
-WinWaitActive, %CDriveName%
-explorerEl := UIA.ElementFromHandle(WinActive("A"))
+WinWaitActive, Windows
+explorerEl := UIA.ElementFromHandle("A")
 listEl := explorerEl.FindFirstByType("List")
 
-tablePattern := listEl.GetCurrentPatternAs("Table")
+tablePattern := listEl.TablePattern
 MsgBox, % "TablePattern properties: "
 	. "`nCurrentRowOrColumnMajor: " tablePattern.CurrentRowOrColumnMajor
 
@@ -31,8 +30,8 @@ for _,header in columnHeaders
 	columnHeadersDump .= header.Dump() "`n"
 MsgBox, % "TablePattern elements from GetCurrentColumnHeaders:`n" columnHeadersDump
 
-editEl := listEl.GetCurrentPatternAs("Grid").GetItem(3,0) ; To test the TableItem pattern, we need to get an element supporting that using Grid pattern...
-tableItemPattern := editEl.GetCurrentPatternAs("TableItem")
+editEl := listEl.GridPattern.GetItem(3,0) ; To test the TableItem pattern, we need to get an element supporting that using Grid pattern...
+tableItemPattern := editEl.TableItemPattern
 rowHeaderItems := tableItemPattern.GetCurrentRowHeaderItems()
 rowHeaderItemsDump := ""
 for _,headerItem in rowHeaderItems

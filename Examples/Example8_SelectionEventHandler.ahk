@@ -3,12 +3,13 @@
 #NoEnv  ; Recommended for performance and compatibility with future AutoHotkey releases.
 SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 SetTitleMatchMode, 2
+SetBatchLines, -1
 
 ;#include <UIA_Interface> ; Uncomment if you have moved UIA_Interface.ahk to your main Lib folder
 #include ..\Lib\UIA_Interface.ahk
 
 TextSelectionChangedEventHandler(el, eventId) {
-	textPattern := el.GetCurrentPatternAs("TextPattern")
+	textPattern := el.TextPattern
 	selectionArray := textPattern.GetSelection() ; Gets the currently selected text in Notepad as an array of TextRanges (some elements support selecting multiple pieces of text at the same time, thats why an array is returned)
 	selectedRange := selectionArray[1] ; Our range of interest is the first selection (TextRange)
 	wholeRange := textPattern.DocumentRange ; For comparison, get the whole range (TextRange) of the document
@@ -30,11 +31,10 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor i
 Run, notepad.exe
 WinWaitActive, ahk_exe notepad.exe
 UIA := UIA_Interface()
-	
+
 NotepadEl := UIA.ElementFromHandle("ahk_exe notepad.exe")
-DocumentControlCondition := UIA.CreatePropertyCondition(UIA.ControlTypePropertyId, UIA.DocumentControlTypeId) ; If UIA Interface version is 1, then the ControlType is Edit instead of Document!
-DocumentControl := NotepadEl.FindFirst(DocumentControlCondition)
-DocumentControl.SetValue(lorem) ; Set the value to our sample text
+DocumentControl := NotepadEl.FindFirst("Type=Document or Type=Edit")
+DocumentControl.Value := lorem ; Set the value to our sample text
 
 handler := UIA_CreateEventHandler("TextSelectionChangedEventHandler") ; Create a new event handler that points to the function TextSelectionChangedEventHandler, which must accept two arguments: element and eventId.
 UIA.AddAutomationEventHandler(UIA.Text_TextSelectionChangedEventId, NotepadEl,,, handler) ; Add a new automation handler for the TextSelectionChanged event

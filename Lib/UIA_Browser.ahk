@@ -297,7 +297,7 @@ class UIA_Mozilla extends UIA_Browser {
 				if (tabElementOrName.CurrentControlType == this.UIA.TabItemControlTypeId)
 					tabElementOrName.Click()
 			} else {
-				try this.TabBarElement.FindFirstByNameAndType(searchPhrase, "TabItem",, matchMode, caseSensitive).Click()
+				try this.TabBarElement.FindFirstByNameAndType(tabElementOrName, "TabItem",, matchMode, caseSensitive).Click()
 			}
 		}
 		ControlSend, ahk_parent, {LCtrl up}{LAlt up}{LShift up}{RCtrl up}{RAlt up}{RShift up}, % "ahk_id " this.BrowserId

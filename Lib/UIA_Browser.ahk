@@ -735,7 +735,7 @@ class UIA_Browser {
 			if (tabElementOrName == "") {
 				try this.TWT.GetLastChildElement(this.GetTab()).Click()
 			} else
-				try this.TWT.GetLastChildElement(this.TabBarElement.FindFirstByNameAndType(searchPhrase, "TabItem",, matchMode, caseSensitive)).Click()
+				try this.TWT.GetLastChildElement(this.TabBarElement.FindFirstByNameAndType(tabElementOrName, "TabItem",, matchMode, caseSensitive)).Click()
 		}
 	}
 	

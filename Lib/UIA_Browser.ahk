@@ -294,7 +294,7 @@ class UIA_Mozilla extends UIA_Browser {
 	CloseTab(tabElementOrName:="", matchMode:=3, caseSensitive:=True) { 
 		if (tabElementOrName != "") {
 			if IsObject(tabElementOrName) {
-				if (tabElementOrName.CurrentControlType == this.UIA.TabItemControlType)
+				if (tabElementOrName.CurrentControlType == this.UIA.TabItemControlTypeId)
 					tabElementOrName.Click()
 			} else {
 				try this.TabBarElement.FindFirstByNameAndType(searchPhrase, "TabItem",, matchMode, caseSensitive).Click()
@@ -729,7 +729,7 @@ class UIA_Browser {
 	; Close tab by either providing the tab element or the name of the tab. If tabElementOrName is left empty, the current tab will be closed.
 	CloseTab(tabElementOrName:="", matchMode:=3, caseSensitive:=True) { 
 		if IsObject(tabElementOrName) {
-			if (tabElementOrName.CurrentControlType == this.UIA.TabItemControlType)
+			if (tabElementOrName.CurrentControlType == this.UIA.TabItemControlTypeId)
 				try this.TWT.GetLastChildElement(tabElementOrName).Click()
 		} else {
 			if (tabElementOrName == "") {

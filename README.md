@@ -11,3 +11,6 @@ Additionally UIAViewer.ahk is included to view UIA elements and browse the UIA t
 For more information and tutorials, [check out the Wiki](https://github.com/Descolada/UIAutomation/wiki).
 
 If you have questions or issues, either post it in the [AutoHotkey forums' main thread](https://www.autohotkey.com/boards/viewtopic.php?f=6&t=104999) or create a [new issue](https://github.com/Descolada/UIAutomation/issues).
+
+If you wish to support me in this and other projects:
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/descolada)

@@ -2079,7 +2079,7 @@ class UIA_Element7 extends UIA_Element6 {
 	}
 	FindAllWithOptions(scope:=0x4, c:="", traversalOptions:=0, root:=0) {
 		local
-		return UIA_Hr(DllCall(this.__Vt(111), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out:=""))? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(111), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out:=""))? UIA_ElementArray(out):
 	}
 	FindFirstWithOptionsBuildCache(scope:=0x4, c:="", cacheRequest:=0, traversalOptions:=0, root:=0) {
 		local
@@ -2087,7 +2087,7 @@ class UIA_Element7 extends UIA_Element6 {
 	}
 	FindAllWithOptionsBuildCache(scope:=0x4, c:="", cacheRequest:=0, traversalOptions:=0, root:=0) {
 		local
-		return UIA_Hr(DllCall(this.__Vt(113), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr", cacheRequest.__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out:=""))? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(113), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr", cacheRequest.__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out:=""))? UIA_ElementArray(out):
 	}
 	GetCurrentMetadataValue(targetId, metadataId) {
 		local

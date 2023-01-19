@@ -2075,19 +2075,19 @@ class UIA_Element7 extends UIA_Element6 {
 	; Finds the first matching element in the specified order. traversalOptions must be one of TreeTraversalOptions enums. [optional] root is pointer to the element with which to begin the search.
 	FindFirstWithOptions(scope:=0x4, c:="", traversalOptions:=0, root:=0) { 
 		local
-		return UIA_Hr(DllCall(this.__Vt(110), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out:=""))? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(110), "ptr",this.__Value, "uint", scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "uint", traversalOptions, "ptr", root ? root.__Value : this.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 	FindAllWithOptions(scope:=0x4, c:="", traversalOptions:=0, root:=0) {
 		local
-		return UIA_Hr(DllCall(this.__Vt(111), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out:=""))? UIA_ElementArray(out):
+		return UIA_Hr(DllCall(this.__Vt(111), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "int", traversalOptions, "ptr", root ? root.__Value : this.__Value, "ptr*",out:=""))? UIA_ElementArray(out):
 	}
 	FindFirstWithOptionsBuildCache(scope:=0x4, c:="", cacheRequest:=0, traversalOptions:=0, root:=0) {
 		local
-		return UIA_Hr(DllCall(this.__Vt(112), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr", cacheRequest.__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out:=""))? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(112), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr", cacheRequest.__Value, "int", traversalOptions, "ptr", root ? root.__Value : this.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 	FindAllWithOptionsBuildCache(scope:=0x4, c:="", cacheRequest:=0, traversalOptions:=0, root:=0) {
 		local
-		return UIA_Hr(DllCall(this.__Vt(113), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr", cacheRequest.__Value, "int", traversalOptions, "ptr", root.__Value, "ptr*",out:=""))? UIA_ElementArray(out):
+		return UIA_Hr(DllCall(this.__Vt(113), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr", cacheRequest.__Value, "int", traversalOptions, "ptr", root ? root.__Value : this.__Value, "ptr*",out:=""))? UIA_ElementArray(out):
 	}
 	GetCurrentMetadataValue(targetId, metadataId) {
 		local

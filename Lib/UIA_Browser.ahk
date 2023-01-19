@@ -347,11 +347,18 @@ class UIA_Browser {
 			if RegexMatch(member, "PatternId|EventId|PropertyId|AttributeId|ControlTypeId|AnnotationType|StyleId|LandmarkTypeId|HeadingLevel|ChangeId|MetadataId", match) 
 				return IsFunc("UIA_Enum.UIA_" match) ? UIA_Enum["UIA_" match](member) : UIA_Enum[match](member)
 			else if (SubStr(member,1,1) != "_") {
-				try
-					return this.UIA[member]
-				try
-					return this.BrowserElement[member]
+				try return this.UIA[member]
+				try return this.BrowserElement[member]
 			}
+		}
+	}
+
+	__Set(member, value) {
+		if (member != "base") {
+			if ObjRawGet(this, "UIA")
+				try return this.UIA[member] := value
+			if ObjRawGet(this, "BrowserElement")
+				try return this.BrowserElement[member] := value
 		}
 	}
 	

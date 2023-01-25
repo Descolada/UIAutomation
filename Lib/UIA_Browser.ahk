@@ -197,8 +197,9 @@ class UIA_Edge extends UIA_Browser {
 }
 
 class UIA_Mozilla extends UIA_Browser {
-	__New(wTitle:="A", customNames:="", maxVersion:="") {
+	__New(wTitle:="A", customNames:="", maxVersion:="", javascriptFromBookmark:=False) {
 		this.BrowserType := "Mozilla"
+		this.JavascriptFromBookmark := javascriptFromBookmark
 		this.InitiateUIA(wTitle, customNames, maxVersion)
 	}
 	; Refreshes UIA_Browser.MainPaneElement and returns it
@@ -228,14 +229,10 @@ class UIA_Mozilla extends UIA_Browser {
 	}
 
 	; Returns the current document/content element of the browser
-	GetCurrentDocumentElement(tabName:="", matchMode:=3, caseSensitive:=True) {
+	GetCurrentDocumentElement() {
 		local
-		for i, el in this.GetTabs() {
-			if (tabName ? this.__CompareTitles(tabName, el.CurrentName, matchMode, caseSensitive) : el.SelectionItemIsSelected) {
-				this.DocumentPanelElement := this.BrowserElement.FindAllBy("AutomationId=panel",2,2)[i+1]
-				return this.TWT.GetFirstChildElement(this.TWT.GetFirstChildElement(this.DocumentPanelElement))
-			}
-		}
+		this.DocumentPanelElement := this.BrowserElement.FindFirstBy("ControlType=Custom AND IsOffscreen=0",2)
+		return this.TWT.GetFirstChildElement(this.TWT.GetFirstChildElement(this.DocumentPanelElement))
 	}
 
 	; Presses the New tab button. 
@@ -256,10 +253,15 @@ class UIA_Mozilla extends UIA_Browser {
 
 	JSExecute(js) {
 		local
+		if (this.JavascriptFromBookmark) {
+			this.SetURL("javascript " js, True)
+			return
+		}
 		ControlFocus, ahk_parent, % "ahk_id" this.BrowserId
 		ControlSend, ahk_parent, {LCtrl up}{LAlt up}{LShift up}{RCtrl up}{RAlt up}{RShift up}, % "ahk_id" this.BrowserId
 		ControlSend, ahk_parent, {ctrl down}{shift down}k{ctrl up}{shift up}, % "ahk_id" this.BrowserId
-		this.BrowserElement.WaitElementExistByNameAndType("Switch to multi-line editor mode (Ctrl + B)", "Button")	
+		this.GetCurrentDocumentElement()
+		this.DocumentPanelElement.WaitElementExistByNameAndType("Switch to multi-line editor mode (Ctrl + B)", "Button")	
 		ClipSave := ClipboardAll
 		Clipboard := js
 		WinActivate, % "ahk_id" this.BrowserId

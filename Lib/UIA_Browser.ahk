@@ -138,9 +138,16 @@ class UIA_Chrome extends UIA_Browser {
 					this.MainPaneElement := this.BrowserElement
 				if !(this.TabBarElement := this.CreateTreeWalker(this.TabControlCondition).GetPreviousSiblingElement(this.NavigationBarElement))
 					this.TabBarElement := this.MainPaneElement
-				this.ReloadButton := this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetFirstChildElement(this.NavigationBarElement)))
-				this.ReloadButtonDescription := this.ReloadButton.GetCurrentPatternAs("LegacyIAccessible").CurrentDescription
-				this.ReloadButtonName := this.ReloadButton.CurrentName
+				Loop 2 {
+					try {
+						this.ReloadButton := this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetFirstChildElement(this.NavigationBarElement)))
+						this.ReloadButtonDescription := this.ReloadButton.GetCurrentPatternAs("LegacyIAccessible").CurrentDescription
+						this.ReloadButtonName := this.ReloadButton.CurrentName
+					}
+					if (this.ReloadButtonDescription || this.ReloadButtonName)
+						break
+					Sleep 200
+				}
 				return this.MainPaneElement
 			} catch {
 				WinActivate, % "ahk_id " this.BrowserId
@@ -183,9 +190,16 @@ class UIA_Edge extends UIA_Browser {
 					this.MainPaneElement := this.BrowserElement
 				if !(this.TabBarElement := this.CreateTreeWalker(this.TabControlCondition).GetPreviousSiblingElement(this.NavigationBarElement))
 					this.TabBarElement := this.MainPaneElement
-				this.ReloadButton := this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetFirstChildElement(this.NavigationBarElement)))
-				this.ReloadButtonFullDescription := this.ReloadButton.CurrentFullDescription
-				this.ReloadButtonName := this.ReloadButton.CurrentName
+				Loop 2 {
+					try {
+						this.ReloadButton := this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetFirstChildElement(this.NavigationBarElement)))
+						this.ReloadButtonFullDescription := this.ReloadButton.CurrentFullDescription
+						this.ReloadButtonName := this.ReloadButton.CurrentName
+					}
+					if (this.ReloadButtonFullDescription || this.ReloadButtonName)
+						break
+					Sleep 200
+				}
 				return this.MainPaneElement
 			} catch {
 				WinActivate, % "ahk_id " this.BrowserId
@@ -216,9 +230,16 @@ class UIA_Mozilla extends UIA_Browser {
 					this.NavigationBarElement := this.BrowserElement
 				if !this.MainPaneElement
 					this.MainPaneElement := this.BrowserElement
-				this.ReloadButton := this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetFirstChildElement(this.NavigationBarElement)))
-				this.ReloadButtonFullDescription := this.ReloadButton.CurrentFullDescription
-				this.ReloadButtonName := this.ReloadButton.CurrentName
+				Loop 2 {
+					try {
+						this.ReloadButton := this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetFirstChildElement(this.NavigationBarElement)))
+						this.ReloadButtonFullDescription := this.ReloadButton.CurrentFullDescription
+						this.ReloadButtonName := this.ReloadButton.CurrentName
+					}
+					if (this.ReloadButtonFullDescription || this.ReloadButtonName)
+						break
+					Sleep 200
+				}	
 				return this.MainPaneElement
 			} catch {
 				WinActivate, % "ahk_id " this.BrowserId
@@ -407,10 +428,17 @@ class UIA_Browser {
 				;if !(this.TabBarElement := this.BrowserElement.FindFirstByNameAndType(this.CustomNames.TabBarName ? this.CustomNames.TabBarName : "Tab bar", "Tab"))
 				if !(this.TabBarElement := this.CreateTreeWalker(this.TabControlCondition).GetPreviousSiblingElement(this.NavigationBarElement))
 					this.TabBarElement := this.MainPaneElement
-				this.GetCurrentReloadButton()
-				this.ReloadButtonFullDescription := this.ReloadButton.FullDescription
-				this.ReloadButtonDescription := this.ReloadButton.GetCurrentPatternAs("LegacyIAccessible").CurrentDescription
-				this.ReloadButtonName := this.ReloadButton.CurrentName
+				Loop 2 {
+					try {
+						this.GetCurrentReloadButton()
+						this.ReloadButtonFullDescription := this.ReloadButton.FullDescription
+						this.ReloadButtonDescription := this.ReloadButton.GetCurrentPatternAs("LegacyIAccessible").CurrentDescription
+						this.ReloadButtonName := this.ReloadButton.CurrentName
+					}
+					if (this.ReloadButtonFullDescription || this.ReloadButtonName || this.ReloadButtonDescription)
+						break
+					Sleep 200
+				}
 				return this.MainPaneElement
 			} catch {
 				WinActivate, % "ahk_id " this.BrowserId
@@ -430,8 +458,9 @@ class UIA_Browser {
 	}
 
 	GetCurrentReloadButton() {
+		try CurrentName := this.ReloadButton.CurrentName
 		try {
-			if this.ReloadButton && this.ReloadButton.CurrentName
+			if this.ReloadButton && CurrentName
 				return this.ReloadButton
 		}
 		ButtonWalker := this.UIA.CreateTreeWalker(this.ButtonControlCondition)
@@ -606,16 +635,20 @@ class UIA_Browser {
 	; Waits the browser page to load to targetTitle, default timeOut is indefinite waiting, sleepAfter additionally sleeps for 200ms after the page has loaded. 
 	WaitPageLoad(targetTitle:="", timeOut:=-1, sleepAfter:=500, titleMatchMode:="", titleCaseSensitive:=False) {
 		local
+		legacyPattern := "", ReloadButtonName := "", ReloadButtonDescription := "", ReloadButtonFullDescription := ""
 		Sleep, 200 ; Give some time for the Reload button to change after navigating
 		if this.ReloadButtonDescription
-			legacyPattern := this.ReloadButton.GetCurrentPatternAs("LegacyIAccessible")
+			try legacyPattern := this.ReloadButton.GetCurrentPatternAs("LegacyIAccessible")
 		startTime := A_TickCount
 		while ((A_TickCount - startTime) < timeOut) || (timeOut = -1) {
 			if this.BrowserType = "Mozilla"
 				this.GetCurrentReloadButton()
-			if ((this.ReloadButtonName ? InStr(this.ReloadButton.CurrentName, this.ReloadButtonName) : 1) 
-			   && (this.ReloadButtonDescription ? InStr(legacyPattern.CurrentDescription, this.ReloadButtonDescription) : 1)
-			   && (this.ReloadButtonFullDescription ? InStr(this.ReloadButton.CurrentFullDescription, this.ReloadButtonFullDescription) : 1)) {
+			try ReloadButtonName := this.ReloadButton.CurrentName
+			try ReloadButtonDescription := legacyPattern.CurrentDescription
+			try ReloadButtonFullDescription := this.ReloadButton.CurrentFullDescription
+			if ((this.ReloadButtonName ? InStr(ReloadButtonName, this.ReloadButtonName) : 1) 
+			   && (this.ReloadButtonDescription ? InStr(ReloadButtonDescription, this.ReloadButtonDescription) : 1)
+			   && (this.ReloadButtonFullDescription ? InStr(ReloadButtonFullDescription, this.ReloadButtonFullDescription) : 1)) {
 				if targetTitle {
 					WinGetTitle, wTitle, % "ahk_id" this.BrowserId
 					if this.__CompareTitles(targetTitle, wTitle, titleMatchMode, titleCaseSensitive)
@@ -647,7 +680,7 @@ class UIA_Browser {
 	; Presses the Home button if it exists.
 	Home() { 
 		local
-		if homeBut := this.TWT.GetNextSiblingElement(this.ReloadButton)
+		if (this.ReloadButton && (homeBut := this.TWT.GetNextSiblingElement(this.ReloadButton)))
 			return homeBut.Click()
 		;NameCondition := this.UIA.CreatePropertyCondition(this.UIA.NamePropertyId, this.CustomNames.HomeButtonName ? this.CustomNames.HomeButtonName : butName)
 		;this.NavigationBarElement.FindFirst(this.UIA.CreateAndCondition(NameCondition, this.ButtonControlCondition)).Click()

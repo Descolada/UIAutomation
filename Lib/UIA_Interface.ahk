@@ -49,23 +49,34 @@ class UIA_Base {
 		,ObjRawSet(this,"__Flag",flag)
 		,ObjRawSet(this,"__Version",version)
 	}
-	__Get(member) {
+	__Get(members*) {
 		local
 		global UIA_Enum
+		member := members[1]
 		if member not in base,__UIA,TreeWalkerTrue,TrueCondition ; These should act as normal
 		{
+			if (!InStr(member, "Current")) {
+				baseKey := this
+				While (ObjGetBase(baseKey)) {
+					if baseKey.HasKey("Current" member)
+						return this["Current" member]
+					baseKey := ObjGetBase(baseKey)
+				}
+			}
 			if ObjHasKey(UIA_Enum, member) {
 				return UIA_Enum[member]
 			} else if RegexMatch(member, "i)PatternId|EventId|PropertyId|AttributeId|ControlTypeId|AnnotationType|StyleId|LandmarkTypeId|HeadingLevel|ChangeId|MetadataId", match) {
 				return UIA_Enum["UIA_" match](member)
-			} else if !InStr(member, "Current")
-				try return this["Current" member]
-			if InStr(this.__Class, "UIA_Element") {
+			} else if InStr(this.__Class, "UIA_Element") {
 				if (prop := UIA_Enum.UIA_PropertyId(member))
 					return this.GetCurrentPropertyValue(prop)
-				else if ((SubStr(member, 1, 6) = "Cached") && (prop := UIA_Enum.UIA_PropertyId(SubStr(member, 7))))
+				else if (RegExMatch(member, "i)=|\.|^[+-]?\d+$") || (RegexMatch(member, "^([A-Za-z]+)\d*$", match) && UIA_Enum.UIA_ControlTypeId(match1))) {
+					for _, member in members
+						this := InStr(member, "=") ? this.FindFirstBy(member, 2) : this.FindByPath(member)
+					return this
+				} else if ((SubStr(member, 1, 6) = "Cached") && (prop := UIA_Enum.UIA_PropertyId(SubStr(member, 7))))
 					return this.GetCachedPropertyValue(prop)
-				if (member ~= "i)Pattern\d?") { 
+				else if (member ~= "i)Pattern\d?") { 
 					if UIA_Enum.UIA_PatternId(member)
 						return this.GetCurrentPatternAs(member)
 					else if ((SubStr(member, 1, 6) = "Cached") && UIA_Enum.UIA_PatternId(pattern := SubStr(member, 7)))
@@ -85,10 +96,13 @@ class UIA_Base {
 	__Call(member, params*) {
 		local
 		global UIA_Base, UIA_Enum
-		if RegexMatch(member, "i)^(?:UIA_)?(PatternId|EventId|PropertyId|AttributeId|ControlTypeId|AnnotationType|StyleId|LandmarkTypeId|HeadingLevel|ChangeId|MetadataId)$", match) {
-			return UIA_Enum["UIA_" match1](params*)
-		} else if !ObjHasKey(UIA_Base,member)&&!ObjHasKey(this,member)&&!(member = "_NewEnum") {
-			throw Exception("Method Call not supported by the " this.__Class " Class.",-1,member)
+		if member not in base,HasKey 
+		{
+			if RegexMatch(member, "i)^(?:UIA_)?(PatternId|EventId|PropertyId|AttributeId|ControlTypeId|AnnotationType|StyleId|LandmarkTypeId|HeadingLevel|ChangeId|MetadataId)$", match) {
+				return UIA_Enum["UIA_" match1](params*)
+			} else if !ObjHasKey(UIA_Base,member)&&!ObjHasKey(this,member)&&!(member = "_NewEnum") {
+				throw Exception("Method Call not supported by the " this.__Class " Class.",-1,member)
+			}
 		}
 	}
 	__Delete() {
@@ -1792,6 +1806,8 @@ class UIA_Element extends UIA_Base {
 				children := el.GetChildren(0x2,c)
 				if !IsObject(el := children[A_LoopField])
 					return ErrorLevel := "Step " A_index " was out of bounds"
+			} else if RegexMatch(A_LoopField, "i)^(?!p\d*[+-]?\d*$)([A-Za-z]+)([+-]?\d*)$", m) {
+				el := (m2 && m2 != 1) ? (els := el.FindAllByType(m1, 2))[m2 > 1 ? m2 : els.MaxIndex()+m2+1] : el.FindFirstByType(m1, 2)
 			} else {
 				if RegexMatch(A_LoopField, "i)p(\d+)?", m) {
 					if !m1

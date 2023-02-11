@@ -71,13 +71,10 @@ Gui, Add, DropDownList, x+10 yp-1 w85 gDDLMacroAction vDDLMacroAction, Click||Co
 Gui, Add, Text, x331 y+15, New input line:
 ; new line of input data
 
-			; ##########################################
-			; Code generation inserted in GUI Box here
-			; ##########################################
-			; ##########################################
-			; Code generation inserted in GUI Box here
-			; ##########################################
-			
+; ##########################################
+; Code generation inserted in GUI Box here
+; ##########################################
+
 			
 value_for_top_of_code_generation=
 (
@@ -86,10 +83,10 @@ SetTitleMatchMode, 2
 global UIA := UIA_Interface()
 )
 
-			; ##########################################
-			;    Part 1 ends here, Part 2 Line ~760
-			;    ctrl+F "asdf" to find either section
-			; ########################################## 
+; ##########################################
+;    Part 1 ends here, Part 2 Line ~760
+;    ctrl+F "asdf" to find either section
+; ########################################## 
 			
 Gui, Add, Text, x331 y+10, Start capturing and press the F3 Key`nto add functions.
 Gui, Add, Edit, x331 y+10 w275 h350 vEditMacroContent, %value_for_top_of_code_generation%
@@ -746,8 +743,7 @@ ReverseContent(inp) {
 
 #If IsCapturing
 Esc::gosub ButCapture
-
-;print((((((()))))))
+ 
 
 ~F3::
 	global DDLMacroActionValue
@@ -815,9 +811,6 @@ Esc::gosub ButCapture
 			; ##########################################
 			; Code generation inserted in GUI Box here
 			; ###############asdf#######################
-			; ##########################################
-			; Code generation inserted in GUI Box here
-			; ##########################################
 
 
 			wingetter=
@@ -826,8 +819,6 @@ Esc::gosub ButCapture
 			 
 			) 
 			
-				
-				
 			MacroPrelude :=  "WinActivate, ahk_id %" . MacroElementName .  "%`n" . "WinWaitActive, ahk_id %" . MacroElementName . "%`n"  
 			 . MacroElementName " := UIA.ElementFromHandle(" MacroElementName ")`n" 
 			 ; macro content (click or SetValue()) starts here !
@@ -853,20 +844,8 @@ Esc::gosub ButCapture
 			}
 			)
 				
-				
 				MacroContent := Function
 			
-			
-			
-			
-			
-			
-			; ############################################
-			; values in the GUI box for the code ends here
-			; ############################################
-			; ############################################
-			; values in the GUI box for the code ends here
-			; ############################################
 			; ############################################
 			; values in the GUI box for the code ends here
 			; ############################################

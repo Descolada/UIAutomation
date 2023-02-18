@@ -6,6 +6,19 @@ CoordMode, Mouse, Screen
 DetectHiddenWindows, On
 
 DeepSearchFromPoint := False ; Sets the default value for the deep search checkbox. When set to True (or checked), UIAViewer iterates through the whole UIA tree to find the smallest element from mouse point. This might be very slow with large trees.
+/*
+Importing skins gui- citation needed
+*/
+
+if !(A_IsUnicode=1 and A_PtrSize=4)
+{
+    SplitPath, A_AhkPath, , dir
+    Run, AutoHotkeyU32.exe, %A_ScriptDir%\skins
+    ExitApp
+}
+hSkinH := DllCall("LoadLibrary", "Str", A_ScriptDir "\lib\SkinHu.dll")
+DllCall("SkinHu\SkinH_AttachEx", "Str", A_ScriptDir "\lib\darkroyale.she")
+
 
 global UIA := UIA_Interface(), IsCapturing := False, Stored := {}, Acc, EnableAccTree := False, MainGuiHwnd, SaveToClipboard
 Stored.TreeView := {}

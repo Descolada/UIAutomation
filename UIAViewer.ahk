@@ -6,6 +6,18 @@ CoordMode, Mouse, Screen
 DetectHiddenWindows, On
 
 DeepSearchFromPoint := False ; Sets the default value for the deep search checkbox. When set to True (or checked), UIAViewer iterates through the whole UIA tree to find the smallest element from mouse point. This might be very slow with large trees.
+FileInstall, skins\SkinHu.dll,  skins\SkinHu.dll
+FileInstall, skins\darkroyale.she,  skins\darkroyale.she
+
+if !(A_IsUnicode=1 and A_PtrSize=4)
+{
+    SplitPath, A_AhkPath, , dir
+    Run, AutoHotkeyU32.exe, %A_ScriptDir%\skins
+    ExitApp
+}
+hSkinH := DllCall("LoadLibrary", "Str", A_ScriptDir "\skins\SkinHu.dll")
+DllCall("SkinHu\SkinH_AttachEx", "Str", A_ScriptDir "\skins\darkroyale.she")
+
 
 global UIA := UIA_Interface(), IsCapturing := False, Stored := {}, Acc, EnableAccTree := False, MainGuiHwnd, SaveToClipboard
 Stored.TreeView := {}
@@ -17,27 +29,26 @@ _xoffsetfirst := 8
 _xoffset := 5
 _yoffset := 20
 _ysoffset := 3
-_minSplitterPosX := 100, _maxSplitterPosX := 500, _minSplitterPosY := 100, _maxSplitterPosY := 500, SplitterW = 10
+_minSplitterPosX := 100, _maxSplitterPosX := 500, _minSplitterPosY := 100, _maxSplitterPosY := 500, SplitterW = 5
 
 Gui Main: New, AlwaysOnTop Resize hwndMainGuiHwnd, UIAViewer
+
 Gui Main: Default
+Gui Main: Font, s9
 
-Gui, Add, Text, x310 y0 w%SplitterW% h500 vSplitter1 gMoveSplitter1
-Gui, Add, Text, x%_xoffsetfirst% y390 w300 h%SplitterW% vSplitter2 gMoveSplitter2
-
-Gui Add, GroupBox, x8 y10 w302 h130 vGBWindowInfo, Window/Control Info
+Gui Add, GroupBox, x8 y8 w302 h130 vGBWindowInfo, Window/Control Info
 Gui Add, Text, x18 y28 w30 vTextWinTitle, WinTitle:
-Gui Add, Edit, x65 yp-%_ysoffset% w235 vEditWinTitle, 
+Gui Add, Edit, x75 yp-%_ysoffset% w225 vEditWinTitle, 
 Gui Add, Text, x18 y56 vTextHwnd, Hwnd:
 Gui Add, Edit, x65 yp-%_ysoffset% w90 vEditWinHwnd, 
 Gui Add, Text, x18 y86 vTextPosition, Position:
-Gui Add, Edit, x65 yp-%_ysoffset% w90 vEditWinPosition,
+Gui Add, Edit, x75 yp-%_ysoffset% w78 vEditWinPosition,
 Gui Add, Text, x18 y116 vTextSize, Size:
 Gui Add, Edit, x65 yp-%_ysoffset% w90 vEditWinSize,
-Gui Add, Text, x160 y56 vTextClassNN, ClassNN:
+Gui Add, Text, x160 y56 vTextClassNN, Class:
 Gui Add, Edit, x210 yp-%_ysoffset% w90 vEditWinClass,
 Gui Add, Text, x160 y86 vTextProcess, Process:
-Gui Add, Edit, x210 yp-%_ysoffset% w90 vEditWinProcess,
+Gui Add, Edit, x215 yp-%_ysoffset% w84 vEditWinProcess,
 Gui Add, Text, x160 y116 vTextProcessID, PID:
 Gui Add, Edit, x210 yp-%_ysoffset% w90 vEditWinProcessID,
 
@@ -54,6 +65,7 @@ if DeepSearchFromPoint
 
 Gui, Add, Tab3, x320 y8 w300 h505 vTabsMain, Tree view|Macro creator
 Gui, Tab, 1
+Gui Main: Font, s10
 Gui Add, TreeView, x+5 y+5 w200 h400 hwndhMainTreeView vMainTreeView gMainTreeView
 Gui Add, Button, xp+40 y+5 w192 vButRefreshTreeView gButRefreshTreeView +Disabled, Start capturing to show tree
 
@@ -70,6 +82,9 @@ Gui, Add, Edit, x+23 yp-%_ysoffset% w50 Number vEditMacroTimeout, 10000
 Gui, Add, Text, x+10 yp+%_ysoffset% , Action:
 Gui, Add, DropDownList, x+10 yp-1 w85 gDDLMacroAction vDDLMacroAction, Click||ControlClick|Click("left")|Highlight|SetValue|Do nothing
 Gui, Add, Text, x331 y+10, Start capturing and press the PrintScreen button`nto add functions.
+
+Gui Font
+Gui Font,, Consolas
 Gui, Add, Edit, x331 y+10 w275 h350 vEditMacroContent, %A_Space%`; #Include <UIA_Interface>`n `; SetTitleMatchMode, 2
 Gui, Tab
 
@@ -80,11 +95,13 @@ Gui, Font
 SB_SetParts(380)
 SB_SetText("`tCurrent UIA Interface version: " UIA.__Version,2)
 
+Gui, Add, Text, x310 y0 w%SplitterW% h500 vSplitter1 gMoveSplitter1
+Gui, Add, Text, x%_xoffsetfirst% y390 w300 h%SplitterW% vSplitter2 gMoveSplitter2
 ; Change the cursor when mouse is over splitter control
 OnMessage(WM_SETCURSOR := 0x20, "HandleMessage")
 OnMessage(WM_MOUSEMOVE := 0x200, "HandleMessage") 
 
-Gui Show,, UIAViewer
+Gui Show, w832, UIAViewer
 Return
 
 MainGuiEscape:
@@ -93,7 +110,7 @@ MainGuiClose:
     ExitApp
 
 MainGuiSize(GuiHwnd, EventInfo, Width, Height){
-	global splitterW, _minSplitterPosX := 200, _maxSplitterPosX := (Width - SplitterW - 310), _minSplitterPosY := 220, _maxSplitterPosY := (Height - SplitterW - 100)
+	global splitterW, _minSplitterPosX := 300, _maxSplitterPosX := (Width - SplitterW), _minSplitterPosY := 220, _maxSplitterPosY := (Height - SplitterW - 100)
 
 	GuiControl, -Redraw, TabsMain
 	GuiControlGet, Pos, Pos , TabsMain
@@ -303,16 +320,21 @@ MoveSplitter2:
 
 ; Handle splitters to adjust the size of controls
 GetMouseOffsets(ByRef offsetX, ByRef offsetY, _controlName) {
-	oldCoordMode := A_CoordModeMouse
 	CoordMode Mouse, Screen
 	MouseGetPos initScrX, initScrY, hWnd
-	CoordMode Mouse, Relative
+	CoordMode Mouse, Relative   ; Restore default
 	MouseGetPos initWinX, initWinY
+	; Compute client area relative coordinates of the mouse
+	VarSetCapacity(point, 8), NumPut(initScrX, point, 0, "int"), NumPut(initScrY, point, 4, "int")
+	DllCall("user32\ScreenToClient", "ptr", hWnd, "ptr", &point, "int")
+	initCliX := NumGet(point,0,"Int"), initCliY := NumGet(point,4,"Int")
 	; Coordinates of the control, relative to the client area
 	GuiControlGet controlPos, Pos, %_controlName%
+	mouseX := controlPosX, 	mouseY := controlPosY
 	; Compute offset between click inside control and top-left corner of control
-	offsetX := initWinX - controlPosX, offsetY :=  initWinY - controlPosY
-	CoordMode, Mouse, %oldCoordMode% ; Restore default
+	offsetX := initCliX - controlPosX, offsetY :=  initCliY - controlPosY
+	; Add offset between window and client area
+	offsetX += initWinX - initCliX, offsetY += initWinY - initCliY
 }
 
 DragSplitter1(_controlName) { ; Based on a script by user PhiLho (https://www.autohotkey.com/board/topic/8001-splitter-bar-window-control-with-ahk/)
@@ -322,29 +344,28 @@ DragSplitter1(_controlName) { ; Based on a script by user PhiLho (https://www.au
 	GetMouseOffsets(offsetX, offsetY, _controlName)
 	originalSizes := GetControlSizes(_controlName, "LVPropertyIds", "GBWindowInfo", "EditWinTitle", "GBProperties", "GBPatterns", "TVPatterns", "ButCapture", "CBDeepSearch", "EditWinHwnd", "EditWinPosition", "EditWinSize", "TextClassNN", "TextProcess", "TextProcessID", "EditWinClass", "EditWinProcess", "EditWinProcessID", "MainTreeView", "ButRefreshTreeview", "Splitter2", "TabsMain", "EditMacroContent", "DDLMacroMatchMode", "DDLMacroFunction")
 	oldControlPos := originalSizes[_controlName]
-	oldCoordMode := A_CoordModeMouse
-	CoordMode, Mouse, Relative
 	Loop {
 		if !GetKeyState("LButton")
-			Break
+			Break 
 		MouseGetPos, mouseX, mouseY
-		
-		moveX := Floor((mouseX-offsetX-oldControlPos.x)*(96/A_ScreenDPI))
-		if (oldControlPos.x+moveX > _maxSplitterPosX)
-			moveX := _maxSplitterPosX-oldControlPos.x
-		if (oldControlPos.x+moveX < _minSplitterPosX)
-			moveX := _minSplitterPosX-oldControlPos.x
+		mouseX -= offsetX
 
+		if (mouseX < _minSplitterPosX) {
+			mouseX := _minSplitterPosX
+		}
+		if (mouseX > _maxSplitterPosX) {
+			mouseX := _maxSplitterPosX
+		}
+		moveX := Floor((mouseX-oldControlPos.x)*(96/A_ScreenDPI))
 		OffsetControls(originalSizes,moveX,,,, _controlName, "CBDeepSearch")
 		OffsetControls(originalSizes,,, moveX,, "LVPropertyIds", "GBWindowInfo", "EditWinTitle", "GBProperties", "GBPatterns", "TVPatterns", "ButCapture", "Splitter2")
 		OffsetControls(originalSizes,,, moveX//2,, "EditWinHwnd", "EditWinPosition", "EditWinSize")
 		OffsetControls(originalSizes,moveX//2,, moveX//2,,"EditWinClass", "EditWinProcess", "EditWinProcessID")
 		OffsetControls(originalSizes,moveX//2,,,, "TextClassNN", "TextProcess", "TextProcessID")
 		OffsetControls(originalSizes,moveX,, -moveX,, "TabsMain")
-		OffsetControls(originalSizes,,, -moveX,, "ButRefreshTreeview", "MainTreeView", "EditMacroContent")
+		OffsetControls(originalSizes,,, -moveX,, "ButRefreshTreeview", "MainTreeView", "EditMacroContent", "DDLMacroMatchMode", "DDLMacroFunction")
 		Sleep 100
 	}
-	CoordMode, Mouse, %oldCoordMode%
 	WinSet, Redraw,, ahk_id %MainGuiHwnd%
 }
 DragSplitter2(_controlName) {
@@ -355,23 +376,24 @@ DragSplitter2(_controlName) {
 
 	originalSizes := GetControlSizes(_controlName, "LVPropertyIds", "GBWindowInfo", "EditWinTitle", "GBProperties", "GBPatterns", "TVPatterns", "ButCapture", "EditWinHwnd", "EditWinPosition", "EditWinSize", "TextClassNN", "TextProcess", "TextProcessID", "EditWinClass", "EditWinProcess", "EditWinProcessID", "MainTreeView", "ButRefreshTreeview")
 	oldControlPos := originalSizes[_controlName]
-	oldCoordMode := A_CoordModeMouse
-	CoordMode, Mouse, Relative
 	Loop {
 		if !GetKeyState("LButton")
 			Break 
 		MouseGetPos, mouseX, mouseY
-		moveY := Floor((mouseY-offsetY-oldControlPos.y)*(96/A_ScreenDPI))
-		if (oldControlPos.y+moveY > _maxSplitterPosY)
-			moveY := _maxSplitterPosY-oldControlPos.y
-		if (oldControlPos.y+moveY < _minSplitterPosY)
-			moveY := _minSplitterPosY-oldControlPos.y
+		mouseY -= offsetY
+
+		if (mouseY < _minSplitterPosY) {
+			mouseY := _minSplitterPosY
+		}
+		if (mouseY > _maxSplitterPosY) {
+			mouseY := _maxSplitterPosY
+		}
+		moveY := Floor((mouseY-oldControlPos.y)*(96/A_ScreenDPI))
 		OffsetControls(originalSizes,,moveY,,, _controlName)
 		OffsetControls(originalSizes, ,, ,moveY, "LVPropertyIds", "GBProperties")
 		OffsetControls(originalSizes,,moveY, ,-moveY, "GBPatterns", "TVPatterns")
 		Sleep 100
 	}
-	CoordMode, Mouse, %oldCoordMode%
 	WinSet, Redraw,, ahk_id %MainGuiHwnd%
 }
 
@@ -518,16 +540,15 @@ RedrawTreeView(el, noAncestors=True) {
 		ancestors := [], parent := el
 		while IsObject(parent) {
 			try {
-				if IsObject(parent := UIA.TreeWalkerTrue.GetParentElement(parent))
-					ancestors.Push(parent)
+				ancestors.Push(parent := UIA.TreeWalkerTrue.GetParentElement(parent))
 			} catch {
 				break
 			}
 		}
-
+		
 		; Loop backwards through ancestors to create the TreeView
-		maxInd := ancestors.MaxIndex()+1, parent := ""
-		while (--maxInd > 0) {
+		maxInd := ancestors.MaxIndex(), parent := ""
+		while (--maxInd > 1) {
 			if !IsObject(ancestors[maxInd])
 				return
 			try {
@@ -539,7 +560,7 @@ RedrawTreeView(el, noAncestors=True) {
 		}
 
 		; Add sibling elements
-		allChildren := ancestors[1].FindAll(UIA.TrueCondition, 0x2)
+		allChildren := ancestors[maxInd].FindAll(UIA.TrueCondition, 0x2)
 		for _, sibling in allChildren {
 			if UIA.CompareElements(sibling,el)
 				ConstructTreeView(el, parent) ; Add child elements to TreeView also
@@ -748,12 +769,29 @@ Esc::gosub ButCapture
 				MacroContent .= "." MacroAction (SubStr(MacroAction, 0, 1) = ")" ? "" : "()")
 		}
 		if (Stored.WinClass != "#32768") && !(RegexMatch(ReverseContent(PreviousContent), "m`n)WinExist\(""(.*) ahk_exe (.*) ahk_class (.*)""\)$", match) && (match1 = Stored.WinTitle) && (match2 = Stored.WinExe) && (match3 = Stored.WinClass)) {
+			exe1 := Stored.WinExe
+			class1 := Stored.WinClass
+			tit := Stored.WinTitle
+			p := "%" . MacroElementName . "%"
+			
+			MacroContent=
+(
+%MacroElementName% := WinExist("%tit% ahk_exe %exe1% ahk_class %class1%")
+WinActivate, ahk_id %p%
+WinWaitActive, ahk_id %p%
+%MacroElementName% := UIA.ElementFromHandle(%MacroElementName%)
+
+%MacroContent%
+)
+			
+			
+			/*
 			MacroContent := MacroElementName " := WinExist("""Stored.WinTitle " ahk_exe " Stored.WinExe " ahk_class " Stored.WinClass """)`n"
 			 . "WinActivate, ahk_id %" MacroElementName "%`n"
 			 . "WinWaitActive, ahk_id %" MacroElementName "%`n" 
 			 . MacroElementName " := UIA.ElementFromHandle(" MacroElementName ")`n`n"
 			 . MacroContent
-
+			*/
 		}
 		GuiControl,, EditMacroContent, % PreviousContent ? PreviousContent "`n`n" MacroContent : MacroContent
 	}
@@ -1858,7 +1896,7 @@ class UIA_TreeWalker extends UIA_Base {
 		,  __properties := "Condition,15,IUIAutomationCondition"
 	
 	GetParentElement(e) {
-		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))&&out? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))? UIA_Element(out):
 	}
 	GetFirstChildElement(e) {
 		return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr",e.__Value, "ptr*",out))&&out? UIA_Element(out):
@@ -2896,8 +2934,6 @@ class UIA_TextRangeArray extends UIA_Base {
 	; Used by UIA methods to create new UIA_Element objects of the highest available version. The highest version to try can be changed by modifying UIA_Enum.UIA_CurrentVersion_Element value.
 	UIA_Element(e,flag=1) {
 		static v, previousVersion
-		if !e
-			return
 		if (previousVersion != UIA_Enum.UIA_CurrentVersion_Element) ; Check if the user wants an element with a different version
 			v := ""
 		else if v
@@ -2945,8 +2981,6 @@ class UIA_TextRangeArray extends UIA_Base {
 			return UIA_Enum["UIA_" e]
 	}
 	UIA_ElementArray(p, uia="",flag=1) { ; Should AHK Object be 0 or 1 based? Currently 1 based.
-		if !p
-			return 
 		a:=new UIA_ElementArray(p,flag),out:=[]
 		Loop % a.Length
 			out[A_Index]:=a.GetElement(A_Index-1)

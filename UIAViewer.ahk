@@ -10,12 +10,6 @@ DeepSearchFromPoint := False ; Sets the default value for the deep search checkb
 Importing skins gui- citation needed
 */
 
-if !(A_IsUnicode=1 and A_PtrSize=4)
-{
-    SplitPath, A_AhkPath, , dir
-    Run, AutoHotkeyU32.exe, %A_ScriptDir%\skins
-    ExitApp
-}
 hSkinH := DllCall("LoadLibrary", "Str", A_ScriptDir "\lib\SkinHu.dll")
 DllCall("SkinHu\SkinH_AttachEx", "Str", A_ScriptDir "\lib\darkroyale.she")
 

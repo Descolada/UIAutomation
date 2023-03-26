@@ -276,38 +276,33 @@ class UIA_Interface extends UIA_Base {
 	}
 	; Creates a condition that selects elements that have a property with the specified value. 
 	; If type is specified then a new variant is created with the specified variant type, otherwise the type is fetched from UIA_PropertyVariantType enums (so usually this can be left unchanged).
-	CreatePropertyCondition(propertyId, value, type:="Variant") { 
+	CreatePropertyCondition(propertyId, value, type:=0xC) { 
 		local
 		global UIA_Enum, UIA_PropertyCondition
 		if propertyId is not integer
 			propertyId := UIA_Enum.UIA_PropertyId(propertyId)
-		if (type!="Variant")
-			UIA_Variant(value,type,value)
-		else if (maybeVar := UIA_Enum.UIA_PropertyVariantType(propertyId)) {
-			UIA_Variant(value,maybeVar,value)
-		}
-		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(23), "ptr",this.__Value, "int",propertyId, "int64", NumGet(value, 0, "int64"), "int64", NumGet(value, 8, "int64"), "ptr*",out:="") : DllCall(this.__Vt(23), "ptr",this.__Value, "int",propertyId, "ptr",&value, "ptr*",out:=""))? new UIA_PropertyCondition(out):
+		if ((maybeVar := UIA_Enum.UIA_PropertyVariantType(propertyId)) && (type = 0xC))
+			type := maybeVar
+		var := UIA_ComVar(type, value)
+		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(23), "ptr",this.__Value, "int",propertyId, "int64", NumGet(var.ptr+0, 0, "int64"), "int64", NumGet(var.ptr+0, 8, "int64"), "ptr*",out:="") : DllCall(this.__Vt(23), "ptr",this.__Value, "int",propertyId, "ptr",var.ptr, "ptr*",out:=""))? new UIA_PropertyCondition(out, 1):
 	}
 	; Creates a condition that selects elements that have a property with the specified value (value), using optional flags. If type is specified then a new variant is created with the specified variant type, otherwise the type is fetched from UIA_PropertyVariantType enums (so usually this can be left unchanged). flags can be one of PropertyConditionFlags, default is PropertyConditionFlags_IgnoreCase = 0x1.
-	CreatePropertyConditionEx(propertyId, value, type:="Variant", flags:=0x1) { 
+	CreatePropertyConditionEx(propertyId, value, type:=0xC, flags:=0x1) { 
 		local
 		global UIA_Enum, UIA_PropertyCondition
 		if propertyId is not integer
 			propertyId := UIA_Enum.UIA_PropertyId(propertyId)
-		maybeVar := UIA_Enum.UIA_PropertyVariantType(propertyId)
-		if (type!="Variant")
-			UIA_Variant(value,type,value)
-		else if maybeVar {
-			UIA_Variant(value,maybeVar,value)
-		}
-		if (maybeVar != 8) ; Check if the type is not BSTR to remove flags
+		if ((maybeVar := UIA_Enum.UIA_PropertyVariantType(propertyId)) && (type = 0xC))
+			type := maybeVar
+		var := UIA_ComVar(type, value)
+		if (type != 8)
 			flags := 0
-		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(24), "ptr",this.__Value, "int",propertyId, "int64", NumGet(value, 0, "int64"), "int64", NumGet(value, 8, "int64"), "uint",flags, "ptr*",out:="") : DllCall(this.__Vt(24), "ptr",this.__Value, "int",propertyId, "ptr",&value, "uint",flags, "ptr*",out:=""))? new UIA_PropertyCondition(out):
+		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(24), "ptr",this.__Value, "int",propertyId, "int64", NumGet(var.ptr+0, 0, "int64"), "int64", NumGet(var.ptr+0, 8, "int64"), "uint",flags, "ptr*",out:="") : DllCall(this.__Vt(24), "ptr",this.__Value, "int",propertyId, "ptr", var.ptr, "uint",flags, "ptr*",out:=""))? new UIA_PropertyCondition(out, 1):
 	}
 	; Creates a condition that selects elements that match both of two conditions.
 	CreateAndCondition(c1,c2) { 
 		local out
-		return UIA_Hr(DllCall(this.__Vt(25), "ptr",this.__Value, "ptr",c1.__Value, "ptr",c2.__Value, "ptr*",out:=""))? new UIA_AndCondition(out):
+		return UIA_Hr(DllCall(this.__Vt(25), "ptr",this.__Value, "ptr",c1.__Value, "ptr",c2.__Value, "ptr*",out:=""))? new UIA_AndCondition(out, 1):
 	}
 	; Creates a condition that selects elements based on multiple conditions, all of which must be true.
 	CreateAndConditionFromArray(array) { 
@@ -321,7 +316,7 @@ class UIA_Interface extends UIA_Base {
 			for i,c in array
 				SafeArray[A_Index-1]:=c.__Value, ObjAddRef(c.__Value) ; AddRef - SafeArrayDestroy will release UIA_Conditions - they also release themselves
 		}
-		return UIA_Hr(DllCall(this.__Vt(26), "ptr",this.__Value, "ptr",ComObjValue(SafeArray), "ptr*",out:=""))? new UIA_AndCondition(out):
+		return UIA_Hr(DllCall(this.__Vt(26), "ptr",this.__Value, "ptr",ComObjValue(SafeArray), "ptr*",out:=""))? new UIA_AndCondition(out, 1):
 	}
 	; Creates a condition that selects elements from a native array, based on multiple conditions that must all be true
 	CreateAndConditionFromNativeArray(conditions, conditionCount) { ; UNTESTED. 
@@ -330,12 +325,12 @@ class UIA_Interface extends UIA_Base {
 			[out, retval]  IUIAutomationCondition **newCondition
 		*/
 		local out
-		return UIA_Hr(DllCall(this.__Vt(27), "ptr",this.__Value, "ptr", conditions, "int", conditionCount, "ptr*",out:=""))? new UIA_AndCondition(out):
+		return UIA_Hr(DllCall(this.__Vt(27), "ptr",this.__Value, "ptr", conditions, "int", conditionCount, "ptr*",out:=""))? new UIA_AndCondition(out, 1):
 	}
 	; Creates a combination of two conditions where a match exists if either of the conditions is true.
 	CreateOrCondition(c1,c2) { 
 		local out
-		return UIA_Hr(DllCall(this.__Vt(28), "ptr",this.__Value, "ptr",c1.__Value, "ptr",c2.__Value, "ptr*",out:=""))? new UIA_OrCondition(out):
+		return UIA_Hr(DllCall(this.__Vt(28), "ptr",this.__Value, "ptr",c1.__Value, "ptr",c2.__Value, "ptr*",out:=""))? new UIA_OrCondition(out, 1):
 	}
 	; Creates a combination of two or more conditions where a match exists if any of the conditions is true.
 	CreateOrConditionFromArray(array) { 
@@ -348,11 +343,11 @@ class UIA_Interface extends UIA_Base {
 			for i,c in array
 				SafeArray[A_Index-1]:=c.__Value, ObjAddRef(c.__Value) ; AddRef - SafeArrayDestroy will release UIA_Conditions - they also release themselves
 		}
-		return UIA_Hr(DllCall(this.__Vt(29), "ptr",this.__Value, "ptr",ComObjValue(SafeArray), "ptr*",out:=""))? new UIA_OrCondition(out):
+		return UIA_Hr(DllCall(this.__Vt(29), "ptr",this.__Value, "ptr",ComObjValue(SafeArray), "ptr*",out:=""))? new UIA_OrCondition(out, 1):
 	}
 	CreateOrConditionFromNativeArray(p*) { ; Not Implemented
 		local out
-		return UIA_Hr(DllCall(this.__Vt(30), "ptr",this.__Value, "ptr",conditions, "int", conditionCount, "ptr*",out:=""))? new UIA_OrCondition(out):
+		return UIA_Hr(DllCall(this.__Vt(30), "ptr",this.__Value, "ptr",conditions, "int", conditionCount, "ptr*",out:=""))? new UIA_OrCondition(out, 1):
 	/*	[in]           IUIAutomationCondition **conditions,
 		[in]           int conditionCount,
 		[out, retval]  IUIAutomationCondition **newCondition
@@ -361,7 +356,7 @@ class UIA_Interface extends UIA_Base {
 	; Creates a condition that is the negative of a specified condition.
 	CreateNotCondition(c) { 
 		local out
-		return UIA_Hr(DllCall(this.__Vt(31), "ptr",this.__Value, "ptr",c.__Value, "ptr*",out:=""))? new UIA_NotCondition(out):
+		return UIA_Hr(DllCall(this.__Vt(31), "ptr",this.__Value, "ptr",c.__Value, "ptr*",out:=""))? new UIA_NotCondition(out, 1):
 	}
 	; Registers a method that handles Microsoft UI Automation events. eventId must be an EventId enum. scope must be a TreeScope enum. cacheRequest can be specified is caching is used. handler is an event handler object, which can be created with UIA_CreateEventHandler function.
 	AddAutomationEventHandler(eventId, element, scope=0x4, cacheRequest=0, handler="") { 
@@ -418,7 +413,7 @@ class UIA_Interface extends UIA_Base {
 	RectToVariant(ByRef rect, ByRef out="") {	; in:{left,top,right,bottom} ; out:(left,top,width,height)
 		; in:	RECT Struct
 		; out:	AHK Wrapped SafeArray & ByRef Variant
-		return UIA_Hr(DllCall(this.__Vt(44), "ptr",this.__Value, "ptr",&rect, "ptr",UIA_Variant(out)))? UIA_VariantData(out):
+		return UIA_Hr(DllCall(this.__Vt(44), "ptr",this.__Value, "ptr",&rect, "ptr",UIA_Variant(out)))? UIA_VariantData(out):UIA_VariantClear(out)
 	}
 	VariantToRect(ByRef var, ByRef rect="") { ; NOT WORKING
 		; in:	VT_VARIANT (SafeArray)
@@ -1255,26 +1250,26 @@ class UIA_Element extends UIA_Base {
 	GetCurrentPropertyValue(propertyId, ByRef out:="") { 
 		if propertyId is not integer
 			propertyId := UIA_Enum.UIA_PropertyId(propertyId)
-		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "uint", propertyId, "ptr",UIA_Variant(out)))? UIA_VariantData(out):
+		return UIA_Hr(DllCall(this.__Vt(10), "ptr",this.__Value, "uint", propertyId, "ptr",UIA_Variant(out)))? UIA_VariantData(out):UIA_VariantClear(out)
 		
 	}
 	; Retrieves a property value for this element, optionally ignoring any default value. Passing FALSE in the ignoreDefaultValue parameter is equivalent to calling GetCurrentPropertyValue
 	GetCurrentPropertyValueEx(propertyId, ignoreDefaultValue:=1, ByRef out:="") { 
 		if propertyId is not integer
 			propertyId := UIA_Enum.UIA_PropertyId(propertyId)
-		return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "uint",propertyId, "uint",ignoreDefaultValue, "ptr",UIA_Variant(out)))? UIA_VariantData(out):
+		return UIA_Hr(DllCall(this.__Vt(11), "ptr",this.__Value, "uint",propertyId, "uint",ignoreDefaultValue, "ptr",UIA_Variant(out)))? UIA_VariantData(out):UIA_VariantClear(out)
 	}
 	; Retrieves a property value from the cache for this element.
 	GetCachedPropertyValue(propertyId, ByRef out:="") { ; UNTESTED. 
 		if propertyId is not integer
 			propertyId := UIA_Enum.UIA_PropertyId(propertyId)
-		return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "uint",propertyId, "ptr",UIA_Variant(out)))? UIA_VariantData(out):
+		return UIA_Hr(DllCall(this.__Vt(12), "ptr",this.__Value, "uint",propertyId, "ptr",UIA_Variant(out)))? UIA_VariantData(out):UIA_VariantClear(out)
 	}
 	; Retrieves a property value from the cache for this element, optionally ignoring any default value. Passing FALSE in the ignoreDefaultValue parameter is equivalent to calling GetCachedPropertyValue
 	GetCachedPropertyValueEx(propertyId, ignoreDefaultValue:=1, ByRef out:="") { 
 		if propertyId is not integer
 			propertyId := UIA_Enum.UIA_PropertyId(propertyId)
-		return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "uint",propertyId, "uint",ignoreDefaultValue, "ptr",UIA_Variant(out)))? UIA_VariantData(out):
+		return UIA_Hr(DllCall(this.__Vt(13), "ptr",this.__Value, "uint",propertyId, "uint",ignoreDefaultValue, "ptr",UIA_Variant(out)))? UIA_VariantData(out):UIA_VariantClear(out)
 	}
 	; Retrieves a UIA_Pattern object of the specified control pattern on this element. If a full pattern name is specified then that exact version will be used (eg "TextPattern" will return a UIA_TextPattern object), otherwise the highest version will be used (eg "Text" might return UIA_TextPattern2 if it is available). usedPattern will be set to the actual string used to look for the pattern (used mostly for debugging purposes)
 	GetCurrentPatternAs(pattern, ByRef usedPattern:="") { 
@@ -1996,7 +1991,7 @@ class UIA_Element4 extends UIA_Element3 {
 	CurrentAnnotationTypes[] {
 		get {
 			local
-			return UIA_Hr(DllCall(this.__Vt(97), "ptr",this.__Value, "ptr",UIA_Variant(out:="")))&&out?UIA_VariantData(out):
+			return UIA_Hr(DllCall(this.__Vt(97), "ptr",this.__Value, "ptr",UIA_Variant(out:="")))&&out?UIA_VariantData(out):UIA_VariantClear(out)
 		}
 	}
 	CurrentAnnotationObjects[] {
@@ -2026,7 +2021,7 @@ class UIA_Element4 extends UIA_Element3 {
 	CachedAnnotationTypes[] {
 		get {
 			local
-			return UIA_Hr(DllCall(this.__Vt(102), "ptr",this.__Value, "ptr",UIA_Variant(out:="")))&&out?UIA_VariantData(out):
+			return UIA_Hr(DllCall(this.__Vt(102), "ptr",this.__Value, "ptr",UIA_Variant(out:="")))&&out?UIA_VariantData(out):UIA_VariantClear(out)
 		}
 	}
 	CachedAnnotationObjects[] {
@@ -2107,7 +2102,7 @@ class UIA_Element7 extends UIA_Element6 {
 	}
 	GetCurrentMetadataValue(targetId, metadataId) {
 		local
-		return UIA_Hr(DllCall(this.__Vt(114), "ptr",this.__Value, "int",targetId, "int", metadataId, "ptr*", UIA_Variant(out:="")))? UIA_VariantData(out):
+		return UIA_Hr(DllCall(this.__Vt(114), "ptr",this.__Value, "int",targetId, "int", metadataId, "ptr*", UIA_Variant(out:="")))? UIA_VariantData(out):UIA_VariantClear(out)
 	}
 }
 
@@ -2226,7 +2221,7 @@ class UIA_PropertyCondition extends UIA_Condition {
 	PropertyValue[] {
 		get {
 			local
-			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr",UIA_Variant(out:="")))&&out?UIA_VariantData(out):
+			return UIA_Hr(DllCall(this.__Vt(4), "ptr",this.__Value, "ptr",UIA_Variant(out:="")))&&out?UIA_VariantData(out):UIA_VariantClear(out)
 		}
 	}
 	PropertyConditionFlags[] {
@@ -2765,9 +2760,8 @@ class UIA_ItemContainerPattern extends UIA_Base {
 
 	FindItemByProperty(startAfter, propertyId, ByRef value, type:=8) {	; Hr!=0 if no result, or blank output?
 		local
-		if (type!="Variant")
-			UIA_Variant(value,type,value)
-		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",startAfter.__Value, "int",propertyId, "int64",NumGet(value, 0, "int64"),"int64",NumGet(value, 8, "int64"), "ptr*",out:="") : DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",startAfter.__Value, "int",propertyId, "ptr",&value, "ptr*",out:=""))? UIA_Element(out):
+		var := UIA_ComVar(type,value)
+		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",startAfter.__Value, "int",propertyId, "int64",NumGet(var.ptr+0, 0, "int64"),"int64",NumGet(var.ptr+0, 8, "int64"), "ptr*",out:="") : DllCall(this.__Vt(3), "ptr",this.__Value, "ptr",startAfter.__Value, "int",propertyId, "ptr",var.ptr+0, "ptr*",out:=""))? UIA_Element(out):
 	}
 }
 
@@ -3353,7 +3347,7 @@ class UIA_SpreadsheetItemPattern extends UIA_Base { ; UNTESTED
 	}
 	GetCurrentAnnotationTypes() {
 		local
-		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr", UIA_Variant(out:="")))?UIA_VariantData(out):
+		return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr", UIA_Variant(out:="")))?UIA_VariantData(out):UIA_VariantClear(out)
 	}
 	GetCachedAnnotationObjects() {
 		local
@@ -3361,7 +3355,7 @@ class UIA_SpreadsheetItemPattern extends UIA_Base { ; UNTESTED
 	}
 	GetCachedAnnotationTypes() {
 		local
-		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr", UIA_Variant(out:="")))?UIA_VariantData(out):
+		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr", UIA_Variant(out:="")))?UIA_VariantData(out):UIA_VariantClear(out)
 	}
 }
 
@@ -4100,13 +4094,13 @@ class UIA_DragPattern extends UIA_Base { ; UNTESTED, couldn't find a window that
 	CurrentDropEffects[] {
 		get {
 			local
-			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr",UIA_Variant(out:="")))&&out?UIA_VariantData(out):
+			return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "ptr",UIA_Variant(out:="")))&&out?UIA_VariantData(out):UIA_VariantClear(out)
 		}
 	}
 	CachedDropEffects[] {
 		get {
 			local
-			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr",UIA_Variant(out:="")))&&out?UIA_VariantData(out):
+			return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "ptr",UIA_Variant(out:="")))&&out?UIA_VariantData(out):UIA_VariantClear(out)
 		}
 	}
 
@@ -4146,13 +4140,13 @@ class UIA_DropTargetPattern extends UIA_Base { ; UNTESTED
 	CurrentDropTargetEffects[] {
 		get {
 			local
-			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr",UIA_Variant(out:="")))&&out?UIA_VariantData(out):
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "ptr",UIA_Variant(out:="")))&&out?UIA_VariantData(out):UIA_VariantClear(out)
 		}
 	}
 	CachedDropTargetEffects[] {
 		get {
 			local
-			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",UIA_Variant(out:="")))&&out?UIA_VariantData(out):
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "ptr",UIA_Variant(out:="")))&&out?UIA_VariantData(out):UIA_VariantClear(out)
 		}
 	}
 }
@@ -4205,8 +4199,8 @@ class UIA_TextRange extends UIA_Base {
 		local var, out
 		if attr is not integer
 			attr := UIA_Enum.UIA_AttributeId(attr)
-		UIA_Variant(var:="", UIA_Enum.UIA_AttributeVariantType(attr), val)
-		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(7), "ptr",this.__Value,"int",attr,"int64",NumGet(var, 0, "int64"),"int64",NumGet(var, 8, "int64"),"int",backward, "ptr*",out:="") : DllCall(this.__Vt(7), "ptr",this.__Value,"int",attr,"ptr",&var,"int",backward,"ptr*",out:=""))?UIA_TextRange(out):
+		var := UIA_ComVar(UIA_Enum.UIA_AttributeVariantType(attr), val)
+		return UIA_Hr((A_PtrSize == 4) ? DllCall(this.__Vt(7), "ptr",this.__Value,"int",attr,"int64",NumGet(var.ptr+0, 0, "int64"),"int64",NumGet(var.ptr+0, 8, "int64"),"int",backward, "ptr*",out:="") : DllCall(this.__Vt(7), "ptr",this.__Value,"int",attr,"ptr",var.ptr,"int",backward,"ptr*",out:=""))?UIA_TextRange(out):
 	}
 	; Retrieves a text range subset that contains the specified text.
 	FindText(text, backward:=False, ignoreCase:=False) { 
@@ -4216,7 +4210,7 @@ class UIA_TextRange extends UIA_Base {
 	; Retrieves the value of the specified text attribute across the entire text range. attr needs to be a UIA_TextAttributeId enum.
 	GetAttributeValue(attr) { 
 		local
-		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value,"int", attr,"ptr",UIA_Variant(out:="")))?UIA_VariantData(out):
+		return UIA_Hr(DllCall(this.__Vt(9), "ptr",this.__Value,"int", attr,"ptr",UIA_Variant(out:="")))?UIA_VariantData(out):UIA_VariantClear(out)
 	}
 	; Returns an array of bounding rectangle objects {x:top left X-coord,y:top left Y-coord,w:width,h:height} for each fully or partially visible line of text in a text range.
 	GetBoundingRectangles() { 
@@ -4523,6 +4517,31 @@ UIA_Variant(ByRef var,type:=0,val:=0) {
 	; Old implementation:
 	; return (VarSetCapacity(var,8+2*A_PtrSize)+NumPut(type,var,0,"short")+NumPut(type=8? DllCall("oleaut32\SysAllocString", "ptr",&val):val,var,8,"ptr"))*0+&var
 }
+
+UIA_ComVar(Type := 0xC, val:=0) {
+    static base := { __Get: Func("ComVarGet"), __Set: Func("ComVarSet")
+	, __Delete: Func("ComVarDel") }
+	cv := {base: base}
+    cv.SetCapacity("buf", 24), ptr := cv.GetAddress("buf")
+    NumPut(0, NumPut(0, ptr+0, "int64"), "int64")
+	cv.ref := ComObject(0x400C, ptr)
+	cv.ref[] := (type!=0xC)&&(type!=8)?ComObject(type,type=0xB?(!val?0:-1):val):val
+	cv.ptr := ComObjValue(cv.ref)
+	return cv
+}
+ComVarGet(cv, p*) { ; Called when script accesses an unknown field.
+    if p.MaxIndex() = "" ; No name/parameters, i.e. cv[]
+        return cv.ref[]
+}
+ComVarSet(cv, v, p*) { ; Called when script sets an unknown field.
+    if p.MaxIndex() = "" ; No name/parameters, i.e. cv[]:=v
+        return cv.ref[] := v
+}
+ComVarDel(cv) { ; Called when the object is being freed.
+    ; Depending on type, this may be needed to free the value, if set.
+    DllCall("oleaut32\VariantClear", "ptr", cv.GetAddress("buf"))
+}
+
 UIA_IsVariant(ByRef vt, ByRef type:="", offset:=0, flag:=1) {
 	local
 	size:=VarSetCapacity(vt),type:=NumGet(vt,offset,"UShort")

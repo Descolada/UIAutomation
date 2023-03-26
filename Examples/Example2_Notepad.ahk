@@ -1,4 +1,5 @@
-﻿#NoEnv
+﻿#Requires AutoHotkey v1.1.33+
+#NoEnv
 #Warn
 #SingleInstance force
 SetTitleMatchMode, 2

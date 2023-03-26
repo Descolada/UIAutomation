@@ -1,7 +1,7 @@
-﻿#SingleInstance, force
+﻿#Requires AutoHotkey v1.1.33+
+#SingleInstance, force
 #Warn
 #NoEnv  ; Recommended for performance and compatibility with future AutoHotkey releases.
-; #Warn
 SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 SetTitleMatchMode, 2
 SetBatchLines, -1

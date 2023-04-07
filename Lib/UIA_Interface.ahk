@@ -509,7 +509,6 @@ class UIA_Interface extends UIA_Base {
 		global UIA_Enum
 		if InStr(propertyOrExpr, "=") { ; Expression
 			match := "", match3 := "", match5 := "", currentCondition := "", fullCondition := "", operator := "", valueOrFlags := ((!valueOrFlags) ? 0 : valueOrFlags), counter := 1, conditions := [], currentExpr := "(" propertyOrExpr ")"
-			OutputDebug % "PE: " propertyOrExpr " VF: " valueOrFlags " flags: " flags "`n"
 			; First create all single conditions (not applying AND, OR, NOT)
 			while RegexMatch(currentExpr, "i) *(NOT|!)? *(\w+?(?<!UIA_CONDITION)) *=(?: *(\d+|'.*?(?<=[^\\]|[^\\]\\\\)')|([^()]*?)) *(?: FLAGS=(\d))? *?( AND | OR |&&|\|\||[()]|$) *", match) {
 				/*

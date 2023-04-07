@@ -508,7 +508,8 @@ class UIA_Interface extends UIA_Base {
 		local
 		global UIA_Enum
 		if InStr(propertyOrExpr, "=") { ; Expression
-			match := "", match3 := "", match5 := "", currentCondition := "", fullCondition := "", operator := "",valueOrFlags := (valueOrFlags == "") ? 0 : valueOrFlags, counter := 1, conditions := [], currentExpr := "(" propertyOrExpr ")"
+			match := "", match3 := "", match5 := "", currentCondition := "", fullCondition := "", operator := "", valueOrFlags := ((!valueOrFlags) ? 0 : valueOrFlags), counter := 1, conditions := [], currentExpr := "(" propertyOrExpr ")"
+			OutputDebug % "PE: " propertyOrExpr " VF: " valueOrFlags " flags: " flags "`n"
 			; First create all single conditions (not applying AND, OR, NOT)
 			while RegexMatch(currentExpr, "i) *(NOT|!)? *(\w+?(?<!UIA_CONDITION)) *=(?: *(\d+|'.*?(?<=[^\\]|[^\\]\\\\)')|([^()]*?)) *(?: FLAGS=(\d))? *?( AND | OR |&&|\|\||[()]|$) *", match) {
 				/*
@@ -1221,25 +1222,25 @@ class UIA_Element extends UIA_Base {
 	FindFirst(c:="", scope:=0x4, cacheRequest:="") { 
 		local
 		if !cacheRequest	
-			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr*",out:=""))? UIA_Element(out):
+			return UIA_Hr(DllCall(this.__Vt(5), "ptr",this.__Value, "uint",scope, "ptr", (c:=(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c)))).__Value, "ptr*",out:=""))? UIA_Element(out):
 		return this.FindFirstBuildCache(c, scope, cacheRequest)
 	}
 	; Returns all UI Automation elements that satisfy the specified condition. scope must be one of TreeScope enums (default is TreeScope_Descendants := 0x4). If cacheRequest is specified, then FindAllBuildCache is used instead.
 	FindAll(c:="", scope:=0x4, cacheRequest:="") { 
 		local
 		if !cacheRequest
-			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr*",out:=""))? UIA_ElementArray(out):
+			return UIA_Hr(DllCall(this.__Vt(6), "ptr",this.__Value, "uint",scope, "ptr", (c:=(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c)))).__Value, "ptr*",out:=""))? UIA_ElementArray(out):
 		return this.FindAllBuildCache(c, scope, cacheRequest)
 	}
 	; Retrieves the first child or descendant element that matches the specified condition, prefetches the requested properties and control patterns, and stores the prefetched items in the cache
 	FindFirstBuildCache(c:="", scope:=0x4, cacheRequest:="") { ; UNTESTED. 
 		local
-		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr",cacheRequest.__Value, "ptr*",out:=""))? UIA_Element(out):
+		return UIA_Hr(DllCall(this.__Vt(7), "ptr",this.__Value, "uint",scope, "ptr",(c:=(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c)))).__Value, "ptr",cacheRequest.__Value, "ptr*",out:=""))? UIA_Element(out):
 	}
 	; Returns all UI Automation elements that satisfy the specified condition, prefetches the requested properties and control patterns, and stores the prefetched items in the cache.
 	FindAllBuildCache(c:="", scope:=0x4, cacheRequest:="") { ; UNTESTED. 
 		local
-		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "uint",scope, "ptr",(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c))).__Value, "ptr",cacheRequest.__Value, "ptr*",out:=""))? UIA_ElementArray(out):
+		return UIA_Hr(DllCall(this.__Vt(8), "ptr",this.__Value, "uint",scope, "ptr",(c:=(c=""?this.TrueCondition:(IsObject(c)?c:this.__UIA.CreateCondition(c)))).__Value, "ptr",cacheRequest.__Value, "ptr*",out:=""))? UIA_ElementArray(out):
 	}
 	; Retrieves a new UI Automation element with an updated cache.
 	BuildUpdatedCache(cacheRequest) { ; UNTESTED. 

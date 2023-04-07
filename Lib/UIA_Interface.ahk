@@ -4342,15 +4342,14 @@ class UIA_TextRangeArray extends UIA_Base {
 	On subsequent calls of UIA_Interface(), the previously created UIA interface object is returned to avoid multiple connections being made. To bypass this, specify a maxVersion
 	Note that a new UIA_Interface object can't be created with the "new" keyword. 
 */
-UIA_Interface(maxVersion:="") {
-	local screenreader := "", max, uiaBase, e
-	static uia := ""
+UIA_Interface(maxVersion:="", activateScreenReader:=1) {
+	local max, uiaBase, e 
+	static uia := "", cleanup := ""
 	if (IsObject(uia) && (maxVersion == ""))
 		return uia
+	if (!IsObject(cleanup))
+		cleanup := new UIA_Cleanup(activateScreenReader)
 	; enable screenreader flag if disabled
-	DllCall("user32.dll\SystemParametersInfo", "uint", 0x0046, "uint", 0, "ptr*", screenreader) ; SPI_GETSCREENREADER
-	if !screenreader
-		DllCall("user32.dll\SystemParametersInfo", "uint", 0x0047, "uint", 1, "int", 0, "uint", 2) ; SPI_SETSCREENREADER
 	max := (maxVersion?maxVersion:UIA_Enum.UIA_MaxVersion_Interface)+1
 	while (--max) {
 			
@@ -4375,6 +4374,27 @@ UIA_Interface(maxVersion:="") {
 	} catch e
 		MsgBox, 262160, UIA Startup Error, % IsObject(e)?"IUIAutomation Interface is not registered.":e.Message
 	return
+}
+class UIA_Cleanup {
+	__New(screenreader) {
+		this.ScreenReaderActivate := screenreader, this.ScreenReaderStartingState := UIA_GetScreenReader()
+		if (this.ScreenReaderActivate && !this.ScreenReaderStartingState)
+			UIA_SetScreenReader(1)
+	}
+	__Delete() {
+		if (this.ScreenReaderActivate)
+			UIA_SetScreenReader(this.ScreenReaderStartingState)
+	}
+}
+UIA_GetScreenReader() {
+	if (A_PtrSize = 4)
+		DllCall("user32.dll\SystemParametersInfo", "uint", 0x0046, "uint", 0, "ptr*", screenreader, "uint", 0)
+	else
+		DllCall("user32.dll\SystemParametersInfo", "uint", 0x0046, "uint", 0, "ptr*", screenreader) ; SPI_GETSCREENREADER
+	return screenreader
+}
+UIA_SetScreenReader(state, fWinIni:=2) {
+	DllCall("user32.dll\SystemParametersInfo", "uint", 0x0047, "uint", state, "ptr", 0, "uint", fWinIni) ; SPI_SETSCREENREADER
 }
 ; Converts an error code to the corresponding error message
 UIA_Hr(hr) {

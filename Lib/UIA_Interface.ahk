@@ -4387,6 +4387,7 @@ class UIA_Cleanup {
 	}
 }
 UIA_GetScreenReader() {
+	local screenreader := 0
 	if (A_PtrSize = 4)
 		DllCall("user32.dll\SystemParametersInfo", "uint", 0x0046, "uint", 0, "ptr*", screenreader, "uint", 0)
 	else

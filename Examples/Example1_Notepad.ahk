@@ -11,8 +11,14 @@ SetBatchLines, -1
 Run, notepad.exe
 UIA := UIA_Interface() ; Initialize UIA interface
 WinWaitActive, ahk_exe notepad.exe
+Sleep 40
 npEl := UIA.ElementFromHandle("ahk_exe notepad.exe") ; Get the element for the Notepad window
 documentEl := npEl.FindFirst("Type=Document or Type=Edit") ; Find the first Document/Edit control (in Notepad there is only one). In older Windows builds it's Edit, in newer it's Document.
+if !documentEl {
+    ; Windows 11 has broken Notepad so that the Document element isn't findable; instead get it by the ClassNN
+    ControlGet, hWnd, Hwnd,, RichEditD2DPT1
+    documentEl := UIA.ElementFromHandle(hWnd)
+}
 documentEl.Highlight() ; Highlight the found element
 documentEl.Value := "Lorem ipsum" ; Set the value for the document control. 
 

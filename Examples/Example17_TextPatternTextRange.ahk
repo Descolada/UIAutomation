@@ -17,9 +17,15 @@ Run notepad.exe
 ;WinActivate, ahk_exe notepad.exe
 UIA := UIA_Interface()
 WinWaitActive, ahk_exe notepad.exe
+Sleep, 40
 ;MsgBox, % UIA.TextPatternRangeEndpoint_Start " " UIA.TextPatternRangeEndpoint_End " " UIA.TextUnit_Character
 NotepadEl := UIA.ElementFromHandle("ahk_exe notepad.exe")
 editEl := NotepadEl.FindFirstBy("ControlType=Document OR ControlType=Edit") ; Get the Edit or Document element (differs between UIAutomation versions)
+if !documentEl {
+  ; Windows 11 has broken Notepad so that the Document element isn't findable; instead get it by the ClassNN
+  ControlGet, hWnd, Hwnd,, RichEditD2DPT1
+  editEl := UIA.ElementFromHandle(hWnd)
+}
 editEl.Value := lorem ; Set the text to our sample text
 textPattern := editEl.TextPattern ; Get the TextPattern
 

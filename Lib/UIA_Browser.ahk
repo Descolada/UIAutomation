@@ -140,7 +140,7 @@ class UIA_Chrome extends UIA_Browser {
 					this.TabBarElement := this.MainPaneElement
 				Loop 2 {
 					try {
-						this.ReloadButton := this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetFirstChildElement(this.NavigationBarElement)))
+						this.ReloadButton := this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.ButtonTreeWalker.GetFirstChildElement(this.NavigationBarElement)))
 						this.ReloadButtonDescription := this.ReloadButton.GetCurrentPatternAs("LegacyIAccessible").CurrentDescription
 						this.ReloadButtonName := this.ReloadButton.CurrentName
 					}
@@ -192,7 +192,7 @@ class UIA_Edge extends UIA_Browser {
 					this.TabBarElement := this.MainPaneElement
 				Loop 2 {
 					try {
-						this.ReloadButton := this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetNextSiblingElement(this.UIA.TreeWalkerTrue.GetFirstChildElement(this.NavigationBarElement)))
+						this.ReloadButton := this.ButtonTreeWalker.GetNextSiblingElement(this.ButtonTreeWalker.GetNextSiblingElement(this.ButtonTreeWalker.GetFirstChildElement(this.NavigationBarElement)))
 						this.ReloadButtonFullDescription := this.ReloadButton.CurrentFullDescription
 						this.ReloadButtonName := this.ReloadButton.CurrentName
 					}
@@ -342,6 +342,7 @@ class UIA_Browser {
 		this.ToolbarControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.ToolBarControlTypeId)
 		this.TabControlCondition := this.UIA.CreatePropertyCondition(this.UIA.ControlTypePropertyId, this.UIA.TabControlTypeId)
 		this.ToolbarTreeWalker := this.UIA.CreateTreeWalker(this.ToolbarControlCondition)
+		this.ButtonTreeWalker := this.UIA.CreateTreeWalker(this.ButtonControlCondition)
 		this.BrowserElement := this.UIA.ElementFromHandle(this.BrowserId)
 		this.GetCurrentMainPaneElement()
 	}
@@ -463,8 +464,7 @@ class UIA_Browser {
 			if this.ReloadButton && CurrentName
 				return this.ReloadButton
 		}
-		ButtonWalker := this.UIA.CreateTreeWalker(this.ButtonControlCondition)
-		this.ReloadButton := ButtonWalker.GetNextSiblingElement(ButtonWalker.GetNextSiblingElement(ButtonWalker.GetFirstChildElement(this.NavigationBarElement)))
+		this.ReloadButton := this.ButtonTreeWalker.GetNextSiblingElement(this.ButtonTreeWalker.GetNextSiblingElement(this.ButtonTreeWalker.GetFirstChildElement(this.NavigationBarElement)))
 		return this.ReloadButton
 	}
 	
@@ -664,12 +664,12 @@ class UIA_Browser {
 	
 	; Presses the Back button
 	Back() { 
-		this.TWT.GetFirstChildElement(this.NavigationBarElement).Click()
+		this.ButtonTreeWalker.GetFirstChildElement(this.NavigationBarElement).Click()
 	}
 	
 	; Presses the Forward button
 	Forward() { 
-		this.TWT.GetNextSiblingElement(this.TWT.GetFirstChildElement(this.NavigationBarElement)).Click()
+		this.ButtonTreeWalker.GetNextSiblingElement(this.ButtonTreeWalker.GetFirstChildElement(this.NavigationBarElement)).Click()
 	}
 
 	; Presses the Reload button
@@ -680,7 +680,7 @@ class UIA_Browser {
 	; Presses the Home button if it exists.
 	Home() { 
 		local
-		if (this.ReloadButton && (homeBut := this.TWT.GetNextSiblingElement(this.ReloadButton)))
+		if (this.ReloadButton && (homeBut := this.ButtonTreeWalker.GetNextSiblingElement(this.ReloadButton)))
 			return homeBut.Click()
 		;NameCondition := this.UIA.CreatePropertyCondition(this.UIA.NamePropertyId, this.CustomNames.HomeButtonName ? this.CustomNames.HomeButtonName : butName)
 		;this.NavigationBarElement.FindFirst(this.UIA.CreateAndCondition(NameCondition, this.ButtonControlCondition)).Click()
